@@ -53,5 +53,18 @@ App({
         wx.removeStorageSync('miniapp_role');
       }
     }
+  },
+
+  clearSession() {
+    this.globalData.openid = '';
+    this.globalData.customer = null;
+    this.globalData.employee = null;
+    this.globalData.staffUser = null;
+    this.globalData.role = '';
+    wx.removeStorageSync('miniapp_openid');
+    wx.removeStorageSync('miniapp_customer');
+    wx.removeStorageSync('miniapp_employee');
+    wx.removeStorageSync('miniapp_staff_user');
+    wx.removeStorageSync('miniapp_role');
   }
 });

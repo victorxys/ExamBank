@@ -10,43 +10,67 @@
     <view class="sign-range">{{contract.date_range || ''}}</view>
   </view>
 
-  <view class="card" wx:if="{{contract.role !== 'employee'}}">
+  <view class="card">
     <view class="section-title no-margin">甲方信息</view>
-    <view class="field">
-      <text class="label">姓名</text>
-      <input class="input" value="{{customerInfo.name}}" data-field="name" placeholder="请输入甲方姓名" bindinput="onCustomerInput" />
-    </view>
-    <view class="field">
-      <text class="label">联系电话</text>
-      <input class="input" type="number" value="{{customerInfo.phone_number}}" data-field="phone_number" placeholder="请输入联系电话" bindinput="onCustomerInput" />
-    </view>
-    <view class="field">
-      <text class="label">身份证号</text>
-      <input class="input" value="{{customerInfo.id_card_number}}" data-field="id_card_number" placeholder="请输入身份证号" bindinput="onCustomerInput" />
-    </view>
-    <view class="field">
-      <text class="label">联系地址</text>
-      <input class="input" value="{{customerInfo.address}}" data-field="address" placeholder="请输入联系地址" bindinput="onCustomerInput" />
-    </view>
+    <block wx:if="{{contract.role !== 'employee'}}">
+      <view class="field">
+        <text class="label">姓名</text>
+        <input class="input" value="{{customerInfo.name}}" data-field="name" placeholder="请输入甲方姓名" bindinput="onCustomerInput" />
+      </view>
+      <view class="field">
+        <text class="label">联系电话</text>
+        <input class="input" type="number" value="{{customerInfo.phone_number}}" data-field="phone_number" placeholder="请输入联系电话" bindinput="onCustomerInput" />
+      </view>
+      <view class="field">
+        <text class="label">身份证号</text>
+        <input class="input" value="{{customerInfo.id_card_number}}" data-field="id_card_number" placeholder="请输入身份证号" bindinput="onCustomerInput" />
+      </view>
+      <view class="field">
+        <text class="label">联系地址</text>
+        <input class="input" value="{{customerInfo.address}}" data-field="address" placeholder="请输入联系地址" bindinput="onCustomerInput" />
+      </view>
+    </block>
+    <block wx:else>
+      <view class="readonly-row"><text class="readonly-label">姓名</text><text class="readonly-value">{{customerInfo.name || '-'}}</text></view>
+      <view class="readonly-row"><text class="readonly-label">联系电话</text><text class="readonly-value">{{customerInfo.phone_number || '-'}}</text></view>
+      <view class="readonly-row"><text class="readonly-label">身份证号</text><text class="readonly-value">{{customerInfo.id_card_number || '-'}}</text></view>
+      <view class="readonly-row"><text class="readonly-label">联系地址</text><text class="readonly-value">{{customerInfo.address || '-'}}</text></view>
+    </block>
   </view>
 
-  <view class="card" wx:if="{{contract.role === 'employee'}}">
+  <view class="card">
     <view class="section-title no-margin">乙方信息</view>
-    <view class="field">
-      <text class="label">姓名</text>
-      <input class="input" value="{{employeeInfo.name}}" data-field="name" bindinput="onEmployeeInput" />
-    </view>
-    <view class="field">
-      <text class="label">联系电话</text>
-      <input class="input" type="number" value="{{employeeInfo.phone_number}}" data-field="phone_number" bindinput="onEmployeeInput" />
-    </view>
-    <view class="field">
-      <text class="label">身份证号</text>
-      <input class="input" value="{{employeeInfo.id_card_number}}" data-field="id_card_number" bindinput="onEmployeeInput" />
-    </view>
-    <view class="field">
-      <text class="label">联系地址</text>
-      <input class="input" value="{{employeeInfo.address}}" data-field="address" bindinput="onEmployeeInput" />
+    <block wx:if="{{contract.role === 'employee'}}">
+      <view class="field">
+        <text class="label">姓名</text>
+        <input class="input" value="{{employeeInfo.name}}" data-field="name" placeholder="请输入乙方姓名" bindinput="onEmployeeInput" />
+      </view>
+      <view class="field">
+        <text class="label">联系电话</text>
+        <input class="input" type="number" value="{{employeeInfo.phone_number}}" data-field="phone_number" placeholder="请输入联系电话" bindinput="onEmployeeInput" />
+      </view>
+      <view class="field">
+        <text class="label">身份证号</text>
+        <input class="input" value="{{employeeInfo.id_card_number}}" data-field="id_card_number" placeholder="请输入身份证号" bindinput="onEmployeeInput" />
+      </view>
+      <view class="field">
+        <text class="label">联系地址</text>
+        <input class="input" value="{{employeeInfo.address}}" data-field="address" placeholder="请输入联系地址" bindinput="onEmployeeInput" />
+      </view>
+    </block>
+    <block wx:else>
+      <view class="readonly-row"><text class="readonly-label">姓名</text><text class="readonly-value">{{employeeInfo.name || '-'}}</text></view>
+      <view class="readonly-row"><text class="readonly-label">联系电话</text><text class="readonly-value">{{employeeInfo.phone_number || '-'}}</text></view>
+      <view class="readonly-row"><text class="readonly-label">身份证号</text><text class="readonly-value">{{employeeInfo.id_card_number || '-'}}</text></view>
+      <view class="readonly-row"><text class="readonly-label">联系地址</text><text class="readonly-value">{{employeeInfo.address || '-'}}</text></view>
+    </block>
+  </view>
+
+  <view class="card" wx:if="{{contract.service_rows && contract.service_rows.length}}">
+    <view class="section-title no-margin">费用信息</view>
+    <view wx:for="{{contract.service_rows}}" wx:key="label" class="readonly-row">
+      <text class="readonly-label">{{item.label}}</text>
+      <text class="readonly-value">{{item.value}}</text>
     </view>
   </view>
 
@@ -62,6 +86,11 @@
     <scroll-view scroll-y class="text-block md-block attachment-block">
       <rich-text nodes="{{attachmentNodes}}"></rich-text>
     </scroll-view>
+  </view>
+
+  <view class="card" wx:if="{{contract.notes}}">
+    <view class="section-title no-margin">合同备注</view>
+    <view class="text-block notes-block">{{contract.notes}}</view>
   </view>
 
   <view class="card" wx:if="{{contract.current_signature_image}}">

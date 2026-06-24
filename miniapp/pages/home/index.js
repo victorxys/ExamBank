@@ -61,6 +61,29 @@ function contractFallbackFromAttendance(attendance = {}) {
   });
 }
 
+function clearCustomerSession() {
+  const app = getApp();
+  app.globalData.customer = null;
+  if (app.globalData.role === 'customer') app.globalData.role = '';
+  wx.removeStorageSync('miniapp_customer');
+  if (wx.getStorageSync('miniapp_role') === 'customer') {
+    wx.removeStorageSync('miniapp_role');
+  }
+}
+
+function inferCustomerName(result = {}, lists = {}) {
+  const customer = result.customer || {};
+  if (customer.name && customer.name !== '微信用户') return customer.name;
+  const sources = [
+    ...(lists.pendingContracts || []),
+    ...(lists.pendingAttendance || []),
+    ...(lists.recentContracts || []),
+    ...(lists.activeContracts || [])
+  ];
+  const matched = sources.find((item) => item.customer_name);
+  return (matched && matched.customer_name) || customer.name || '客户';
+}
+
 Page({
   data: {
     customer: {},
@@ -127,8 +150,17 @@ Page({
       }
       const upcomingContracts = activeContracts.filter((item) => item.status === 'pending');
       const servingContracts = activeContracts.filter((item) => item.status !== 'pending');
+      const customer = {
+        ...(result.customer || {}),
+        name: inferCustomerName(result, {
+          pendingContracts,
+          pendingAttendance,
+          recentContracts,
+          activeContracts
+        })
+      };
       this.setData({
-        customer: result.customer || {},
+        customer,
         pendingContracts,
         pendingAttendance,
         pendingEvaluations,
@@ -141,24 +173,13 @@ Page({
         overviewLoaded: true,
         canAccessAyiProfiles: false
       });
-      getApp().setSession(api.getOpenid(), result.customer || null, null, 'customer', null);
+      getApp().setSession(api.getOpenid(), customer, null, 'customer', null);
     } catch (error) {
       this.setData({ overviewLoaded: true });
       wx.showToast({ title: error.message || '加载失败', icon: 'none' });
-      if (/未绑定/.test(error.message || '')) {
-        this.setData({
-          customer: { name: '微信用户', auto_discovered: true },
-          pendingContracts: [],
-          pendingAttendance: [],
-          pendingEvaluations: [],
-          activeContracts: [],
-          recentContracts: [],
-          servingContracts: [],
-          upcomingContracts: [],
-          serviceContractCount: 0,
-          todoCount: 0,
-          canAccessAyiProfiles: false
-        });
+      if (/未绑定|无权|401|403/.test(error.message || '')) {
+        clearCustomerSession();
+        wx.redirectTo({ url: '/pages/login/index?force_bind=1' });
       }
     } finally {
       wx.hideLoading();
@@ -191,5 +212,19 @@ Page({
 
   goAyiSearch() {
     wx.navigateTo({ url: '/pages/ayi-search/index' });
+  },
+
+  logoutFallback() {
+    wx.showModal({
+      title: '退出当前身份',
+      content: '仅在身份异常或需要切换微信绑定时使用。退出后需要重新登录或绑定身份。',
+      confirmText: '退出',
+      confirmColor: '#dc2626',
+      success: (res) => {
+        if (!res.confirm) return;
+        getApp().clearSession();
+        wx.redirectTo({ url: '/pages/login/index?force_bind=1' });
+      }
+    });
   }
 });

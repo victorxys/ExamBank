@@ -120,4 +120,5 @@
 
   <view wx:if="{{loading && items.length > 0}}" class="loading-more">加载中...</view>
   <view wx:if="{{loaded && !hasMore && items.length > 0}}" class="loading-more">已显示全部</view>
+  <view class="fallback-logout" bindtap="logoutFallback">身份异常？退出并重新登录</view>
 </view>

@@ -93,6 +93,10 @@
   max-height: 420rpx;
 }
 
+.notes-block {
+  max-height: 360rpx;
+}
+
 .md-block .md-h1,
 .md-block .md-h2,
 .md-block .md-h3 {

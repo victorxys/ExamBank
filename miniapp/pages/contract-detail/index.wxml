@@ -22,9 +22,31 @@
     </view>
     <view class="row"><text class="row-label">客户</text><text class="row-value">{{contract.customer_name || '-'}}</text></view>
     <view class="row"><text class="row-label">服务人员</text><text class="row-value">{{contract.employee_name || '-'}}</text></view>
-    <view class="row"><text class="row-label">劳务报酬</text><text class="row-value">{{contract.employee_level_text}}</text></view>
-    <view class="row"><text class="row-label">管理费</text><text class="row-value">{{contract.management_fee_text}}</text></view>
     <view class="row"><text class="row-label">签署状态</text><text class="row-value">{{contract.signing_status_text}}</text></view>
+  </view>
+
+  <view class="card">
+    <view class="section-title no-margin">甲方信息</view>
+    <view class="row"><text class="row-label">姓名</text><text class="row-value">{{contract.customer_info.name || contract.customer_name || '-'}}</text></view>
+    <view class="row"><text class="row-label">联系电话</text><text class="row-value">{{contract.customer_info.phone_number || '-'}}</text></view>
+    <view class="row"><text class="row-label">身份证号</text><text class="row-value">{{contract.customer_info.id_card_number || '-'}}</text></view>
+    <view class="row"><text class="row-label">联系地址</text><text class="row-value">{{contract.customer_info.address || '-'}}</text></view>
+  </view>
+
+  <view class="card">
+    <view class="section-title no-margin">乙方信息</view>
+    <view class="row"><text class="row-label">姓名</text><text class="row-value">{{contract.employee_info.name || contract.employee_name || '-'}}</text></view>
+    <view class="row"><text class="row-label">联系电话</text><text class="row-value">{{contract.employee_info.phone_number || '-'}}</text></view>
+    <view class="row"><text class="row-label">身份证号</text><text class="row-value">{{contract.employee_info.id_card_number || '-'}}</text></view>
+    <view class="row"><text class="row-label">联系地址</text><text class="row-value">{{contract.employee_info.address || '-'}}</text></view>
+  </view>
+
+  <view class="card" wx:if="{{contract.service_rows && contract.service_rows.length}}">
+    <view class="section-title no-margin">费用信息</view>
+    <view wx:for="{{contract.service_rows}}" wx:key="label" class="row">
+      <text class="row-label">{{item.label}}</text>
+      <text class="row-value">{{item.value}}</text>
+    </view>
   </view>
 
   <view wx:if="{{(role === 'customer' && hasCustomerActions) || (role === 'employee' && hasEmployeeActions)}}" class="card actions-card">
@@ -134,6 +156,11 @@
     <scroll-view scroll-y class="text-block md-block attachment-block">
       <rich-text nodes="{{attachmentNodes}}"></rich-text>
     </scroll-view>
+  </view>
+
+  <view class="card" wx:if="{{contract.notes}}">
+    <view class="section-title no-margin">合同备注</view>
+    <view class="text-block notes-block">{{contract.notes}}</view>
   </view>
 
   <view class="card" wx:if="{{contract.customer_signature_image}}">

@@ -25,6 +25,14 @@
   text-align: right;
 }
 
+.fallback-logout {
+  margin: 40rpx 0 10rpx;
+  color: #94a3b8;
+  font-size: 22rpx;
+  line-height: 34rpx;
+  text-align: center;
+}
+
 .section-link {
   justify-self: end;
 }

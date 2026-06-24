@@ -50,7 +50,11 @@ Page({
     id: '',
     token: '',
     role: 'customer',
-    contract: {},
+    contract: {
+      customer_info: {},
+      employee_info: {},
+      service_rows: []
+    },
     attendanceForms: [],
     attendancePreviewForms: [],
     pendingAttendanceForms: [],
@@ -102,7 +106,7 @@ Page({
         ? await api.employeeContractDetail(this.data.id)
         : await api.contractDetail(this.data.id);
       const contract = contractView(result.contract || {});
-      const markdown = contract.template_content || contract.service_content || '';
+      const markdown = contract.template_content || '';
       const attachmentMarkdown = contract.attachment_content || '';
       const rawAttendanceForms = (contract.attendance_forms || []).filter((item) => (
         ['employee_confirmed', 'customer_signed', 'synced'].includes(item.status)
@@ -127,8 +131,9 @@ Page({
       this.setData({
         contract: {
           ...contract,
-          employee_level_text: contract.employee_level ? `${contract.employee_level} 元/月` : '-',
-          management_fee_text: contract.management_fee_amount ? `${contract.management_fee_amount} 元/月` : '-'
+          customer_info: contract.customer_info || {},
+          employee_info: contract.employee_info || {},
+          service_rows: contract.service_rows || []
         },
         attendanceForms,
         attendancePreviewForms,

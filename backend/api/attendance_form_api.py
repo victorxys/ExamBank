@@ -446,12 +446,12 @@ def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
         # 如果是月嫂合同且有实际上户日期，使用实际上户日期
         actual_onboarding = getattr(contract, 'actual_onboarding_date', None)
         if actual_onboarding:
-            return actual_onboarding
-        return contract.start_date
+            return to_date_value(actual_onboarding)
+        return to_date_value(contract.start_date)
     
     effective_start = min(get_effective_start(c) for c in family_contracts)
     def get_effective_end(contract):
-        return get_attendance_contract_end_date(contract) or contract.end_date
+        return to_date_value(get_attendance_contract_end_date(contract) or contract.end_date)
 
     effective_end = max(get_effective_end(c) for c in family_contracts)
 
@@ -2108,8 +2108,8 @@ def get_employee_attendance_forms(employee_token):
                     customer_names_seen.add(contract.customer_name)
             
             # 计算服务期间（合并所有合同的日期范围）
-            service_start = min(c.start_date for c in family_contracts)
-            service_end = max(c.end_date for c in family_contracts)
+            service_start = min(to_date_value(c.start_date) for c in family_contracts)
+            service_end = max(to_date_value(get_attendance_contract_end_date(c) or c.end_date) for c in family_contracts)
             
             attendance_forms.append({
                 "form_id": str(existing_form.id),

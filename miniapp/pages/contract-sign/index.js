@@ -67,7 +67,10 @@ function customerInfoFromContract(contract = {}) {
 Page({
   data: {
     token: '',
-    contract: {},
+    contract: {
+      role: 'customer',
+      service_rows: []
+    },
     customerInfo: defaultCustomerInfo,
     employeeInfo: defaultEmployeeInfo,
     markdownNodes: [],
@@ -100,7 +103,7 @@ Page({
       const result = await api.contractSignDetail(this.data.token);
       const contract = contractView(result.contract || {});
       await api.ensureOpenid(contract.role === 'employee' ? 'employee' : 'customer');
-      const markdown = contract.template_content || contract.service_content || '';
+      const markdown = contract.template_content || '';
       const attachmentMarkdown = contract.attachment_content || '';
       const currentSignatureImage = contract.role === 'employee'
         ? contract.employee_signature_image
@@ -108,6 +111,7 @@ Page({
       this.setData({
         contract: {
           ...contract,
+          service_rows: contract.service_rows || [],
           current_signature_image: currentSignatureImage
         },
         blockedByRole: roleBlocked(contract.role || 'customer'),

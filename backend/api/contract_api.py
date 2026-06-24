@@ -1909,6 +1909,7 @@ def handle_signing_page_action(token):
                 "template_content": contract.template.content if contract.template else '',
                 "service_content": contract.service_content,
                 "attachment_content": contract.attachment_content,
+                "notes": contract.notes,
                 "customer_name": contract.customer_name,
                 "employee_name": contract.service_personnel.name if contract.service_personnel else "服务人员",
                 "customer_signature": f"/api/contracts/signatures/{customer_sig.id}/image" if customer_sig else None,

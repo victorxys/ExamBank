@@ -677,6 +677,44 @@ def _signing_status_value(contract):
     return contract.signing_status.value if hasattr(contract.signing_status, "value") else str(contract.signing_status)
 
 
+def _customer_info_payload(contract):
+    customer = contract.customer if contract else None
+    if not customer and contract and contract.customer_id:
+        customer = Customer.query.get(contract.customer_id)
+    if not customer:
+        return {
+            "name": contract.customer_name if contract else "",
+            "phone_number": "",
+            "id_card_number": "",
+            "address": "",
+        }
+    return {
+        "id": str(customer.id),
+        "name": customer.name or (contract.customer_name if contract else "") or "",
+        "phone_number": customer.phone_number or "",
+        "id_card_number": customer.id_card_number or "",
+        "address": customer.address or "",
+    }
+
+
+def _employee_info_payload(contract):
+    employee = contract.service_personnel if contract else None
+    if not employee:
+        return {
+            "name": "",
+            "phone_number": "",
+            "id_card_number": "",
+            "address": "",
+        }
+    return {
+        "id": str(employee.id),
+        "name": employee.name or "",
+        "phone_number": employee.phone_number or "",
+        "id_card_number": employee.id_card_number or "",
+        "address": employee.address or "",
+    }
+
+
 def _contract_summary(contract, include_customer_token=False, include_employee_token=False):
     customer = contract.customer
     employee = contract.service_personnel
@@ -696,8 +734,13 @@ def _contract_summary(contract, include_customer_token=False, include_employee_t
         "termination_date": _iso(contract.termination_date),
         "is_monthly_auto_renew": bool(getattr(contract, "is_monthly_auto_renew", False)),
         "employee_level": str(contract.employee_level) if contract.employee_level is not None else "",
+        "security_deposit_paid": str(contract.security_deposit_paid) if contract.security_deposit_paid is not None else "",
+        "deposit_amount": str(contract.deposit_amount) if getattr(contract, "deposit_amount", None) is not None else "",
+        "introduction_fee": str(contract.introduction_fee) if contract.introduction_fee is not None else "",
         "management_fee_amount": str(contract.management_fee_amount) if contract.management_fee_amount is not None else "",
         "service_type": contract.service_type,
+        "customer_info": _customer_info_payload(contract),
+        "employee_info": _employee_info_payload(contract),
     }
     if include_customer_token:
         data["customer_signing_token"] = contract.customer_signing_token
@@ -726,6 +769,7 @@ def _contract_detail(contract):
         {
             "service_content": contract.service_content,
             "attachment_content": contract.attachment_content,
+            "notes": contract.notes,
             "template_content": contract.template.content if contract.template else "",
             "customer_signature_url": f"/api/contracts/signatures/{customer_sig.id}/image" if customer_sig else None,
             "employee_signature_url": f"/api/contracts/signatures/{employee_sig.id}/image" if employee_sig else None,
@@ -1064,10 +1108,14 @@ def _format_miniapp_contract_signing_payload(payload):
             "start_date": payload.get("start_date"),
             "end_date": payload.get("end_date"),
             "employee_level": payload.get("employee_level"),
+            "security_deposit_paid": payload.get("security_deposit_paid"),
+            "deposit_amount": payload.get("deposit_amount"),
+            "introduction_fee": payload.get("introduction_fee"),
             "management_fee_amount": payload.get("management_fee_amount"),
             "service_type": payload.get("service_type"),
             "service_content": payload.get("service_content"),
             "attachment_content": payload.get("attachment_content"),
+            "notes": payload.get("notes"),
             "template_content": payload.get("template_content"),
             "customer_info": payload.get("customer_info") or {},
             "employee_info": payload.get("employee_info") or {},
@@ -1674,13 +1722,17 @@ def customer_overview():
     if account:
         account.last_login_at = _now()
     db.session.commit()
+    display_customer_name = account.customer.name if account and account.customer else ""
+    display_customer_phone = account.customer.phone_number if account and account.customer else ""
+    if not display_customer_name and contracts:
+        display_customer_name = contracts[0].customer_name or ""
     return jsonify(
         {
             "success": True,
             "customer": {
                 "id": str(account.customer.id) if account and account.customer else None,
-                "name": account.customer.name if account and account.customer else "微信用户",
-                "phone_number": account.customer.phone_number if account and account.customer else "",
+                "name": display_customer_name or "客户",
+                "phone_number": display_customer_phone,
                 "auto_discovered": not bool(account),
             },
             "todos": {

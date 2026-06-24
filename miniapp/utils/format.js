@@ -8,6 +8,58 @@ function formatDate(value) {
   return `${year}-${month}-${day}`;
 }
 
+function compactDate(value) {
+  const formatted = formatDate(value);
+  if (formatted === '-') return '-';
+  return formatted.replace(/^(\d{4})-0?(\d{1,2})-0?(\d{1,2})$/, '$1/$2/$3');
+}
+
+function hasValue(value) {
+  return value !== undefined && value !== null && value !== '' && value !== '-';
+}
+
+function formatMoney(value, suffix = '元') {
+  if (!hasValue(value)) return '';
+  const number = Number(value);
+  if (Number.isNaN(number)) return `${value}${suffix}`;
+  return `${number.toFixed(2)} ${suffix}`;
+}
+
+function serviceContentText(value) {
+  if (!value) return '';
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === 'string') return item;
+        return item.label || item.name || item.title || item.value || '';
+      })
+      .filter(Boolean)
+      .join('、');
+  }
+  if (typeof value === 'object') {
+    return Object.keys(value)
+      .filter((key) => value[key])
+      .map((key) => value[key] === true ? key : value[key])
+      .join('、');
+  }
+  return String(value);
+}
+
+function contractServiceRows(contract = {}) {
+  const laborSuffix = contract.type === 'nanny_trial' ? '元/日' : '元/月';
+  const managementLabel = contract.type === 'maternity_nurse' ? '丙方服务费' : '丙方管理费';
+  return [
+    { label: '服务内容', value: serviceContentText(contract.service_content) },
+    { label: '服务方式', value: contract.service_type || '' },
+    { label: '乙方劳务报酬', value: formatMoney(contract.employee_level, laborSuffix) },
+    { label: '保证金', value: formatMoney(contract.security_deposit_paid, '元') },
+    { label: managementLabel, value: formatMoney(contract.management_fee_amount, '元/月') },
+    { label: '介绍费', value: formatMoney(contract.introduction_fee, '元') },
+    { label: '合同开始时间', value: compactDate(contract.start_date) },
+    { label: '合同结束时间', value: compactDate(contract.end_date) }
+  ].filter((item) => hasValue(item.value));
+}
+
 const statusText = {
   active: '正在履约',
   pending: '待上户',
@@ -39,7 +91,8 @@ function contractView(contract) {
     status_text: statusTextValue,
     signing_status_text: signingStatusText[contract.signing_status] || contract.signing_status || '签署状态',
     customer_signature_image: api.assetUrl(customerSignature),
-    employee_signature_image: api.assetUrl(employeeSignature)
+    employee_signature_image: api.assetUrl(employeeSignature),
+    service_rows: contractServiceRows(contract)
   };
 }
 
@@ -66,6 +119,10 @@ function attendanceStats(formData = {}) {
 
 module.exports = {
   formatDate,
+  compactDate,
+  formatMoney,
+  serviceContentText,
+  contractServiceRows,
   statusText,
   signingStatusText,
   contractView,
