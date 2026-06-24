@@ -38,6 +38,14 @@ D = decimal.Decimal
 CTX = decimal.Context(prec=10)
 
 
+def _nanny_service_days_excluding_start(cycle_start, cycle_end, contract_start_date, is_first_bill):
+    """首月基础劳务天数不包含合同开始日。"""
+    cycle_days = D((cycle_end - cycle_start).days + 1)
+    if is_first_bill and contract_start_date and cycle_start <= contract_start_date <= cycle_end:
+        cycle_days -= D(1)
+    return max(D(0), cycle_days)
+
+
 def _update_bill_payment_status(bill: CustomerBill):
     """
     根据账单的总应付、总实付，更新其支付状态。
@@ -919,7 +927,12 @@ class BillingEngine:
 
         is_last_bill = contract_end_date and cycle_end == contract_end_date
 
-        cycle_actual_days = (cycle_end - cycle_start).days + 1
+        cycle_actual_days = _nanny_service_days_excluding_start(
+            cycle_start,
+            cycle_end,
+            contract_start_date,
+            False,
+        )
         # 【核心修复】更健壮地判断是否为合同的首月账单
         is_first_bill_of_contract = not db.session.query(CustomerBill.id).filter(
             CustomerBill.contract_id == contract.id,
@@ -927,7 +940,12 @@ class BillingEngine:
             CustomerBill.is_substitute_bill == False
         ).first()
         if is_first_bill_of_contract:
-            cycle_actual_days = (cycle_end - cycle_start).days + 1
+            cycle_actual_days = _nanny_service_days_excluding_start(
+                cycle_start,
+                cycle_end,
+                contract_start_date,
+                True,
+            )
         
         # --- NEW LOGIC for actual_work_days ---
         # 优先使用从API传入的覆盖值（来自考勤表）
@@ -961,7 +979,7 @@ class BillingEngine:
             base_work_days = max(D(0), D(min(cycle_actual_days, 26)) - rest_days - leave_days)
             log_extras["base_work_days_reason"] = (
                 f"按整月考勤表分配到账单周期后计算: "
-                f"min(周期天数({cycle_actual_days}), 26) - 休息({rest_days}) - 请假({leave_days})"
+                f"min(基础劳务天数({cycle_actual_days}), 26) - 休息({rest_days}) - 请假({leave_days})"
             )
             bill.actual_work_days = float(base_work_days)
             payroll.actual_work_days = float(base_work_days)
@@ -973,7 +991,7 @@ class BillingEngine:
             base_work_days = max(D(0), D(min(cycle_actual_days, 26)) - rest_days - leave_days)
             log_extras["base_work_days_reason"] = (
                 f"默认逻辑（从劳务时间段计算并扣减考勤）: "
-                f"min(周期天数({cycle_actual_days}), 26) - 休息({rest_days}) - 请假({leave_days})"
+                f"min(基础劳务天数({cycle_actual_days}), 26) - 休息({rest_days}) - 请假({leave_days})"
             )
             # 【关键修正】即使使用默认逻辑，也将其保存到数据库字段中，避免前端显示“待计算”
             bill.actual_work_days = float(base_work_days)
@@ -2405,7 +2423,15 @@ class BillingEngine:
             if contract.type == "maternity_nurse":
                 default_work_days = 26
             elif contract.type == "nanny":
-                default_work_days = min((cycle_end_date - cycle_start_date).days + 1, 26)
+                default_work_days = min(
+                    _nanny_service_days_excluding_start(
+                        self._to_date(cycle_start_date),
+                        self._to_date(cycle_end_date),
+                        self._to_date(contract.start_date),
+                        True,
+                    ),
+                    D(26),
+                )
 
             attendance = AttendanceRecord(
                 employee_id=employee_id,
