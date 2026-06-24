@@ -28,6 +28,7 @@ from backend.models import (
     PayoutRecord,
     BankTransactionStatus,
 )
+from backend.services.renewal_sync_service import calculate_exact_payroll_transfer_amount
 
 from sqlalchemy import func, or_,and_
 from sqlalchemy.orm import attributes
@@ -3239,35 +3240,19 @@ class BillingEngine:
             current_app.logger.error(f"[FinalAdj] 找不到与账单 {bill_id} 关联的薪酬单。")
             return
 
-        # 从 calculation_details 中获取基础劳务费（包含加班费）
-        calc_details = payroll.calculation_details or {}
-        employee_base_payout = D(str(calc_details.get('employee_base_payout', 0)))
-        employee_overtime_fee = D(str(
-            calc_details.get(
-                'employee_overtime_payout',
-                calc_details.get('employee_overtime_fee', 0)
-            )
-        ))
-        # 实际劳务费 = 基础劳务费 + 加班费（计算过程不四舍五入）
-        actual_labor_fee = employee_base_payout + employee_overtime_fee
-
-        if contract.type == 'nanny_trial':
-            # 试工合同：使用实际劳务费
-            amount_to_set = actual_labor_fee
-        else:
-            employee_level = D(contract.employee_level or '0')
-            # 使用实际劳务费（基础劳务费+加班费），但不超过月薪
-            # 这样当用户修改实际劳务天数时，代付工资也会相应更新
-            amount_to_set = min(actual_labor_fee, employee_level)
-        
-        # 保留两位小数，不四舍五入到整数
-        amount_to_set = amount_to_set.quantize(D("0.01"))
+        amount_to_set = calculate_exact_payroll_transfer_amount(payroll)
 
         existing_adj = FinancialAdjustment.query.filter_by(
             customer_bill_id=bill.id,
             adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
             description="[系统] 公司代付工资"
         ).first()
+        manual_company_paid_salary_adj = FinancialAdjustment.query.filter(
+            FinancialAdjustment.customer_bill_id == bill.id,
+            FinancialAdjustment.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY,
+            FinancialAdjustment.description != "[系统] 公司代付工资",
+        ).order_by(FinancialAdjustment.created_at.asc()).first()
+        any_company_paid_salary_adj = manual_company_paid_salary_adj or existing_adj
 
         adjustment_was_changed = False
 
@@ -3279,13 +3264,15 @@ class BillingEngine:
                 db.session.delete(existing_adj)
                 adjustment_was_changed = True
         else:
-            if existing_adj:
-                if existing_adj.amount != amount_to_set:
-                    current_app.logger.info(f"[FinalAdj] 更新公司代付工资 for bill {bill.id}: {existing_adj.amount} -> {amount_to_set}")
+            if any_company_paid_salary_adj:
+                if existing_adj and existing_adj.amount.quantize(D("0.01")) != amount_to_set:
+                    current_app.logger.info(f"[FinalAdj] 更新系统公司代付工资 for bill {bill.id}: {existing_adj.amount} -> {amount_to_set}")
                     existing_adj.amount = amount_to_set
                     db.session.add(existing_adj)
-                    self._mirror_company_paid_salary_adjustment(existing_adj, payroll)
+                    self._mirror_company_paid_salary_adjustment(existing_adj, payroll, amount=amount_to_set)
                     adjustment_was_changed = True
+                else:
+                    self._mirror_company_paid_salary_adjustment(any_company_paid_salary_adj, payroll, amount=amount_to_set)
             elif allow_creation:
                 current_app.logger.info(f"[FinalAdj] 创建新的公司代付工资 for bill {bill.id}: {amount_to_set}")
                 new_adj = FinancialAdjustment(
@@ -3296,7 +3283,7 @@ class BillingEngine:
                     date=bill.cycle_end_date
                 )
                 db.session.add(new_adj)
-                self._mirror_company_paid_salary_adjustment(new_adj, payroll)
+                self._mirror_company_paid_salary_adjustment(new_adj, payroll, amount=amount_to_set)
                 adjustment_was_changed = True
 
         if adjustment_was_changed:
@@ -3320,7 +3307,7 @@ class BillingEngine:
             else:
                  current_app.logger.warning(f"[FinalAdj] Details for bill {bill.id} could not be calculated, skipping finalization.")
 
-    def _mirror_company_paid_salary_adjustment(self, company_adj: FinancialAdjustment, payroll:EmployeePayroll):
+    def _mirror_company_paid_salary_adjustment(self, company_adj: FinancialAdjustment, payroll: EmployeePayroll, amount=None):
         """
         (V18) 创建或更新'公司代付工资'的镜像调整项'保证金支付工资'。
         确保两条记录互相关联，且金额相反。
@@ -3339,7 +3326,7 @@ class BillingEngine:
                 adjustment_type=AdjustmentType.DEPOSIT_PAID_SALARY,
                 description="[系统] 保证金支付工资",
             ).first()
-        new_amount = company_adj.amount
+        new_amount = D(str(amount if amount is not None else company_adj.amount)).quantize(D("0.01"))
 
         if mirrored_adj:
             if mirrored_adj.amount != new_amount:

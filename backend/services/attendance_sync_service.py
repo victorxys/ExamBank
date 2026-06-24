@@ -626,6 +626,18 @@ def sync_attendance_to_record(attendance_form_id):
         # 【关键修复】显式提交事务，确保账单更新保存到数据库
         db.session.commit()
         current_app.logger.info(f"[ATTENDANCE_SYNC] 账单重算完成并已提交，使用出勤天数: {total_days_worked}天")
+
+        try:
+            from backend.services.renewal_sync_service import sync_renewal_after_attendance_confirmation
+
+            sync_renewal_after_attendance_confirmation(form.id)
+            db.session.commit()
+        except Exception as renewal_sync_error:
+            db.session.rollback()
+            current_app.logger.error(
+                f"[ATTENDANCE_SYNC] 续签考勤/工资转移同步失败: {renewal_sync_error}",
+                exc_info=True,
+            )
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"[ATTENDANCE_SYNC] 账单重算失败: {str(e)}", exc_info=True)
