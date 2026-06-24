@@ -16,32 +16,54 @@ from backend.models import db, BaseContract, CustomerBill, EmployeePayroll, Fina
 
 D = Decimal
 
-def calculate_correct_amount(contract, payroll):
-    """
-    计算正确的代付工资金额：使用实际劳务费（基础劳务费+加班费），但不超过月薪
-    计算过程不四舍五入，只在最终金额时才四舍五入
-    """
-    calc_details = payroll.calculation_details or {}
-    employee_base_payout = D(str(calc_details.get('employee_base_payout', 0)))
-    employee_overtime_fee = D(str(
-        calc_details.get(
-            'employee_overtime_payout',
-            calc_details.get('employee_overtime_fee', 0)
-        )
-    ))
-    # 实际劳务费 = 基础劳务费 + 加班费（计算过程不四舍五入）
-    actual_labor_fee = employee_base_payout + employee_overtime_fee
-    
-    if contract.type == 'nanny_trial':
-        amount = actual_labor_fee
-    else:
-        employee_level = D(contract.employee_level or '0')
-        amount = min(actual_labor_fee, employee_level)
-    
-    # 保留两位小数，不四舍五入到整数
-    return amount.quantize(D("0.01"))
+def rounded_bill_amount(amount):
+    """四舍五入到整元，仅用于判断历史小数金额是否等价。"""
+    return D(str(amount or 0)).quantize(D("1"))
 
-def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
+def amounts_equivalent(left, right):
+    return rounded_bill_amount(left) == rounded_bill_amount(right)
+
+def calculate_correct_amount(_contract, payroll):
+    """
+    计算正确的保证金支付工资金额：使用工资单最终应发总额。
+    工资单总额本身已经按最终结算口径完成四舍五入。
+    """
+    return D(str(payroll.total_due or 0)).quantize(D("0.01"))
+
+def find_company_paid_salary_adjustment(bill):
+    """优先复用任意已有公司代付工资项，避免重复创建系统项。"""
+    manual_adj = FinancialAdjustment.query.filter(
+        FinancialAdjustment.customer_bill_id == bill.id,
+        FinancialAdjustment.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY,
+        FinancialAdjustment.description != "[系统] 公司代付工资",
+    ).order_by(FinancialAdjustment.created_at.asc()).first()
+    if manual_adj:
+        return manual_adj
+
+    system_adj = FinancialAdjustment.query.filter_by(
+        customer_bill_id=bill.id,
+        adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+        description="[系统] 公司代付工资"
+    ).first()
+    if system_adj:
+        return system_adj
+
+    return FinancialAdjustment.query.filter_by(
+        customer_bill_id=bill.id,
+        adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+    ).order_by(FinancialAdjustment.created_at.asc()).first()
+
+def find_system_company_paid_salary_adjustment(bill):
+    return FinancialAdjustment.query.filter_by(
+        customer_bill_id=bill.id,
+        adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+        description="[系统] 公司代付工资",
+    ).first()
+
+def format_dt(dt):
+    return dt.strftime("%Y-%m-%d") if dt else "-"
+
+def fix_employee_salary_adjustments(contract_id=None, dry_run=True, verbose=False):
     """修正员工工资单上的保证金支付工资调整项，确保与客户账单上的公司代付工资调整项金额一致。"""
     with app.app_context():
         if dry_run:
@@ -58,7 +80,8 @@ def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
                     return
                 
                 contracts_to_process = [contract]
-                print(f"将处理指定合同: {contract.id} | 客户: {contract.customer_name}")
+                if verbose:
+                    print(f"将处理指定合同: {contract.id} | 客户: {contract.customer_name}")
             else:
                 # 处理所有已结束的合同
                 contracts_to_process = BaseContract.query.filter(
@@ -69,13 +92,15 @@ def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
                     print("没有找到需要处理的已结束合同。")
                     return
                 
-                print(f"找到 {len(contracts_to_process)} 个已结束的合同需要检查。")
+                print(f"找到 {len(contracts_to_process)} 个已结束的合同需要检查。仅输出需要修改的合同及账单。")
 
             processed_count = 0
             total = len(contracts_to_process)
+            skipped_count = 0
 
             for i, contract in enumerate(contracts_to_process):
-                print(f"[{i+1}/{total}] 正在检查合同 ID: {contract.id} | 客户: {contract.customer_name} ...", end='')
+                if verbose:
+                    print(f"[{i+1}/{total}] 正在检查合同 ID: {contract.id} | 客户: {contract.customer_name} ...", end='')
 
                 # 查找最后一个月的账单和工资单
                 last_bill = CustomerBill.query.filter_by(
@@ -84,7 +109,9 @@ def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
                 ).order_by(CustomerBill.cycle_end_date.desc()).first()
 
                 if not last_bill:
-                    print(" -> 跳过 (无有效账单)")
+                    if verbose:
+                        print(" -> 跳过 (无有效账单)")
+                    skipped_count += 1
                     continue
 
                 last_payroll = EmployeePayroll.query.filter_by(
@@ -94,22 +121,27 @@ def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
                 ).first()
 
                 if not last_payroll:
-                    print(" -> 跳过 (无有效工资单)")
+                    if verbose:
+                        print(" -> 跳过 (无有效工资单)")
+                    skipped_count += 1
                     continue
 
                 # 计算正确的代付金额
                 correct_amount = calculate_correct_amount(contract, last_payroll)
                 
                 if correct_amount <= 0:
-                    print(" -> 跳过 (计算金额为0)")
+                    if verbose:
+                        print(" -> 跳过 (计算金额为0)")
+                    skipped_count += 1
                     continue
 
-                # 查找客户账单上的公司代付工资调整项
-                company_adj = FinancialAdjustment.query.filter_by(
-                    customer_bill_id=last_bill.id,
-                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                    description="[系统] 公司代付工资"
-                ).first()
+                company_adj = find_company_paid_salary_adjustment(last_bill)
+                system_company_adj = find_system_company_paid_salary_adjustment(last_bill)
+                duplicate_system_adj = (
+                    system_company_adj
+                    if company_adj and system_company_adj and company_adj.id != system_company_adj.id
+                    else None
+                )
 
                 # 查找员工工资单上的保证金支付工资调整项
                 employee_adj = FinancialAdjustment.query.filter_by(
@@ -118,41 +150,60 @@ def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
                     description="[系统] 保证金支付工资"
                 ).first()
 
-                print(f" -> 正确金额: {correct_amount}", end='')
-
                 needs_fix = False
+                issues = []
                 
-                # 检查客户账单调整项
+                # 检查客户账单调整项。历史数据可能保留小数；
+                # 只要四舍五入后等价，就不强制覆盖历史金额。
                 if company_adj:
-                    if company_adj.amount != correct_amount:
-                        print(f", 客户账单金额: {company_adj.amount} (需修正)", end='')
+                    if system_company_adj and company_adj.id == system_company_adj.id and not amounts_equivalent(company_adj.amount, correct_amount):
+                        issues.append(f"客户账单金额: {company_adj.amount} (需修正)")
                         needs_fix = True
+                    elif verbose:
+                        issues.append(f"客户账单金额: {company_adj.amount} (已存在，使用该项)")
                     else:
-                        print(f", 客户账单金额: {company_adj.amount} (正确)", end='')
+                        pass
                 else:
-                    print(", 缺少客户账单调整项", end='')
+                    issues.append("缺少客户账单调整项")
                     needs_fix = True
 
-                # 检查员工工资单调整项
+                if duplicate_system_adj:
+                    issues.append(f"存在重复系统公司代付工资: {duplicate_system_adj.amount} (将删除)")
+                    needs_fix = True
+
+                # 检查员工工资单调整项。同样按四舍五入后的结果判断是否等价。
                 if employee_adj:
                     if employee_adj.amount != correct_amount:
-                        print(f", 员工工资单金额: {employee_adj.amount} (需修正)", end='')
+                        issues.append(f"员工工资单金额: {employee_adj.amount} (需修正)")
                         needs_fix = True
+                    elif verbose:
+                        issues.append(f"员工工资单金额: {employee_adj.amount} (正确)")
                     else:
-                        print(f", 员工工资单金额: {employee_adj.amount} (正确)", end='')
+                        pass
                 else:
-                    print(", 缺少员工工资单调整项", end='')
+                    issues.append("缺少员工工资单调整项")
                     needs_fix = True
 
                 # 检查镜像关联
                 if company_adj and employee_adj:
                     if company_adj.mirrored_adjustment_id != employee_adj.id or employee_adj.mirrored_adjustment_id != company_adj.id:
-                        print(", 镜像关联错误", end='')
+                        issues.append("镜像关联错误")
                         needs_fix = True
 
                 if not needs_fix:
-                    print(" -> 无需修正")
+                    if verbose:
+                        print(f" -> 正确金额: {correct_amount}, {', '.join(issues)} -> 无需修正")
+                    skipped_count += 1
                     continue
+
+                bill_meta = (
+                    f"[{i+1}/{total}] 合同ID: {contract.id} | 客户: {contract.customer_name} | "
+                    f"账单: {last_bill.year}-{last_bill.month:02d} | 账单ID: {last_bill.id} | "
+                    f"服务周期: {format_dt(last_bill.cycle_start_date)}~{format_dt(last_bill.cycle_end_date)} | "
+                    f"正确金额: {correct_amount}"
+                )
+                print(bill_meta)
+                print(f"  问题: {', '.join(issues)}")
 
                 if not dry_run:
                     # 创建或更新客户账单调整项
@@ -167,7 +218,8 @@ def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
                         db.session.add(company_adj)
                         db.session.flush()
                     else:
-                        company_adj.amount = correct_amount
+                        if system_company_adj and company_adj.id == system_company_adj.id and not amounts_equivalent(company_adj.amount, correct_amount):
+                            company_adj.amount = correct_amount
                         db.session.add(company_adj)
                     
                     # 创建或更新员工工资单调整项
@@ -183,27 +235,35 @@ def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
                         db.session.add(employee_adj)
                         db.session.flush()
                     else:
-                        employee_adj.amount = correct_amount
+                        if employee_adj.amount != correct_amount:
+                            employee_adj.amount = correct_amount
                         db.session.add(employee_adj)
                     
+                    if duplicate_system_adj:
+                        if duplicate_system_adj.mirrored_adjustment_id == employee_adj.id:
+                            duplicate_system_adj.mirrored_adjustment_id = None
+                        db.session.delete(duplicate_system_adj)
+                        db.session.flush()
+
                     # 确保双向镜像关联
                     company_adj.mirrored_adjustment_id = employee_adj.id
                     employee_adj.mirrored_adjustment_id = company_adj.id
                     db.session.add(company_adj)
                     db.session.add(employee_adj)
+                    db.session.flush()
                     
                     db.session.commit()
                     processed_count += 1
-                    print(" -> 已修正")
+                    print("  结果: 已修正")
                 else:
-                    print(" -> [演习模式] 将会修正")
                     processed_count += 1
+                    print("  结果: [演习模式] 将会修正")
 
             print(f"\n--- 任务执行完毕 ---")
             if dry_run:
-                print(f"【演习模式】共检查 {total} 个合同，将为 {processed_count} 个合同修正调整项。")
+                print(f"【演习模式】共检查 {total} 个合同，跳过 {skipped_count} 个，将为 {processed_count} 个合同修正调整项。")
             else:
-                print(f"共检查 {total} 个合同，成功为 {processed_count} 个合同修正了调整项。")
+                print(f"共检查 {total} 个合同，跳过 {skipped_count} 个，成功为 {processed_count} 个合同修正了调整项。")
 
         except Exception as e:
             print(f"执行任务时发生严重错误: {e}")
@@ -218,10 +278,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="修正员工工资单上的保证金支付工资调整项")
     parser.add_argument("--contract-id", type=str, help="要修正的合同ID")
     parser.add_argument("--dry-run", action="store_true", help="只打印将要执行的操作，不实际修改数据库")
+    parser.add_argument("--verbose", action="store_true", help="输出所有合同检查过程；默认只输出需要修改的合同及账单")
     
     args = parser.parse_args()
     
     fix_employee_salary_adjustments(
         contract_id=args.contract_id,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
+        verbose=args.verbose
     )

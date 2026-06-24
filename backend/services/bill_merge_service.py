@@ -4,6 +4,14 @@ from backend.models import BaseContract, CustomerBill, EmployeePayroll, Financia
 from sqlalchemy.orm import joinedload, noload
 import decimal
 from datetime import date
+from backend.services.renewal_sync_service import (
+    BASE_TRANSFER_SOURCE_DESCRIPTION,
+    BASE_TRANSFER_TARGET_DESCRIPTION,
+    OVERTIME_TRANSFER_SOURCE_DESCRIPTION,
+    OVERTIME_TRANSFER_TARGET_DESCRIPTION,
+    calculate_base_payroll_transfer_amount,
+    calculate_overtime_payroll_transfer_amount,
+)
 
 D = decimal.Decimal
 
@@ -76,7 +84,9 @@ class BillMergeService:
 
         # 修正: 使用 total_due 属性
         # current_app.logger.debug(f"[MergeDebug] Source payroll total_due: {source_payroll}")
-        payroll_balance = source_payroll.total_due - source_payroll.total_paid_out
+        base_payroll_balance = calculate_base_payroll_transfer_amount(source_payroll)
+        overtime_payroll_balance = calculate_overtime_payroll_transfer_amount(source_payroll)
+        payroll_balance = base_payroll_balance + overtime_payroll_balance
         # for adj in source_payroll.financial_adjustments:
         #      if adj.adjustment_type == AdjustmentType.DEPOSIT_PAID_SALARY:
         #         payroll_balance -= adj.amount
@@ -86,8 +96,23 @@ class BillMergeService:
             customer_adjustments.extend(self._get_balance_adjs_preview("customer",customer_balance))
 
         payroll_adjustments = []
-        if payroll_balance != D(0):
-            payroll_adjustments.extend(self._get_balance_adjs_preview("employee",payroll_balance))
+        if base_payroll_balance != D(0):
+            payroll_adjustments.extend(
+                self._get_balance_adjs_preview("employee", base_payroll_balance)
+            )
+        if overtime_payroll_balance != D(0):
+            payroll_adjustments.extend([
+                {
+                    "location": "源工资单",
+                    "description": "加班费补转冲抵",
+                    "amount": f"-{overtime_payroll_balance.quantize(D('0.01'))}",
+                },
+                {
+                    "location": "目标工资单",
+                    "description": "加班费补转转入",
+                    "amount": f"+{overtime_payroll_balance.quantize(D('0.01'))}",
+                },
+            ])
 
         commission_adjustments = []
         for adj in source_payroll.financial_adjustments:
@@ -235,33 +260,80 @@ class BillMergeService:
         #     ]:
         #         balance -= adj.amount
         # 按照你的要求，直接使用 total_due 字段
-        balance = source_payroll.total_due - source_payroll.total_paid_out 
-        if balance.is_zero():
+        base_balance = calculate_base_payroll_transfer_amount(source_payroll)
+        overtime_balance = calculate_overtime_payroll_transfer_amount(source_payroll)
+        if base_balance.is_zero() and overtime_balance.is_zero():
             source_payroll.total_due = D(0)
+            return
+
+        self._create_payroll_transfer_pair(
+            source_payroll,
+            target_payroll,
+            source_bill,
+            target_bill,
+            base_balance,
+            BASE_TRANSFER_SOURCE_DESCRIPTION,
+            BASE_TRANSFER_TARGET_DESCRIPTION,
+            {"renewal_base_transfer": True},
+        )
+        self._create_payroll_transfer_pair(
+            source_payroll,
+            target_payroll,
+            source_bill,
+            target_bill,
+            overtime_balance,
+            OVERTIME_TRANSFER_SOURCE_DESCRIPTION,
+            OVERTIME_TRANSFER_TARGET_DESCRIPTION,
+            {"renewal_overtime_transfer": True},
+        )
+
+        source_payroll.total_due = D(0)
+
+    def _create_payroll_transfer_pair(
+        self,
+        source_payroll,
+        target_payroll,
+        source_bill,
+        target_bill,
+        balance,
+        source_description,
+        target_description,
+        extra_details=None,
+    ):
+        if balance.is_zero():
             return
 
         op_adj_type = AdjustmentType.EMPLOYEE_BALANCE_TRANSFER if balance > 0 else AdjustmentType.EMPLOYEE_INCREASE
         mirror_adj_type = AdjustmentType.EMPLOYEE_INCREASE if balance > 0 else AdjustmentType.EMPLOYEE_DECREASE
         amount = abs(balance)
+        source_details = {
+            "linked_bill_id": str(target_bill.id),
+            "linked_contract_id": str(target_bill.contract_id),
+        }
+        target_details = {
+            "linked_bill_id": str(source_bill.id),
+            "linked_contract_id": str(source_bill.contract_id),
+        }
+        if extra_details:
+            source_details.update(extra_details)
+            target_details.update(extra_details)
 
         self._create_adjustment(
             employee_payroll_id=source_payroll.id,
             contract_id=source_payroll.contract_id,
             adj_type=op_adj_type,
             amount=amount,
-            description=f"[冲抵]员工待付工资转移至续约合同",
-            details={"linked_bill_id": str(target_bill.id)}
+            description=source_description,
+            details=source_details,
         )
         self._create_adjustment(
             employee_payroll_id=target_payroll.id,
             contract_id=target_payroll.contract_id,
             adj_type=mirror_adj_type,
             amount=amount,
-            description=f"[转入]前合同合并转入员工待付工资",
-            details={"linked_bill_id": str(source_bill.id)}
+            description=target_description,
+            details=target_details,
         )
-
-        source_payroll.total_due = D(0)
 
     def _transfer_commissions(self, source_payroll, target_payroll, source_bill_id,target_bill_id):
         """处理员工返佣的转移。"""
