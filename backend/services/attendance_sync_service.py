@@ -53,9 +53,27 @@ def _onboarding_time_from_data(data):
     return None
 
 
-def _onboarding_days_to_exclude(data, cycle_start, cycle_end):
-    """上户月不把上户当天计入基础出勤天数。"""
+def _contract_start_day_to_exclude(contract, cycle_start, cycle_end):
+    if not contract:
+        return None
+
+    raw_start = getattr(contract, "actual_onboarding_date", None) or getattr(contract, "start_date", None)
+    if not raw_start:
+        return None
+
+    contract_start = _parse_date(raw_start)
+    if cycle_start <= contract_start <= cycle_end:
+        return contract_start
+    return None
+
+
+def _onboarding_days_to_exclude(data, cycle_start, cycle_end, contract=None):
+    """首月不把合同开始/上户当天计入基础出勤天数。"""
     dates = set()
+    contract_start = _contract_start_day_to_exclude(contract, cycle_start, cycle_end)
+    if contract_start:
+        dates.add(contract_start)
+
     for record in data.get("onboarding_records") or []:
         raw_date = record.get("date")
         if not raw_date:
@@ -173,7 +191,7 @@ def normalize_auto_overtime_form_data(form):
             manual_normal_overtime_days += _record_hours(record) / Decimal(24)
 
     valid_days_count = _contract_valid_days_for_cycle(form, cycle_start, cycle_end)
-    onboarding_days = _onboarding_days_to_exclude(data, cycle_start, cycle_end)
+    onboarding_days = _onboarding_days_to_exclude(data, cycle_start, cycle_end, form.contract)
     onboarding_time = _onboarding_time_from_data(data)
     if not onboarding_time:
         onboarding_info = get_onboarding_time_for_contract(form.employee_id, form.contract_id)
@@ -445,7 +463,7 @@ def sync_attendance_to_record(attendance_form_id):
     offboarding_records = data.get('offboarding_records', [])
     
     # 上户月不把上户当天计入基础出勤；该日剩余小时留到下户月合并计算。
-    onboarding_days = _onboarding_days_to_exclude(data, cycle_start, cycle_end)
+    onboarding_days = _onboarding_days_to_exclude(data, cycle_start, cycle_end, form.contract)
     
     # 下户月需要把首月上户日剩余小时与下户日已工作小时合并计算。
     offboarding_days = Decimal(0)
