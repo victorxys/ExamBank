@@ -83,23 +83,6 @@ Page({
     const openid = wx.getStorageSync('miniapp_openid');
     if (!openid) return;
 
-    const role = wx.getStorageSync('miniapp_role');
-    const customer = wx.getStorageSync('miniapp_customer');
-    const employee = wx.getStorageSync('miniapp_employee');
-    const staffUser = wx.getStorageSync('miniapp_staff_user');
-    if (role === 'staff' || (!role && staffUser)) {
-      wx.redirectTo({ url: '/pages/ayi-search/index' });
-      return;
-    }
-    if (role === 'employee' || (!role && employee)) {
-      wx.redirectTo({ url: '/pages/employee-home/index' });
-      return;
-    }
-    if (role === 'customer' || (!role && customer)) {
-      wx.redirectTo({ url: '/pages/home/index' });
-      return;
-    }
-
     this.refreshExistingSession(openid);
   },
 

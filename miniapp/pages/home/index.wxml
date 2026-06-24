@@ -124,4 +124,6 @@
     </view>
     <view class="tool-arrow">›</view>
   </view>
+
+  <view class="fallback-logout" bindtap="logoutFallback">身份异常？退出并重新登录</view>
 </view>

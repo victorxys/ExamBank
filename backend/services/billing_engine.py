@@ -701,21 +701,25 @@ class BillingEngine:
         contract_end_date = self._to_date(contract.end_date)
         cycle_end_date = self._to_date(cycle_end)
         is_auto_renew = getattr(contract, 'is_monthly_auto_renew', False)
+        final_adjustments_synced = False
 
         if contract_end_date and cycle_end_date and cycle_end_date >= contract_end_date and not is_auto_renew and contract.status in ['active', 'finished','pending']:
             # <--- 在这里增加上面的代码块 --->
             current_app.logger.debug(f"[DEBUG-ENGINE] -> Checking final salary adjustments for contract {contract.id} on bill {bill.id}:")
             current_app.logger.debug(f"[DEBUG-ENGINE]    Condition check: (cycle_end: {cycle_end_date} >= contract_end: {contract_end_date}) AND (not is_auto_renew: {not is_auto_renew}) AND (status in ['active', 'finished', 'pending']: {contract.status in ['active', 'finished', 'pending']})")
             # <--- 增加结束 --->
-            # [Recursion Fix] Check if final adjustments already exist to prevent infinite loop.
-            final_adj_exists = db.session.query(FinancialAdjustment.id).filter_by(
-                customer_bill_id=bill.id,
-                adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                description="[系统] 公司代付工资"
-            ).first()
+            current_app.logger.info(f"[NannyCALC] 合同 {contract.id} 为自然到期，同步最终结算调整。")
+            self.create_final_salary_adjustments(bill.id)
+            final_adjustments_synced = True
 
-            if not final_adj_exists:
-                current_app.logger.info(f"[NannyCALC] 合同 {contract.id} 为自然到期，触发最终结算调整。")
+        if not final_adjustments_synced and contract.status in ['terminated', 'finished'] and not bill.is_substitute_bill:
+            last_bill_in_db = CustomerBill.query.filter(
+                CustomerBill.contract_id == contract.id,
+                CustomerBill.is_substitute_bill == False
+            ).order_by(CustomerBill.cycle_end_date.desc()).first()
+
+            if last_bill_in_db and last_bill_in_db.id == bill.id:
+                current_app.logger.info(f"[NannyCALC] 合同 {contract.id} 已结束，同步最后账单 {bill.id} 的最终结算调整。")
                 self.create_final_salary_adjustments(bill.id)
         
         # 提交所有更改到数据库
@@ -3238,7 +3242,12 @@ class BillingEngine:
         # 从 calculation_details 中获取基础劳务费（包含加班费）
         calc_details = payroll.calculation_details or {}
         employee_base_payout = D(str(calc_details.get('employee_base_payout', 0)))
-        employee_overtime_fee = D(str(calc_details.get('employee_overtime_fee', 0)))
+        employee_overtime_fee = D(str(
+            calc_details.get(
+                'employee_overtime_payout',
+                calc_details.get('employee_overtime_fee', 0)
+            )
+        ))
         # 实际劳务费 = 基础劳务费 + 加班费（计算过程不四舍五入）
         actual_labor_fee = employee_base_payout + employee_overtime_fee
 
@@ -3324,6 +3333,12 @@ class BillingEngine:
             return
 
         mirrored_adj = company_adj.mirrored_adjustment
+        if not mirrored_adj:
+            mirrored_adj = FinancialAdjustment.query.filter_by(
+                employee_payroll_id=payroll.id,
+                adjustment_type=AdjustmentType.DEPOSIT_PAID_SALARY,
+                description="[系统] 保证金支付工资",
+            ).first()
         new_amount = company_adj.amount
 
         if mirrored_adj:
@@ -3331,6 +3346,12 @@ class BillingEngine:
                 current_app.logger.info(f"[MIRROR_ADJ] Updating mirrored adjustment {mirrored_adj.id} amount from {mirrored_adj.amount} to {new_amount}")
                 mirrored_adj.amount = new_amount
                 db.session.add(mirrored_adj)
+            if mirrored_adj.mirrored_adjustment_id != company_adj.id:
+                mirrored_adj.mirrored_adjustment_id = company_adj.id
+                db.session.add(mirrored_adj)
+            if company_adj.mirrored_adjustment_id != mirrored_adj.id:
+                company_adj.mirrored_adjustment_id = mirrored_adj.id
+                db.session.add(company_adj)
         else:
             current_app.logger.info(f"[MIRROR_ADJ] Creating new mirrored adjustment for company adjustment {company_adj.id}")
             new_adj = FinancialAdjustment(

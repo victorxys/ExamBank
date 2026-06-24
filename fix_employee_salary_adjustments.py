@@ -23,7 +23,12 @@ def calculate_correct_amount(contract, payroll):
     """
     calc_details = payroll.calculation_details or {}
     employee_base_payout = D(str(calc_details.get('employee_base_payout', 0)))
-    employee_overtime_fee = D(str(calc_details.get('employee_overtime_fee', 0)))
+    employee_overtime_fee = D(str(
+        calc_details.get(
+            'employee_overtime_payout',
+            calc_details.get('employee_overtime_fee', 0)
+        )
+    ))
     # 实际劳务费 = 基础劳务费 + 加班费（计算过程不四舍五入）
     actual_labor_fee = employee_base_payout + employee_overtime_fee
     
