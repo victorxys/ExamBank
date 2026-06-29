@@ -205,6 +205,155 @@
   border: 0;
 }
 
+.signing-message-panel {
+  margin-top: 24rpx;
+  padding: 22rpx;
+  border-radius: 18rpx;
+  background: #f7fbfd;
+  border: 1rpx solid #e1e9ef;
+}
+
+.signing-message-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.signing-message-title {
+  color: #142033;
+  font-size: 28rpx;
+  line-height: 38rpx;
+  font-weight: 900;
+}
+
+.signing-message-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+.mini-action {
+  min-width: 72rpx;
+  height: 48rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1rpx solid #dce6eb;
+  color: #526177;
+  font-size: 23rpx;
+  line-height: 32rpx;
+  font-weight: 900;
+}
+
+.mini-action.primary {
+  border-color: #b7eee5;
+  background: #e8fbf7;
+  color: #008d80;
+}
+
+.signing-message-tabs {
+  margin-top: 18rpx;
+  padding: 6rpx;
+  border-radius: 999rpx;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6rpx;
+  background: #eef4f7;
+}
+
+.signing-message-tab {
+  height: 52rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #617087;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  font-weight: 900;
+}
+
+.signing-message-tab.active {
+  background: #fff;
+  color: #008d80;
+  box-shadow: 0 8rpx 18rpx rgba(43, 118, 109, 0.08);
+}
+
+.signing-message-preview,
+.signing-message-editor {
+  width: 100%;
+  min-height: 360rpx;
+  margin-top: 18rpx;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  border: 1rpx solid #e3edf2;
+  color: #26354c;
+  font-size: 24rpx;
+  line-height: 38rpx;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
+.signing-message-editor {
+  max-height: 720rpx;
+}
+
+.signing-message-empty {
+  margin-top: 18rpx;
+  padding: 34rpx 20rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  color: #718198;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  text-align: center;
+}
+
+.signing-message-empty.error {
+  color: #b45309;
+  background: #fff7ed;
+}
+
+.signing-message-footer {
+  margin-top: 18rpx;
+  display: flex;
+  justify-content: flex-end;
+  gap: 14rpx;
+  flex-wrap: wrap;
+}
+
+.outline-action,
+.solid-action {
+  min-width: 136rpx;
+  height: 58rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  font-weight: 900;
+}
+
+.outline-action {
+  background: #fff;
+  border: 1rpx solid #dce6eb;
+  color: #526177;
+}
+
+.solid-action {
+  color: #fff;
+  background: linear-gradient(135deg, #14cdb8, #029f92);
+}
+
 .notice-list {
   margin-top: 22rpx;
   display: grid;

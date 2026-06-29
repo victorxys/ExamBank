@@ -20,15 +20,77 @@ function ceilYearText(value) {
   if (value === undefined || value === null || value === '') return '';
   const text = String(value).trim();
   if (!text) return '';
-  const numeric = Number(text.replace(/年$/, ''));
-  if (!Number.isNaN(numeric)) return `${Math.ceil(Math.max(numeric, 0))}年`;
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  if (match) {
+    const numeric = Number(match[0]);
+    return `${Math.ceil(Math.max(numeric, 0))}年`;
+  }
   return /年$/.test(text) ? text : `${text}年`;
 }
 
+function parseDate(value) {
+  if (!value) return null;
+  const normalized = String(value).trim()
+    .replace(/\./g, '-')
+    .replace(/\//g, '-')
+    .replace(/[年月]/g, '-')
+    .replace(/日/g, '');
+  const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!match) return null;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function yearsSinceDate(startDateValue) {
+  const startDate = parseDate(startDateValue);
+  if (!startDate) return '';
+  const now = new Date();
+  let years = now.getFullYear() - startDate.getFullYear();
+  const monthDiff = now.getMonth() - startDate.getMonth();
+  const hasPartialYear = monthDiff > 0 || (monthDiff === 0 && now.getDate() > startDate.getDate());
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < startDate.getDate())) {
+    return `${Math.max(years, 0)}年`;
+  }
+  return `${Math.max(years + (hasPartialYear ? 1 : 0), 0)}年`;
+}
+
+function extractDateText(value) {
+  if (value === undefined || value === null || value === '') return '';
+  const text = String(value).trim();
+  const match = text.match(/(\d{4})[.\-/年](\d{1,2})[.\-/月](\d{1,2})/);
+  if (!match) return '';
+  return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+function firstDisplayValue(values = []) {
+  return values.find((value) => value !== undefined && value !== null && value !== '') || '';
+}
+
+function workExperienceStartDate(item = {}) {
+  return firstDisplayValue([
+    item.experience_start_date,
+    item.experienceStartDate,
+    item.work_experience_start_date,
+    item.workExperienceStartDate,
+    item.career_start_date,
+    item.careerStartDate,
+    item.working_start_date,
+    item.workingStartDate,
+    item.start_work_date,
+    item.startWorkDate,
+    item.first_work_date,
+    item.firstWorkDate,
+    item.work_from_date,
+    item.workFromDate,
+    extractDateText(item.work_experience || item.workExperience || item.work_history || item.workHistory || item.experience || item.experience_text)
+  ]);
+}
+
 function normalizeAyiItem(item = {}) {
+  const experienceStartDate = workExperienceStartDate(item);
   return {
     ...item,
-    experience_years_text: ceilYearText(item.experience_years)
+    experience_years_text: experienceStartDate ? yearsSinceDate(experienceStartDate) : ceilYearText(item.experience_years)
   };
 }
 

@@ -45,12 +45,13 @@ function hasDisplayValue(value) {
   return value !== undefined && value !== null && value !== '';
 }
 
-function appendYearUnit(value) {
-  if (!hasDisplayValue(value)) return '-';
+function ceilYearText(value, emptyText = '-') {
+  if (!hasDisplayValue(value)) return emptyText;
   const text = String(value).trim();
-  if (!text) return '-';
-  const numeric = Number(text.replace(/年$/, ''));
-  if (!Number.isNaN(numeric)) {
+  if (!text) return emptyText;
+  const match = text.match(/-?\d+(?:\.\d+)?/);
+  if (match) {
+    const numeric = Number(match[0]);
     return `${Math.ceil(Math.max(numeric, 0))}年`;
   }
   return /年$/.test(text) ? text : `${text}年`;
@@ -59,7 +60,11 @@ function appendYearUnit(value) {
 function parseDate(value) {
   if (!value) return null;
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-  const normalized = String(value).trim().replace(/\./g, '-').replace(/\//g, '-');
+  const normalized = String(value).trim()
+    .replace(/\./g, '-')
+    .replace(/\//g, '-')
+    .replace(/[年月]/g, '-')
+    .replace(/日/g, '');
   const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (!match) return null;
   const year = Number(match[1]);
@@ -69,7 +74,7 @@ function parseDate(value) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function tenureYears(startDateValue) {
+function yearsSinceDate(startDateValue) {
   const startDate = parseDate(startDateValue);
   if (!startDate) return '-';
   const now = new Date();
@@ -82,6 +87,43 @@ function tenureYears(startDateValue) {
   return `${Math.max(years + (hasPartialYear ? 1 : 0), 0)}年`;
 }
 
+function firstDisplayValue(values = []) {
+  return values.find((value) => hasDisplayValue(value)) || '';
+}
+
+function extractDateText(value) {
+  if (!hasDisplayValue(value)) return '';
+  const text = String(value).trim();
+  const match = text.match(/(\d{4})[.\-/年](\d{1,2})[.\-/月](\d{1,2})/);
+  if (!match) return '';
+  return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
+function workExperienceStartDate(item = {}, workExperienceText = '') {
+  return firstDisplayValue([
+    item.experience_start_date,
+    item.experienceStartDate,
+    item.work_experience_start_date,
+    item.workExperienceStartDate,
+    item.career_start_date,
+    item.careerStartDate,
+    item.working_start_date,
+    item.workingStartDate,
+    item.start_work_date,
+    item.startWorkDate,
+    item.first_work_date,
+    item.firstWorkDate,
+    item.work_from_date,
+    item.workFromDate,
+    extractDateText(workExperienceText)
+  ]);
+}
+
+function normalizeWorkExperienceText(text, yearsText) {
+  if (!hasDisplayValue(text) || !hasDisplayValue(yearsText) || yearsText === '-') return text || '';
+  return String(text).replace(/^\s*\d+(?:\.\d+)?\s*年/, yearsText);
+}
+
 function normalizeAyiDetail(item = {}) {
   const workExperience = item.work_experience
     || item.workExperience
@@ -90,12 +132,14 @@ function normalizeAyiDetail(item = {}) {
     || item.experience
     || item.experience_text
     || '';
+  const experienceStartDate = workExperienceStartDate(item, workExperience);
+  const workYearsText = experienceStartDate ? yearsSinceDate(experienceStartDate) : ceilYearText(item.experience_years);
   return {
     ...item,
-    work_years_text: appendYearUnit(item.experience_years),
+    work_years_text: workYearsText,
     baby_count_text: hasDisplayValue(item.baby_count) ? String(item.baby_count) : '-',
-    tenure_text: tenureYears(item.work_start_date),
-    work_experience_text: workExperience
+    tenure_text: yearsSinceDate(item.work_start_date),
+    work_experience_text: normalizeWorkExperienceText(workExperience, workYearsText)
   };
 }
 
