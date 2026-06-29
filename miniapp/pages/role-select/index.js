@@ -47,6 +47,6 @@ Page({
     const employee = app.globalData.employee || wx.getStorageSync('miniapp_employee');
     const staffUser = app.globalData.staffUser || wx.getStorageSync('miniapp_staff_user');
     app.setSession(app.globalData.openid || wx.getStorageSync('miniapp_openid'), customer || null, employee || null, 'staff', staffUser || null);
-    wx.redirectTo({ url: '/pages/ayi-search/index' });
+    wx.redirectTo({ url: '/pages/staff-home/index' });
   }
 });

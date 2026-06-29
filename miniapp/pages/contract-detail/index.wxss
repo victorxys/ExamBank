@@ -1,7 +1,134 @@
+.contract-detail-page {
+  padding: 28rpx 24rpx 58rpx;
+}
+
+.detail-hero {
+  position: relative;
+  min-height: 190rpx;
+  padding: 30rpx;
+  border: 1rpx solid rgba(174, 226, 219, 0.85);
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 26rpx;
+  overflow: hidden;
+  box-shadow: 0 18rpx 44rpx rgba(43, 118, 109, 0.08);
+  box-sizing: border-box;
+}
+
+.detail-hero-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.detail-hero-icon,
+.detail-hero-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.detail-hero-icon {
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: #fff;
+  background: linear-gradient(135deg, #35dfba, #08a895);
+  font-size: 38rpx;
+  line-height: 1;
+  font-weight: 900;
+  box-shadow: 0 12rpx 28rpx rgba(8, 168, 149, 0.18);
+}
+
+.detail-hero-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.hero-title {
+  min-width: 0;
+  color: #142033;
+  font-size: 40rpx;
+  line-height: 50rpx;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero-desc {
+  margin-top: 8rpx;
+  color: #40506a;
+  font-size: 26rpx;
+  line-height: 36rpx;
+  font-weight: 700;
+}
+
+.hero-dot {
+  margin: 0 10rpx;
+  color: #9aa7b8;
+}
+
 .date-range {
-  margin-top: 18rpx;
+  margin-top: 10rpx;
+  color: #526177;
   font-size: 24rpx;
-  color: rgba(255, 255, 255, 0.9);
+  line-height: 34rpx;
+  font-weight: 700;
+}
+
+.card {
+  margin-top: 24rpx;
+  padding: 26rpx;
+  border: 1rpx solid rgba(196, 228, 224, 0.86);
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18rpx 44rpx rgba(43, 118, 109, 0.08);
+  box-sizing: border-box;
+}
+
+.section-title {
+  color: #142033;
+  font-size: 32rpx;
+  line-height: 42rpx;
+  font-weight: 900;
+}
+
+.row {
+  min-height: 66rpx;
+  padding: 14rpx 0;
+  border-bottom: 1rpx dashed #dfe8ed;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  font-size: 26rpx;
+  line-height: 36rpx;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row-label {
+  flex: none;
+  color: #617087;
+  font-weight: 700;
+}
+
+.row-value {
+  min-width: 0;
+  color: #142033;
+  text-align: right;
+  font-weight: 900;
+  word-break: break-word;
 }
 
 .attachment-block {
@@ -36,6 +163,46 @@
 
 .actions-card {
   overflow: hidden;
+}
+
+.staff-share-card {
+  overflow: hidden;
+}
+
+.staff-share-desc {
+  margin-top: 14rpx;
+  color: #617087;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.staff-share-row {
+  margin-top: 20rpx;
+  display: flex;
+  justify-content: flex-end;
+  gap: 14rpx;
+  flex-wrap: wrap;
+}
+
+.staff-share-btn {
+  margin: 0;
+  min-width: 190rpx;
+  height: 72rpx;
+  padding: 0 26rpx;
+  border-radius: 18rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(135deg, #14cdb8, #029f92);
+  font-size: 26rpx;
+  line-height: 72rpx;
+  font-weight: 900;
+  box-shadow: 0 12rpx 24rpx rgba(6, 166, 149, 0.2);
+}
+
+.staff-share-btn::after {
+  border: 0;
 }
 
 .notice-list {
@@ -177,7 +344,7 @@
   color: #0f172a;
   font-size: 28rpx;
   line-height: 40rpx;
-  font-weight: 850;
+  font-weight: 900;
 }
 
 .record-desc {

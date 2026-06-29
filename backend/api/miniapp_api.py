@@ -25,6 +25,7 @@ from backend.models import (
     MiniappDebugAccess,
     MiniappContractEvaluation,
     MiniappContractExitSummary,
+    NannyContract,
     ServicePersonnel,
     SigningStatus,
     User,
@@ -101,6 +102,7 @@ MINIAPP_ICON_SVGS = {
     "attendance_fill": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>""",
     "evaluation": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.7 9l6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.9l6-.9L12 3.5Z"/><path d="M4 21h16"/></svg>""",
     "ayi_search": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"/><path d="M2 21a8 8 0 0 1 12.4-6.7"/><circle cx="18" cy="18" r="3"/><path d="m21 21-1.5-1.5"/></svg>""",
+    "contract_search": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 22H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v6"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/></svg>""",
 }
 
 MYMS_AYI_SEARCH_PARAMS = {
@@ -170,9 +172,16 @@ def _request_myms_api(path, params=None):
 
 
 def _ensure_staff_ayi_access():
+    account, error = _ensure_staff_access("仅后台运营或管理员可搜索阿姨资料")
+    if error:
+        return None, error
+    return account, None
+
+
+def _ensure_staff_access(error_message="仅后台运营或管理员可访问"):
     account = _get_staff_account()
     if not account:
-        return None, (jsonify({"success": False, "error": "仅后台运营或管理员可搜索阿姨资料"}), 403)
+        return None, (jsonify({"success": False, "error": error_message}), 403)
     account.last_login_at = _now()
     db.session.commit()
     return account, None
@@ -1875,6 +1884,137 @@ def customer_evaluations():
         .all()
     )
     return jsonify({"success": True, "evaluations": [_evaluation_payload(item) for item in evaluations]})
+
+
+def _staff_contract_query():
+    return BaseContract.query.options(
+        joinedload(BaseContract.customer),
+        joinedload(BaseContract.service_personnel),
+    )
+
+
+def _staff_contract_card(contract):
+    return _contract_summary(
+        contract,
+        include_customer_token=bool(contract.customer_signing_token),
+        include_employee_token=bool(contract.employee_signing_token),
+    )
+
+
+def _staff_contract_expiring_query(query):
+    today = datetime.now()
+    deadline = today + timedelta(days=15)
+    return query.filter(
+        BaseContract.type == "nanny",
+        BaseContract.status.notin_(("finished", "completed", "terminated")),
+        BaseContract.end_date >= today,
+        BaseContract.end_date <= deadline,
+        or_(
+            NannyContract.is_monthly_auto_renew.is_(False),
+            NannyContract.is_monthly_auto_renew.is_(None),
+        ),
+    )
+
+
+def _apply_staff_contract_stat_filter(query, stat_filter):
+    if stat_filter == "customer_pending":
+        return query.filter(BaseContract.signing_status.in_([
+            SigningStatus.UNSIGNED,
+            SigningStatus.EMPLOYEE_SIGNED,
+        ]))
+    if stat_filter == "employee_pending":
+        return query.filter(BaseContract.signing_status.in_([
+            SigningStatus.UNSIGNED,
+            SigningStatus.CUSTOMER_SIGNED,
+        ]))
+    if stat_filter == "expiring":
+        return _staff_contract_expiring_query(query)
+    return query
+
+
+def _staff_contract_stats(query):
+    return {
+        "all": query.order_by(None).count(),
+        "customerPending": _apply_staff_contract_stat_filter(query, "customer_pending").order_by(None).count(),
+        "employeePending": _apply_staff_contract_stat_filter(query, "employee_pending").order_by(None).count(),
+        "expiring": _staff_contract_expiring_query(query).order_by(None).count(),
+    }
+
+
+@miniapp_bp.route("/staff/contracts", methods=["GET"])
+def staff_contracts():
+    _, error = _ensure_staff_access("仅后台运营或管理员可查看合同")
+    if error:
+        return error
+
+    search = (request.args.get("search") or "").strip()
+    contract_type = (request.args.get("type") or "").strip()
+    signing_status = (request.args.get("signing_status") or "").strip()
+    status = (request.args.get("status") or "").strip()
+    stat_filter = (request.args.get("stat_filter") or "").strip()
+    page = max(1, request.args.get("page", 1, type=int) or 1)
+    per_page = min(max(1, request.args.get("per_page", 10, type=int) or 10), 50)
+
+    query = _staff_contract_query()
+
+    if search:
+        pinyin_search = search.replace(" ", "")
+        query = query.outerjoin(ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id)
+        query = query.filter(
+            or_(
+                BaseContract.customer_name.ilike(f"%{search}%"),
+                BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search}%"),
+                ServicePersonnel.name.ilike(f"%{search}%"),
+                ServicePersonnel.name_pinyin.ilike(f"%{pinyin_search}%"),
+            )
+        )
+
+    if contract_type in ("nanny", "maternity_nurse", "nanny_trial", "external_substitution"):
+        query = query.filter(BaseContract.type == contract_type)
+
+    if signing_status:
+        query = query.filter(BaseContract.signing_status == signing_status)
+
+    if status:
+        query = query.filter(BaseContract.status == status)
+
+    stats = _staff_contract_stats(query)
+    query = _apply_staff_contract_stat_filter(query, stat_filter)
+
+    paginated = query.order_by(BaseContract.created_at.desc()).paginate(
+        page=page,
+        per_page=per_page,
+        error_out=False,
+    )
+    db.session.commit()
+    return jsonify(
+        {
+            "success": True,
+            "contracts": [_staff_contract_card(contract) for contract in paginated.items],
+            "total": paginated.total,
+            "page": paginated.page,
+            "pages": paginated.pages,
+            "per_page": paginated.per_page,
+            "stats": stats,
+        }
+    )
+
+
+@miniapp_bp.route("/staff/contracts/<uuid:contract_id>", methods=["GET"])
+def staff_contract_detail(contract_id):
+    _, error = _ensure_staff_access("仅后台运营或管理员可查看合同")
+    if error:
+        return error
+
+    contract = _staff_contract_query().filter(BaseContract.id == contract_id).first()
+    db.session.commit()
+    if not contract:
+        return jsonify({"success": False, "error": "合同不存在"}), 404
+
+    data = _contract_detail(contract)
+    data["customer_signing_token"] = contract.customer_signing_token
+    data["employee_signing_token"] = contract.employee_signing_token
+    return jsonify({"success": True, "contract": data})
 
 
 @miniapp_bp.route("/employee/overview", methods=["GET"])

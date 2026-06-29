@@ -4,7 +4,7 @@
 
   <view wx:if="{{staffUser}}" class="role-card staff" bindtap="selectStaff">
     <view class="role-card-title">后台运营</view>
-    <view class="role-card-desc">{{staffUser.username || '进入阿姨资料搜索'}}</view>
+    <view class="role-card-desc">{{staffUser.username || '进入运营工作台'}}</view>
   </view>
 
   <view wx:if="{{employee}}" class="role-card" bindtap="selectEmployee">

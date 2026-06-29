@@ -125,11 +125,18 @@ module.exports = {
   employeeContractList(statusGroup = 'all') {
     return request({ url: `/miniapp/employee/contracts?status_group=${statusGroup}` });
   },
+  staffContractList(params = {}) {
+    const query = buildQuery(params);
+    return request({ url: `/miniapp/staff/contracts${query ? `?${query}` : ''}` });
+  },
   contractDetail(contractId) {
     return request({ url: `/miniapp/customer/contracts/${contractId}` });
   },
   employeeContractDetail(contractId) {
     return request({ url: `/miniapp/employee/contracts/${contractId}` });
+  },
+  staffContractDetail(contractId) {
+    return request({ url: `/miniapp/staff/contracts/${contractId}` });
   },
   contractEvaluation(contractId) {
     return request({ url: `/miniapp/customer/contracts/${contractId}/evaluation` });

@@ -1,7 +1,7 @@
 page {
   min-height: 100%;
-  background: #edf5f2;
-  color: #17202a;
+  background: #effaf8;
+  color: #142033;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -32,6 +32,131 @@ button::after {
   min-height: 100vh;
   padding: 28rpx;
   box-sizing: border-box;
+}
+
+.design-page {
+  position: relative;
+  min-height: 100vh;
+  padding: 24rpx 28rpx 54rpx;
+  overflow: hidden;
+  background: #effaf8;
+  box-sizing: border-box;
+}
+
+.page-bg {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.page-content {
+  position: relative;
+  z-index: 1;
+}
+
+.design-hero {
+  position: relative;
+  min-height: 300rpx;
+  padding: 42rpx 34rpx;
+  border-radius: 28rpx;
+  overflow: hidden;
+  color: #142033;
+  box-shadow: 0 18rpx 48rpx rgba(15, 159, 143, 0.14);
+  box-sizing: border-box;
+}
+
+.design-hero-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.design-hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 390rpx;
+}
+
+.design-hero-title {
+  color: #102138;
+  font-size: 56rpx;
+  line-height: 68rpx;
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.design-hero-desc {
+  margin-top: 14rpx;
+  color: #5a6a82;
+  font-size: 28rpx;
+  line-height: 40rpx;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.soft-card {
+  border: 1rpx solid rgba(196, 228, 224, 0.86);
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18rpx 44rpx rgba(43, 118, 109, 0.08);
+  box-sizing: border-box;
+}
+
+.soft-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: #fff;
+  background: linear-gradient(135deg, #35dfba, #08a895);
+  font-size: 28rpx;
+  line-height: 1;
+  font-weight: 900;
+  box-shadow: 0 10rpx 24rpx rgba(8, 168, 149, 0.18);
+}
+
+.soft-icon.blue {
+  background: linear-gradient(135deg, #77bcff, #2e86ee);
+}
+
+.soft-icon.orange {
+  background: linear-gradient(135deg, #ffc46d, #ff8d17);
+}
+
+.soft-icon.purple {
+  background: linear-gradient(135deg, #c5b4ff, #8768f7);
+}
+
+.soft-section-head {
+  margin: 34rpx 4rpx 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+
+.soft-section-title {
+  color: #142033;
+  font-size: 34rpx;
+  line-height: 44rpx;
+  font-weight: 900;
+}
+
+.soft-section-meta {
+  color: #08a895;
+  font-size: 26rpx;
+  line-height: 36rpx;
+  font-weight: 900;
 }
 
 .hero {
