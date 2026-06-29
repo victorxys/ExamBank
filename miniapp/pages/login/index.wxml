@@ -11,22 +11,22 @@
 
     <view class="feature-panel">
       <view class="feature-card">
-        <image class="feature-icon" src="/assets/login-icons/contract_icon.png" mode="aspectFit" />
+        <image class="feature-icon" src="https://images.mengyimengsao.com/miniprogram/contract_icon.png" mode="aspectFit" />
         <view class="feature-title">合同签署</view>
         <view class="feature-desc">在线签署合同，高效便捷</view>
       </view>
       <view class="feature-card">
-        <image class="feature-icon" src="/assets/login-icons/attendance_icon.png" mode="aspectFit" />
+        <image class="feature-icon" src="https://images.mengyimengsao.com/miniprogram/attendance_icon.png" mode="aspectFit" />
         <view class="feature-title">考勤确认</view>
         <view class="feature-desc">每月考勤确认，轻松记录</view>
       </view>
       <view class="feature-card">
-        <image class="feature-icon" src="/assets/login-icons/history_icon.png" mode="aspectFit" />
+        <image class="feature-icon" src="https://images.mengyimengsao.com/miniprogram/history_icon.png" mode="aspectFit" />
         <view class="feature-title">历史合同</view>
         <view class="feature-desc">合同记录查询，随时可查</view>
       </view>
       <view class="feature-card">
-        <image class="feature-icon" src="/assets/login-icons/evaluation_icon.png" mode="aspectFit" />
+        <image class="feature-icon" src="https://images.mengyimengsao.com/miniprogram/evaluation_icon.png" mode="aspectFit" />
         <view class="feature-title">员工评价</view>
         <view class="feature-desc">服务评价反馈，真实透明</view>
       </view>

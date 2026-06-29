@@ -1,8 +1,8 @@
 <view class="design-page contract-detail-page">
-  <image class="page-bg" src="/assets/ui/page-bg.jpg" mode="aspectFill" />
+  <image class="page-bg" src="https://images.mengyimengsao.com/miniprogram/page-bg.jpg" mode="aspectFill" />
   <view class="page-content">
   <view class="detail-hero">
-    <image class="detail-hero-bg" src="/assets/ui/hero-contract.jpg" mode="aspectFill" />
+    <image class="detail-hero-bg" src="https://images.mengyimengsao.com/miniprogram/hero-contract.jpg" mode="aspectFill" />
     <view class="detail-hero-icon">合</view>
     <view class="detail-hero-copy">
       <view class="hero-title">{{contract.type_label || '合同详情'}}</view>

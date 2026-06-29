@@ -121,6 +121,13 @@
         <div class="contract-content">{{ attachment_content|safe }}</div>
     {% endif %}
 
+    {% if note_html %}
+        <h2>合同备注</h2>
+        <div class="party-details">
+            <p>{{ note_html|safe }}</p>
+        </div>
+    {% endif %}
+
     <div class="signature-section">
         <div class="signature-block">
             <p>甲方 (客户):</p>

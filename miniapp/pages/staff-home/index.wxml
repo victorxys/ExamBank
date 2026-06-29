@@ -1,8 +1,8 @@
 <view class="design-page staff-page">
-  <image class="page-bg" src="/assets/ui/page-bg.jpg" mode="aspectFill" />
+  <image class="page-bg" src="https://images.mengyimengsao.com/miniprogram/page-bg.jpg" mode="aspectFill" />
   <view class="page-content">
     <view class="design-hero staff-hero">
-      <image class="design-hero-bg" src="/assets/ui/hero-admin.jpg" mode="aspectFill" />
+      <image class="design-hero-bg" src="https://images.mengyimengsao.com/miniprogram/hero-admin.jpg" mode="aspectFill" />
       <view class="design-hero-content">
         <view class="design-hero-title">后台运营</view>
         <view class="design-hero-desc">{{staffUser.username || '运营人员'}}，请选择要处理的业务。</view>
