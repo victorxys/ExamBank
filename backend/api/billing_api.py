@@ -813,9 +813,9 @@ def update_single_contract(contract_id):
                 
 
         if "notes" in data:
-            original_note = contract.notes or ""
+            original_note = (contract.notes or "").replace("\\n", "\n")
             appended_note = data["notes"] or ""
-            separator = "\\n\\n--- 运营备注 ---\\n"
+            separator = "\n\n--- 运营备注 ---\n"
             if separator in original_note:
                 base_note = original_note.split(separator)[0]
                 new_full_note = f"{base_note}{separator}{appended_note}"

@@ -46,6 +46,7 @@ import decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, and_, extract, func
 from sqlalchemy.orm import joinedload
+from markupsafe import Markup, escape
 D = decimal.Decimal
 from backend.tasks import calculate_monthly_billing_task, trigger_initial_bill_generation_task
 from dateutil.relativedelta import relativedelta # <--- 请确保文件顶部有此导入
@@ -209,6 +210,28 @@ def _build_contract_signing_link(token, role, miniapp_config=None):
         if not config.get("fallback_to_web", True):
             raise
     return result
+
+
+CONTRACT_NOTES_SEPARATOR = "\n\n--- 运营备注 ---\n"
+LEGACY_CONTRACT_NOTES_SEPARATOR = "\\n\\n--- 运营备注 ---\\n"
+
+
+def _plain_text_to_html(value):
+    text = str(value or "").replace("\\n", "\n").strip()
+    if not text:
+        return Markup("")
+    return Markup("<br>").join(escape(line) for line in text.splitlines())
+
+
+def _build_contract_note_html(notes):
+    text = str(notes or "").replace("\\n", "\n").strip()
+    if not text:
+        return Markup("")
+
+    text = text.replace(LEGACY_CONTRACT_NOTES_SEPARATOR, CONTRACT_NOTES_SEPARATOR)
+    note_parts = [part.strip() for part in text.split("--- 运营备注 ---")]
+    text = "\n".join(part for part in note_parts if part)
+    return _plain_text_to_html(text)
 
 
 def _get_employee_ongoing_contracts(service_personnel_id, exclude_contract_id=None):
@@ -673,6 +696,7 @@ def download_contract_pdf(contract_id):
         main_content_html = markdown.markdown(template_content)
         # 2. 读取并转换附件内容
         attachment_content_html = markdown.markdown(contract.attachment_content) if contract.attachment_content else ''
+        note_html = _build_contract_note_html(contract.notes)
 
         # 获取签名 (用于PDF生成，需要使用绝对路径)
         customer_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').first()
@@ -695,6 +719,7 @@ def download_contract_pdf(contract_id):
             service_content=service_content_html,
             main_content=main_content_html,
             attachment_content=attachment_content_html,
+            note_html=note_html,
             customer_signature=customer_signature_path,
             employee_signature=employee_signature_path,
             customer=contract.customer,

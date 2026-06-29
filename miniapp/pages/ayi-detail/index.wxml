@@ -1,5 +1,5 @@
 <view class="design-page ayi-detail-page" wx:if="{{item}}">
-  <image class="page-bg" src="/assets/ui/page-bg.jpg" mode="aspectFill" />
+  <image class="page-bg" src="https://images.mengyimengsao.com/miniprogram/page-bg.jpg" mode="aspectFill" />
   <view class="page-content">
   <view class="profile-hero">
     <image class="hero-avatar" src="{{item.avatar_url}}" mode="aspectFill" />
