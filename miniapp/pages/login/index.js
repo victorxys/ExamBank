@@ -64,7 +64,7 @@ Page({
     }
     if (defaultRole === 'staff') {
       wx.showToast({ title: '登录成功', icon: 'success' });
-      wx.redirectTo({ url: '/pages/ayi-search/index' });
+      wx.redirectTo({ url: '/pages/staff-home/index' });
       return;
     }
     if (defaultRole === 'customer') {

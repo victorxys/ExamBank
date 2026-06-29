@@ -1,0 +1,83 @@
+.staff-page {
+  padding-top: 30rpx;
+}
+
+.staff-hero {
+  min-height: 334rpx;
+  display: flex;
+  align-items: center;
+}
+
+.staff-hero .design-hero-content {
+  max-width: 360rpx;
+}
+
+.hero-accent {
+  width: 64rpx;
+  height: 8rpx;
+  margin-top: 26rpx;
+  border-radius: 999rpx;
+  background: #16b8a7;
+}
+
+.entry-grid {
+  margin-top: 32rpx;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24rpx;
+}
+
+.entry-card {
+  min-height: 164rpx;
+  padding: 30rpx 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 26rpx;
+}
+
+.entry-icon {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 24rpx;
+  overflow: hidden;
+  flex: none;
+}
+
+.entry-icon-img {
+  width: 100%;
+  height: 100%;
+}
+
+.entry-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.entry-title {
+  color: #142033;
+  font-size: 40rpx;
+  line-height: 50rpx;
+  font-weight: 900;
+}
+
+.entry-desc {
+  margin-top: 8rpx;
+  color: #617087;
+  font-size: 27rpx;
+  line-height: 38rpx;
+  font-weight: 600;
+}
+
+.entry-arrow-img {
+  flex: none;
+  width: 50rpx;
+  height: 50rpx;
+}
+
+.fallback-logout {
+  margin-top: 44rpx;
+  text-align: center;
+  color: #8ea0b4;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}

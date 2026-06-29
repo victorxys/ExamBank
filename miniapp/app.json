@@ -5,6 +5,8 @@
     "pages/employee-bind/index",
     "pages/home/index",
     "pages/employee-home/index",
+    "pages/staff-home/index",
+    "pages/staff-contracts/index",
     "pages/contracts/index",
     "pages/contract-detail/index",
     "pages/contract-attendance/index",

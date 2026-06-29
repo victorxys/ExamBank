@@ -1,0 +1,504 @@
+.staff-contract-page {
+  padding: 0 24rpx 56rpx;
+}
+
+.contract-hero {
+  position: relative;
+  min-height: 300rpx;
+  margin: 0 -24rpx;
+  padding: 60rpx 48rpx 36rpx;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24rpx;
+  box-sizing: border-box;
+}
+
+.contract-hero-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.contract-hero-copy,
+.total-pill {
+  position: relative;
+  z-index: 1;
+}
+
+.contract-hero-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.screen-title {
+  color: #142033;
+  font-size: 52rpx;
+  line-height: 64rpx;
+  font-weight: 900;
+}
+
+.screen-subtitle {
+  margin-top: 10rpx;
+  color: #5d6b82;
+  font-size: 28rpx;
+  line-height: 38rpx;
+  font-weight: 700;
+}
+
+.total-pill {
+  width: 156rpx;
+  min-height: 92rpx;
+  padding: 16rpx 12rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  flex: none;
+}
+
+.total-num {
+  color: #08a895;
+  font-size: 38rpx;
+  line-height: 42rpx;
+  font-weight: 900;
+}
+
+.total-text {
+  margin-top: 2rpx;
+  color: #617087;
+  font-size: 22rpx;
+  line-height: 28rpx;
+  font-weight: 800;
+}
+
+.search-card {
+  margin-top: -10rpx;
+  padding: 22rpx;
+  border-radius: 24rpx;
+}
+
+.search-line {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.input-wrap {
+  min-width: 0;
+  flex: 1;
+  height: 74rpx;
+  position: relative;
+  border: 1rpx solid #dce6eb;
+  border-radius: 999rpx;
+  background: #fbfdff;
+  overflow: hidden;
+}
+
+.search-symbol-img {
+  position: absolute;
+  left: 24rpx;
+  top: 19rpx;
+  width: 36rpx;
+  height: 36rpx;
+}
+
+.search-input {
+  width: 100%;
+  height: 74rpx;
+  padding: 0 64rpx 0 74rpx;
+  color: #142033;
+  font-size: 27rpx;
+  box-sizing: border-box;
+}
+
+.search-btn {
+  margin: 0;
+  padding: 0;
+  width: 132rpx;
+  flex: 0 0 132rpx;
+  height: 74rpx;
+  line-height: 74rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #14cdb8, #029f92);
+  color: #fff;
+  font-size: 27rpx;
+  font-weight: 900;
+  box-shadow: 0 12rpx 24rpx rgba(6, 166, 149, 0.2);
+}
+
+.search-btn::after,
+.text-action::after {
+  border: 0;
+}
+
+.clear-btn {
+  position: absolute;
+  right: 14rpx;
+  top: 15rpx;
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.clear-icon-img {
+  width: 100%;
+  height: 100%;
+}
+
+.filter-scroll {
+  margin-top: 18rpx;
+  white-space: nowrap;
+}
+
+.filter-scroll picker {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.filter-chip {
+  height: 56rpx;
+  margin-right: 12rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fbfdff;
+  border: 1rpx solid #e1e9ef;
+  color: #33435a;
+  font-size: 24rpx;
+  line-height: 56rpx;
+  font-weight: 900;
+  vertical-align: top;
+}
+
+.filter-chip-icon {
+  width: 28rpx;
+  height: 28rpx;
+  margin-right: 8rpx;
+  flex: none;
+}
+
+.filter-chip.active {
+  background: #e8fbf7;
+  border-color: #b7eee5;
+  color: #008d80;
+}
+
+.filter-chip.reset {
+  color: #33435a;
+  background: #fff;
+}
+
+.stats-strip {
+  margin-top: 22rpx;
+  padding: 22rpx 14rpx;
+  border: 1rpx solid #e6eef3;
+  border-radius: 20rpx;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(232,250,246,0.82));
+}
+
+.stat-item {
+  min-height: 70rpx;
+  min-width: 0;
+  padding: 0 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  border-right: 1rpx solid #dce7ec;
+  border-radius: 14rpx;
+}
+
+.stat-item:last-child {
+  border-right: 0;
+}
+
+.stat-item.active {
+  background: rgba(8, 168, 149, 0.1);
+}
+
+.stat-icon {
+  width: 54rpx;
+  height: 54rpx;
+  border-radius: 16rpx;
+  font-size: 22rpx;
+}
+
+.stat-main {
+  min-width: 0;
+}
+
+.stat-num {
+  color: #142033;
+  font-size: 34rpx;
+  line-height: 38rpx;
+  font-weight: 900;
+}
+
+.stat-label {
+  margin-top: 2rpx;
+  color: #617087;
+  font-size: 21rpx;
+  line-height: 28rpx;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.section-icon {
+  width: 18rpx;
+  height: 10rpx;
+  margin-right: 10rpx;
+  border-radius: 999rpx;
+  background: #50cfc0;
+}
+
+.staff-contract-page .soft-section-title {
+  display: flex;
+  align-items: center;
+}
+
+.sort-label {
+  display: flex;
+  align-items: center;
+  color: #33435a;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  font-weight: 800;
+}
+
+.sort-arrow-img {
+  width: 28rpx;
+  height: 28rpx;
+  margin-left: 2rpx;
+}
+
+.contract-card {
+  margin-bottom: 18rpx;
+  padding: 22rpx;
+  border-radius: 22rpx;
+  overflow: hidden;
+}
+
+.contract-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+  min-width: 0;
+}
+
+.contract-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 22rpx;
+  font-size: 34rpx;
+}
+
+.contract-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.contract-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.contract-title {
+  min-width: 0;
+  color: #142033;
+  font-size: 32rpx;
+  line-height: 42rpx;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-stack {
+  flex: none;
+  max-width: 164rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10rpx;
+}
+
+.chip,
+.sign-badge {
+  max-width: 164rpx;
+  padding: 7rpx 15rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  font-weight: 900;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.chip {
+  background: #e0f8f1;
+  color: #008d80;
+}
+
+.sign-badge.pending {
+  background: #fff0df;
+  color: #e46f00;
+}
+
+.sign-badge.partial {
+  background: #e9f3ff;
+  color: #1f72d8;
+}
+
+.sign-badge.done {
+  background: #e0f8f1;
+  color: #008d80;
+}
+
+.party-row {
+  margin-top: 12rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx 24rpx;
+}
+
+.party-item {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8rpx;
+}
+
+.party-label {
+  flex: none;
+  color: #7f8da2;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  font-weight: 700;
+}
+
+.party-value {
+  min-width: 0;
+  max-width: 150rpx;
+  color: #008d80;
+  font-size: 25rpx;
+  line-height: 34rpx;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contract-date {
+  margin-top: 8rpx;
+  color: #617087;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  font-weight: 600;
+}
+
+.action-row {
+  margin-top: 18rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid #edf2f5;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) 30rpx;
+  align-items: center;
+  min-height: 56rpx;
+}
+
+.text-action {
+  margin: 0;
+  padding: 0 6rpx;
+  min-width: 0;
+  height: 56rpx;
+  line-height: 56rpx;
+  border-radius: 0;
+  background: transparent;
+  color: #40506a;
+  font-size: 24rpx;
+  font-weight: 900;
+  text-align: center;
+  border-right: 1rpx solid #e0e7ee;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button.text-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  box-sizing: border-box;
+}
+
+.text-action.primary {
+  color: #008d80;
+}
+
+.action-icon-img {
+  width: 28rpx;
+  height: 28rpx;
+  margin-right: 8rpx;
+  flex: none;
+}
+
+.text-action text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-arrow-img {
+  width: 34rpx;
+  height: 34rpx;
+  grid-column: 4;
+  justify-self: end;
+}
+
+.empty {
+  margin-top: 24rpx;
+  padding: 60rpx 24rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.94);
+  text-align: center;
+  color: #8ea0b4;
+}
+
+.empty-title {
+  color: #33435a;
+  font-size: 30rpx;
+  line-height: 40rpx;
+  font-weight: 900;
+}
+
+.empty-desc {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.loading-more {
+  padding: 24rpx 0;
+  text-align: center;
+  color: #8ea0b4;
+  font-size: 23rpx;
+}

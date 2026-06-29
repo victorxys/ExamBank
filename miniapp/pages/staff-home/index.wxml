@@ -1,0 +1,39 @@
+<view class="design-page staff-page">
+  <image class="page-bg" src="/assets/ui/page-bg.jpg" mode="aspectFill" />
+  <view class="page-content">
+    <view class="design-hero staff-hero">
+      <image class="design-hero-bg" src="/assets/ui/hero-admin.jpg" mode="aspectFill" />
+      <view class="design-hero-content">
+        <view class="design-hero-title">后台运营</view>
+        <view class="design-hero-desc">{{staffUser.username || '运营人员'}}，请选择要处理的业务。</view>
+        <view class="hero-accent"></view>
+      </view>
+    </view>
+
+    <view class="entry-grid">
+      <view class="entry-card soft-card" bindtap="goAyiSearch">
+        <view class="entry-icon">
+          <image class="entry-icon-img" src="/assets/ui/icons/ayi-entry.svg" mode="aspectFit" />
+        </view>
+        <view class="entry-main">
+          <view class="entry-title">阿姨资料</view>
+          <view class="entry-desc">搜索员工资料并分享给客户</view>
+        </view>
+        <image class="entry-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
+      </view>
+
+      <view class="entry-card soft-card" bindtap="goContracts">
+        <view class="entry-icon">
+          <image class="entry-icon-img" src="/assets/ui/icons/contract-entry.svg" mode="aspectFit" />
+        </view>
+        <view class="entry-main">
+          <view class="entry-title">合同中心</view>
+          <view class="entry-desc">查找合同并分享签署页面</view>
+        </view>
+        <image class="entry-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
+      </view>
+    </view>
+
+    <view class="fallback-logout" bindtap="logoutFallback">身份异常？退出并重新登录</view>
+  </view>
+</view>

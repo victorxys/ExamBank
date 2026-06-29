@@ -1,63 +1,89 @@
-<view class="page" wx:if="{{item}}">
+<view class="design-page ayi-detail-page" wx:if="{{item}}">
+  <image class="page-bg" src="/assets/ui/page-bg.jpg" mode="aspectFill" />
+  <view class="page-content">
   <view class="profile-hero">
     <image class="hero-avatar" src="{{item.avatar_url}}" mode="aspectFill" />
     <view class="hero-main">
-      <view class="hero-name">{{item.full_name || item.name}}</view>
-      <view class="hero-role">{{item.type_label || '服务人员'}}</view>
+      <view class="hero-name-row">
+        <view class="hero-name">{{item.full_name || item.name}}</view>
+        <view class="hero-role">{{item.type_label || '服务人员'}}</view>
+      </view>
       <view class="hero-meta">
-        <text wx:if="{{item.age}}">{{item.age}}岁</text>
-        <text wx:if="{{item.city}}">{{item.city}}</text>
-        <text wx:if="{{item.education}}">{{item.education}}</text>
+        <view wx:if="{{item.age}}" class="hero-meta-item">
+          <image class="hero-meta-icon" src="/assets/ui/icons/age-line.svg" mode="aspectFit" />
+          <text>{{item.age}}岁</text>
+        </view>
+        <view wx:if="{{item.city}}" class="hero-meta-item">
+          <image class="hero-meta-icon" src="/assets/ui/icons/location-line.svg" mode="aspectFit" />
+          <text>{{item.city}}</text>
+        </view>
+        <view wx:if="{{item.education}}" class="hero-meta-item">
+          <image class="hero-meta-icon" src="/assets/ui/icons/education-line.svg" mode="aspectFit" />
+          <text>{{item.education}}</text>
+        </view>
       </view>
     </view>
   </view>
 
   <view class="stats">
-    <view class="stat">
-      <view class="stat-value">{{item.experience_years || '-'}}</view>
-      <view class="stat-label">经验年限</view>
+    <view class="stat soft-card">
+      <view class="stat-icon-wrap teal"><image class="stat-icon-img" src="/assets/ui/icons/work-years.svg" mode="aspectFit" /></view>
+      <view class="stat-value">{{item.work_years_text}}</view>
+      <view class="stat-label">工作年限</view>
     </view>
-    <view class="stat">
-      <view class="stat-value">{{item.baby_count || '-'}}</view>
+    <view class="stat soft-card">
+      <view class="stat-icon-wrap orange"><image class="stat-icon-img" src="/assets/ui/icons/baby.svg" mode="aspectFit" /></view>
+      <view class="stat-value">{{item.baby_count_text}}</view>
       <view class="stat-label">带宝数量</view>
     </view>
-    <view class="stat">
-      <view class="stat-value">{{item.media_counts.total || 0}}</view>
-      <view class="stat-label">资料图片</view>
+    <view class="stat soft-card">
+      <view class="stat-icon-wrap blue"><image class="stat-icon-img" src="/assets/ui/icons/tenure.svg" mode="aspectFit" /></view>
+      <view class="stat-value">{{item.tenure_text}}</view>
+      <view class="stat-label">入司时长</view>
     </view>
   </view>
 
-  <view class="info-card">
-    <view class="card-title">基本信息</view>
+  <view class="info-card soft-card">
+    <view class="card-title"><image class="title-icon-img" src="/assets/ui/icons/basic-info.svg" mode="aspectFit" />基本信息</view>
     <view class="info-grid">
       <view class="info-row" wx:if="{{item.shengxiao}}"><text>生肖</text><text>{{item.shengxiao}}</text></view>
       <view class="info-row" wx:if="{{item.xingzuo}}"><text>星座</text><text>{{item.xingzuo}}</text></view>
       <view class="info-row" wx:if="{{item.minzu}}"><text>民族</text><text>{{item.minzu}}</text></view>
       <view class="info-row" wx:if="{{item.height}}"><text>身高</text><text>{{item.height}}</text></view>
       <view class="info-row" wx:if="{{item.weight}}"><text>体重</text><text>{{item.weight}}</text></view>
-      <view class="info-row" wx:if="{{item.work_start_date}}"><text>入司</text><text>{{item.work_start_date}}</text></view>
+      <view class="info-row" wx:if="{{item.work_start_date}}"><text>入司日期</text><text>{{item.work_start_date}}</text></view>
+      <view class="info-row"><text>入司时长</text><text>{{item.tenure_text}}</text></view>
+      <view class="info-row"><text>工作年限</text><text>{{item.work_years_text}}</text></view>
     </view>
   </view>
 
-  <view class="info-card" wx:if="{{item.description}}">
-    <view class="card-title">自我介绍</view>
+  <view class="info-card soft-card" wx:if="{{item.work_experience_text}}">
+    <view class="card-title"><image class="title-icon-img" src="/assets/ui/icons/work-experience.svg" mode="aspectFit" />工作经验</view>
+    <view class="paragraph">{{item.work_experience_text}}</view>
+  </view>
+
+  <view class="info-card soft-card" wx:if="{{item.description}}">
+    <view class="card-title"><image class="title-icon-img" src="/assets/ui/icons/self-intro.svg" mode="aspectFit" />自我介绍</view>
     <view class="paragraph">{{item.description}}</view>
   </view>
 
-  <view class="info-card" wx:if="{{item.good_at}}">
-    <view class="card-title">擅长服务</view>
+  <view class="info-card soft-card" wx:if="{{item.good_at}}">
+    <view class="card-title"><image class="title-icon-img" src="/assets/ui/icons/good-at.svg" mode="aspectFit" />擅长服务</view>
     <view class="paragraph">{{item.good_at}}</view>
   </view>
 
   <block wx:for="{{sections}}" wx:for-item="section" wx:key="key">
-    <view class="info-card">
+    <view class="info-card soft-card">
       <view class="card-title-row">
-        <view class="card-title">{{section.label}}</view>
-        <view class="section-count">{{section.count}} 项</view>
+        <view class="card-title"><image class="title-icon-img {{section.tone}}" src="{{section.icon}}" mode="aspectFit" />{{section.label}}</view>
+        <!-- <view class="section-count">
+          <text>{{section.count}} 项</text>
+          <image class="section-count-icon" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
+        </view> -->
       </view>
       <view class="media-grid">
         <block wx:for="{{section.items}}" wx:for-item="media" wx:key="id">
-          <view class="media-cell" data-url="{{media.url}}" data-type="{{media.type}}" data-section="{{section.key}}" bindtap="previewMedia">
+          <view class="media-cell {{section.tone}}" data-url="{{media.url}}" data-type="{{media.type}}" data-section="{{section.key}}" bindtap="previewMedia">
             <image wx:if="{{media.type === 'image'}}" class="media-img" src="{{media.thumbnail || media.url}}" mode="aspectFill" />
             <video wx:elif="{{media.type === 'video'}}" class="media-img" src="{{media.url}}" controls object-fit="cover"></video>
             <view wx:else class="file-cell">资料</view>
@@ -67,8 +93,8 @@
     </view>
   </block>
 
-  <view class="info-card" wx:if="{{item.certificates.length}}">
-    <view class="card-title">培训证书</view>
+  <view class="info-card soft-card" wx:if="{{item.certificates.length}}">
+    <view class="card-title"><image class="title-icon-img blue" src="/assets/ui/icons/certificate.svg" mode="aspectFit" />培训证书</view>
     <block wx:for="{{item.certificates}}" wx:for-item="cert" wx:key="key">
       <view class="certificate-row">
         <view>{{cert.name || cert.key}}</view>
@@ -77,8 +103,8 @@
     </block>
   </view>
 
-  <view class="info-card" wx:if="{{item.performance_items.length}}">
-    <view class="card-title">客户评价</view>
+  <view class="info-card soft-card" wx:if="{{item.performance_items.length}}">
+    <view class="card-title"><image class="title-icon-img" src="/assets/ui/icons/review.svg" mode="aspectFit" />客户评价</view>
     <block wx:for="{{item.performance_items}}" wx:for-item="performance" wx:key="id">
       <view class="performance">
         <view class="performance-head">
@@ -88,6 +114,7 @@
         <view class="paragraph">{{performance.comments || '暂无文字评价'}}</view>
       </view>
     </block>
+  </view>
   </view>
 </view>
 

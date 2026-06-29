@@ -1,13 +1,18 @@
-<view class="page">
-  <view class="hero">
-    <view class="hero-head">
-      <view class="logo-box"><image class="logo" src="https://images.mengyimengsao.com/miniprogram/logo.png" mode="aspectFit" /></view>
-      <view class="hero-copy">
-        <view class="hero-title">{{contract.type_label || '合同详情'}}</view>
-        <view class="hero-desc">{{contract.employee_name || '服务人员'}} · {{contract.status_text || ''}}</view>
+<view class="design-page contract-detail-page">
+  <image class="page-bg" src="/assets/ui/page-bg.jpg" mode="aspectFill" />
+  <view class="page-content">
+  <view class="detail-hero">
+    <image class="detail-hero-bg" src="/assets/ui/hero-contract.jpg" mode="aspectFill" />
+    <view class="detail-hero-icon">合</view>
+    <view class="detail-hero-copy">
+      <view class="hero-title">{{contract.type_label || '合同详情'}}</view>
+      <view class="hero-desc">
+        <text>{{contract.customer_name || '客户'}}</text>
+        <text class="hero-dot">·</text>
+        <text>{{contract.status_text || '合同'}}</text>
       </view>
+      <view class="date-range">▣ {{contract.date_range}}</view>
     </view>
-    <view class="date-range">{{contract.date_range}}</view>
   </view>
 
   <view wx:if="{{loadError}}" class="card error-card">
@@ -23,6 +28,29 @@
     <view class="row"><text class="row-label">客户</text><text class="row-value">{{contract.customer_name || '-'}}</text></view>
     <view class="row"><text class="row-label">服务人员</text><text class="row-value">{{contract.employee_name || '-'}}</text></view>
     <view class="row"><text class="row-label">签署状态</text><text class="row-value">{{contract.signing_status_text}}</text></view>
+  </view>
+
+  <view wx:if="{{role === 'staff' && (canStaffShareCustomer || canStaffShareEmployee)}}" class="card staff-share-card">
+    <view class="section-title-row">
+      <view class="section-title no-margin">签署分享</view>
+    </view>
+    <view class="staff-share-desc">将对应签署页面直接分享给客户或服务人员。</view>
+    <view class="staff-share-row">
+      <button
+        wx:if="{{canStaffShareCustomer}}"
+        class="staff-share-btn primary"
+        open-type="share"
+        data-role="customer"
+        bindtap="prepareShare"
+      >客户签署</button>
+      <button
+        wx:if="{{canStaffShareEmployee}}"
+        class="staff-share-btn primary"
+        open-type="share"
+        data-role="employee"
+        bindtap="prepareShare"
+      >员工签署</button>
+    </view>
   </view>
 
   <view class="card">
@@ -177,4 +205,5 @@
     </view>
   </view>
   </block>
+  </view>
 </view>

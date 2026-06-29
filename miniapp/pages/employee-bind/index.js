@@ -39,7 +39,7 @@ Page({
       const role = result.role || (result.staff_user ? 'staff' : 'employee');
       getApp().setSession(openid, null, result.employee || null, role, result.staff_user || null);
       wx.showToast({ title: '绑定成功', icon: 'success' });
-      wx.redirectTo({ url: this.data.redirect || (role === 'staff' ? '/pages/ayi-search/index' : '/pages/employee-home/index') });
+      wx.redirectTo({ url: this.data.redirect || (role === 'staff' ? '/pages/staff-home/index' : '/pages/employee-home/index') });
     } catch (error) {
       wx.showToast({ title: error.message || '绑定失败', icon: 'none' });
     } finally {

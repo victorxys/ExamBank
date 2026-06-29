@@ -1,0 +1,140 @@
+<view class="design-page staff-contract-page">
+  <image class="page-bg" src="/assets/ui/page-bg.jpg" mode="aspectFill" />
+  <view class="page-content">
+  <view class="contract-hero">
+    <image class="contract-hero-bg" src="/assets/ui/hero-contract.jpg" mode="aspectFill" />
+    <view class="contract-hero-copy">
+      <view class="screen-title">合同中心</view>
+      <view class="screen-subtitle">查找合同，分享签署</view>
+    </view>
+    <view class="total-pill soft-card">
+      <view class="total-num">{{loaded ? stats.all : 0}}</view>
+      <view class="total-text">全部合同</view>
+    </view>
+  </view>
+
+  <view class="search-card soft-card">
+    <view class="search-line">
+      <view class="input-wrap">
+        <image class="search-symbol-img" src="/assets/ui/icons/search.svg" mode="aspectFit" />
+        <input
+          class="search-input"
+          value="{{keyword}}"
+          placeholder="客户/员工姓名"
+          confirm-type="search"
+          bindinput="onKeywordInput"
+          bindconfirm="onSearchConfirm"
+        />
+        <view wx:if="{{keyword}}" class="clear-btn" bindtap="clearKeyword">
+          <image class="clear-icon-img" src="/assets/ui/icons/clear.svg" mode="aspectFit" />
+        </view>
+      </view>
+      <button class="search-btn" bindtap="onSearchConfirm">搜索</button>
+    </view>
+
+    <scroll-view class="filter-scroll" scroll-x enable-flex>
+      <picker mode="selector" range="{{typeOptions}}" range-key="label" value="{{typeIndex}}" bindchange="onTypeChange">
+        <view class="filter-chip {{typeIndex > 0 ? 'active' : ''}}">
+          <image class="filter-chip-icon" src="/assets/ui/icons/type-line.svg" mode="aspectFit" />
+          <text>类型 · {{typeOptions[typeIndex].label}}</text>
+        </view>
+      </picker>
+      <picker mode="selector" range="{{signingStatusOptions}}" range-key="label" value="{{signingStatusIndex}}" bindchange="onSigningStatusChange">
+        <view class="filter-chip {{signingStatusIndex > 0 ? 'active' : ''}}">
+          <image class="filter-chip-icon" src="/assets/ui/icons/sign-line.svg" mode="aspectFit" />
+          <text>签署 · {{signingStatusOptions[signingStatusIndex].label}}</text>
+        </view>
+      </picker>
+      <picker mode="selector" range="{{statusOptions}}" range-key="label" value="{{statusIndex}}" bindchange="onStatusChange">
+        <view class="filter-chip {{statusIndex > 0 ? 'active' : ''}}">
+          <image class="filter-chip-icon" src="/assets/ui/icons/status-line.svg" mode="aspectFit" />
+          <text>状态 · {{statusOptions[statusIndex].label}}</text>
+        </view>
+      </picker>
+      <view class="filter-chip reset" bindtap="resetFilters">
+        <image class="filter-chip-icon" src="/assets/ui/icons/reset.svg" mode="aspectFit" />
+        <text>清除</text>
+      </view>
+    </scroll-view>
+
+    <view class="stats-strip">
+      <view class="stat-item {{statFilter === 'customer_pending' ? 'active' : ''}}" data-value="customer_pending" bindtap="selectStat">
+        <view class="soft-icon stat-icon">客</view>
+        <view class="stat-main"><view class="stat-num">{{stats.customerPending}}</view><view class="stat-label">待客户签署</view></view>
+      </view>
+      <view class="stat-item {{statFilter === 'employee_pending' ? 'active' : ''}}" data-value="employee_pending" bindtap="selectStat">
+        <view class="soft-icon stat-icon orange">员</view>
+        <view class="stat-main"><view class="stat-num">{{stats.employeePending}}</view><view class="stat-label">待员工签署</view></view>
+      </view>
+      <view class="stat-item {{statFilter === 'expiring' ? 'active' : ''}}" data-value="expiring" bindtap="selectStat">
+        <view class="soft-icon stat-icon purple">期</view>
+        <view class="stat-main"><view class="stat-num">{{stats.expiring}}</view><view class="stat-label">即将到期</view></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="soft-section-head">
+    <view class="soft-section-title"><view class="section-icon"></view>合同列表</view>
+    <view class="sort-label">创建时间<image class="sort-arrow-img" src="/assets/ui/icons/chevron-down.svg" mode="aspectFit" /></view>
+  </view>
+
+  <block wx:for="{{contracts}}" wx:key="id">
+    <view class="contract-card soft-card">
+      <view class="contract-top" bindtap="goDetail" data-id="{{item.id}}">
+        <view class="contract-icon soft-icon {{item.icon_tone}}">{{item.icon_text}}</view>
+        <view class="contract-meta">
+          <view class="contract-title-row">
+            <view class="contract-title">{{item.type_label || '服务合同'}}</view>
+          </view>
+          <view class="party-row">
+            <view class="party-item">
+              <text class="party-label">客户</text>
+              <text class="party-value">{{item.customer_name || '-'}}</text>
+            </view>
+            <view class="party-item">
+              <text class="party-label">员工</text>
+              <text class="party-value">{{item.employee_name || '-'}}</text>
+            </view>
+          </view>
+          <view class="contract-date">{{item.date_range}}</view>
+        </view>
+        <view class="status-stack">
+          <view class="chip">{{item.status_text}}</view>
+          <view class="sign-badge {{item.signing_badge_class}}">{{item.signing_status_text}}</view>
+        </view>
+      </view>
+      <view class="action-row">
+        <view class="text-action" data-id="{{item.id}}" bindtap="goDetail">
+          <image class="action-icon-img" src="/assets/ui/icons/detail-line.svg" mode="aspectFit" />
+          <text>查看详情</text>
+        </view>
+        <button
+          wx:if="{{item.can_share_customer}}"
+          class="text-action primary"
+          open-type="share"
+          data-id="{{item.id}}"
+          data-role="customer"
+          bindtap="prepareShare"
+        ><image class="action-icon-img" src="/assets/ui/icons/customer-sign-line.svg" mode="aspectFit" /><text>客户签署</text></button>
+        <button
+          wx:if="{{item.can_share_employee}}"
+          class="text-action primary"
+          open-type="share"
+          data-id="{{item.id}}"
+          data-role="employee"
+          bindtap="prepareShare"
+        ><image class="action-icon-img" src="/assets/ui/icons/sign-line.svg" mode="aspectFit" /><text>员工签署</text></button>
+        <image class="card-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{loaded && contracts.length === 0}}" class="empty">
+    <view class="empty-title">暂无匹配合同</view>
+    <view class="empty-desc">换一个姓名或筛选条件试试。</view>
+  </view>
+
+  <view wx:if="{{loading && contracts.length > 0}}" class="loading-more">加载中...</view>
+  <view wx:if="{{loaded && !hasMore && contracts.length > 0}}" class="loading-more">已显示全部</view>
+  </view>
+</view>

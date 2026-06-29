@@ -16,6 +16,22 @@ function pickValue(options, index) {
   return option.value || '';
 }
 
+function ceilYearText(value) {
+  if (value === undefined || value === null || value === '') return '';
+  const text = String(value).trim();
+  if (!text) return '';
+  const numeric = Number(text.replace(/年$/, ''));
+  if (!Number.isNaN(numeric)) return `${Math.ceil(Math.max(numeric, 0))}年`;
+  return /年$/.test(text) ? text : `${text}年`;
+}
+
+function normalizeAyiItem(item = {}) {
+  return {
+    ...item,
+    experience_years_text: ceilYearText(item.experience_years)
+  };
+}
+
 function isAccessDenied(error) {
   const message = error && error.message ? error.message : '';
   return message.includes('仅后台') || message.includes('无权') || message.includes('未绑定') || message.includes('403');
@@ -196,7 +212,7 @@ Page({
         page,
         per_page: this.data.perPage
       });
-      const nextItems = result.items || [];
+      const nextItems = (result.items || []).map(normalizeAyiItem);
       const items = reset ? nextItems : this.data.items.concat(nextItems);
       this.setData({
         items,

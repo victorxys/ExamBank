@@ -1,12 +1,18 @@
-<view class="page" wx:if="{{authorized}}">
-  <view class="hero">
-    <view class="hero-title">阿姨资料</view>
-    <view class="hero-desc">搜索阿姨并查看公开介绍，便于分享给客户。</view>
+<view class="design-page ayi-search-page" wx:if="{{authorized}}">
+  <image class="page-bg" src="/assets/ui/page-bg.jpg" mode="aspectFill" />
+  <view class="page-content">
+  <view class="design-hero ayi-hero">
+    <image class="design-hero-bg" src="/assets/ui/hero-ayi.jpg" mode="aspectFill" />
+    <view class="design-hero-content">
+      <view class="design-hero-title">阿姨资料</view>
+      <view class="design-hero-desc">搜索阿姨并查看公开介绍，便于分享给客户。</view>
+    </view>
   </view>
 
-  <view class="search-panel">
+  <view class="search-panel soft-card">
     <view class="search-row">
       <view class="input-wrap">
+        <image class="search-symbol-img" src="/assets/ui/icons/search.svg" mode="aspectFit" />
         <input
           class="search-input"
           value="{{keyword}}"
@@ -15,39 +21,49 @@
           bindinput="onKeywordInput"
           bindconfirm="onSearchConfirm"
         />
-        <view wx:if="{{keyword}}" class="clear-btn" bindtap="clearKeyword">×</view>
+        <view wx:if="{{keyword}}" class="clear-btn" bindtap="clearKeyword">
+          <image class="clear-icon-img" src="/assets/ui/icons/clear.svg" mode="aspectFit" />
+        </view>
       </view>
       <button class="search-btn" bindtap="onSearchConfirm">搜索</button>
     </view>
     <view class="filter-grid">
       <picker mode="selector" range="{{typeOptions}}" range-key="label" value="{{typeIndex}}" bindchange="onTypeChange">
         <view class="picker-line">
+          <image class="picker-icon-img" src="/assets/ui/icons/type-line.svg" mode="aspectFit" />
           <text class="picker-label">类型</text>
           <text class="picker-value">{{typeOptions[typeIndex].label}}</text>
+          <image class="picker-arrow-img" src="/assets/ui/icons/chevron-down.svg" mode="aspectFit" />
         </view>
       </picker>
       <picker mode="selector" range="{{cityOptions}}" range-key="label" value="{{cityIndex}}" bindchange="onCityChange">
         <view class="picker-line">
+          <image class="picker-icon-img" src="/assets/ui/icons/location-line.svg" mode="aspectFit" />
           <text class="picker-label">籍贯</text>
           <text class="picker-value">{{cityOptions[cityIndex].label}}</text>
+          <image class="picker-arrow-img" src="/assets/ui/icons/chevron-down.svg" mode="aspectFit" />
         </view>
       </picker>
       <picker mode="selector" range="{{shengxiaoOptions}}" range-key="label" value="{{shengxiaoIndex}}" bindchange="onShengxiaoChange">
         <view class="picker-line">
+          <image class="picker-icon-img" src="/assets/ui/icons/zodiac-line.svg" mode="aspectFit" />
           <text class="picker-label">生肖</text>
           <text class="picker-value">{{shengxiaoOptions[shengxiaoIndex].label}}</text>
+          <image class="picker-arrow-img" src="/assets/ui/icons/chevron-down.svg" mode="aspectFit" />
         </view>
       </picker>
       <picker mode="selector" range="{{xingzuoOptions}}" range-key="label" value="{{xingzuoIndex}}" bindchange="onXingzuoChange">
         <view class="picker-line">
+          <image class="picker-icon-img" src="/assets/ui/icons/constellation-line.svg" mode="aspectFit" />
           <text class="picker-label">星座</text>
           <text class="picker-value">{{xingzuoOptions[xingzuoIndex].label}}</text>
+          <image class="picker-arrow-img" src="/assets/ui/icons/chevron-down.svg" mode="aspectFit" />
         </view>
       </picker>
     </view>
 
     <view class="chip-section">
-      <view class="chip-title">年龄</view>
+      <view class="chip-title"><image class="chip-icon-img" src="/assets/ui/icons/age-line.svg" mode="aspectFit" />年龄</view>
       <scroll-view class="chip-scroll" scroll-x enable-flex>
         <view
           wx:for="{{ageOptions}}"
@@ -59,7 +75,7 @@
       </scroll-view>
     </view>
     <view class="chip-section">
-      <view class="chip-title">学历</view>
+      <view class="chip-title"><image class="chip-icon-img" src="/assets/ui/icons/education-line.svg" mode="aspectFit" />学历</view>
       <scroll-view class="chip-scroll" scroll-x enable-flex>
         <view
           wx:for="{{educationOptions}}"
@@ -71,7 +87,7 @@
       </scroll-view>
     </view>
     <view class="chip-section">
-      <view class="chip-title">月薪</view>
+      <view class="chip-title"><image class="chip-icon-img" src="/assets/ui/icons/salary-line.svg" mode="aspectFit" />月薪</view>
       <scroll-view class="chip-scroll" scroll-x enable-flex>
         <view
           wx:for="{{payRateOptions}}"
@@ -84,17 +100,20 @@
     </view>
 
     <view class="filter-footer">
-      <text bindtap="resetFilters">清除筛选</text>
+      <view class="reset-action" bindtap="resetFilters">
+        <image class="reset-icon-img" src="/assets/ui/icons/reset.svg" mode="aspectFit" />
+        <text>清除筛选</text>
+      </view>
     </view>
   </view>
 
-  <view class="result-head">
-    <view class="result-title">搜索结果</view>
-    <view class="result-count">{{loaded ? total : 0}} 人</view>
+  <view class="soft-section-head">
+    <view class="soft-section-title">搜索结果</view>
+    <view class="soft-section-meta">{{loaded ? total : 0}} 人</view>
   </view>
 
   <block wx:for="{{items}}" wx:key="id">
-    <view class="ayi-card" data-id="{{item.id}}" bindtap="goDetail">
+    <view class="ayi-card soft-card" data-id="{{item.id}}" bindtap="goDetail">
       <image class="avatar" src="{{item.avatar_url}}" mode="aspectFill" />
       <view class="ayi-main">
         <view class="ayi-top">
@@ -105,11 +124,11 @@
           <text wx:if="{{item.age}}">{{item.age}}岁</text>
           <text wx:if="{{item.city}}">{{item.city}}</text>
           <text wx:if="{{item.education}}">{{item.education}}</text>
-          <text wx:if="{{item.experience_years}}">{{item.experience_years}}年经验</text>
+          <text wx:if="{{item.experience_years_text}}">{{item.experience_years_text}}经验</text>
         </view>
         <view class="ayi-summary">{{item.summary || '暂无简介'}}</view>
       </view>
-      <view class="arrow">›</view>
+      <image class="arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
     </view>
   </block>
 
@@ -121,4 +140,5 @@
   <view wx:if="{{loading && items.length > 0}}" class="loading-more">加载中...</view>
   <view wx:if="{{loaded && !hasMore && items.length > 0}}" class="loading-more">已显示全部</view>
   <view class="fallback-logout" bindtap="logoutFallback">身份异常？退出并重新登录</view>
+  </view>
 </view>

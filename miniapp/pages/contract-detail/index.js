@@ -27,6 +27,14 @@ function employeeCanSign(contract = {}) {
   return ['UNSIGNED', 'CUSTOMER_SIGNED'].includes(contract.signing_status) && Boolean(contract.employee_signing_token);
 }
 
+function staffCanShareCustomer(contract = {}) {
+  return ['UNSIGNED', 'EMPLOYEE_SIGNED'].includes(contract.signing_status) && Boolean(contract.customer_signing_token);
+}
+
+function staffCanShareEmployee(contract = {}) {
+  return ['UNSIGNED', 'CUSTOMER_SIGNED'].includes(contract.signing_status) && Boolean(contract.employee_signing_token);
+}
+
 function contractShareTitle(contract = {}) {
   const typeLabel = contract.type_label || '服务合同';
   if (contract.customer_signing_token) {
@@ -68,6 +76,9 @@ Page({
     hasCustomerActions: false,
     hasEmployeeActions: false,
     canShareContract: false,
+    canStaffShareCustomer: false,
+    canStaffShareEmployee: false,
+    shareRole: '',
     loadedOnce: false,
     loadError: '',
     shareTitle: '服务合同',
@@ -102,9 +113,11 @@ Page({
     }
     wx.showLoading({ title: '加载中' });
     try {
-      const result = this.data.role === 'employee'
-        ? await api.employeeContractDetail(this.data.id)
-        : await api.contractDetail(this.data.id);
+      const result = this.data.role === 'staff'
+        ? await api.staffContractDetail(this.data.id)
+        : (this.data.role === 'employee'
+          ? await api.employeeContractDetail(this.data.id)
+          : await api.contractDetail(this.data.id));
       const contract = contractView(result.contract || {});
       const markdown = contract.template_content || '';
       const attachmentMarkdown = contract.attachment_content || '';
@@ -128,6 +141,8 @@ Page({
       const canEmployeeSign = this.data.role === 'employee' && employeeCanSign(contract);
       const canEvaluate = this.data.role === 'customer' && contractReadyForEvaluation(contract) && !hasEvaluationRecord;
       const canEvaluationEntry = this.data.role === 'customer' && contractAllowsEvaluationEntry(contract);
+      const canStaffShareCustomer = this.data.role === 'staff' && staffCanShareCustomer(contract);
+      const canStaffShareEmployee = this.data.role === 'staff' && staffCanShareEmployee(contract);
       this.setData({
         contract: {
           ...contract,
@@ -146,6 +161,8 @@ Page({
         evaluationEntryText: evaluations.length > 0 ? '继续填写评价' : '填写评价',
         hasCustomerActions: canCustomerSign || canEvaluate || pendingAttendanceForms.length > 0,
         hasEmployeeActions: canEmployeeSign,
+        canStaffShareCustomer,
+        canStaffShareEmployee,
         canShareContract: Boolean(contract.customer_signing_token || contract.id),
         loadedOnce: true,
         loadError: '',
@@ -211,7 +228,31 @@ Page({
     wx.navigateTo({ url: `/pages/exit-summary/index?contractId=${this.data.id}` });
   },
 
-  onShareAppMessage() {
+  prepareShare(event) {
+    this.setData({ shareRole: event.currentTarget.dataset.role || '' });
+  },
+
+  onShareAppMessage(event = {}) {
+    const contract = this.data.contract || {};
+    if (this.data.role === 'staff' && event.from === 'button') {
+      const dataset = event.target ? (event.target.dataset || {}) : {};
+      const role = dataset.role || this.data.shareRole || 'customer';
+      const token = role === 'employee'
+        ? contract.employee_signing_token
+        : contract.customer_signing_token;
+      if (token) {
+        return {
+          title: `请签署${contract.type_label || '服务合同'} - ${contract.customer_name || '客户'}`,
+          path: `/pages/contract-sign/index?token=${token}&role=${role}`
+        };
+      }
+    }
+    if (this.data.role === 'staff') {
+      return {
+        title: '萌姨萌嫂服务助手',
+        path: '/pages/login/index'
+      };
+    }
     return {
       title: this.data.shareTitle || '服务合同',
       path: this.data.sharePath || `/pages/contract-detail/index?id=${this.data.id}&role=customer`
