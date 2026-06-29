@@ -138,6 +138,9 @@ module.exports = {
   staffContractDetail(contractId) {
     return request({ url: `/miniapp/staff/contracts/${contractId}` });
   },
+  staffContractSigningMessages(contractId) {
+    return request({ url: `/miniapp/staff/contracts/${contractId}/signing-messages` });
+  },
   contractEvaluation(contractId) {
     return request({ url: `/miniapp/customer/contracts/${contractId}/evaluation` });
   },

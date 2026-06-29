@@ -244,9 +244,9 @@ def get_existing_families():
             .distinct()\
             .order_by(BaseContract.family_id)\
             .all()
-        
+
         family_list = [family[0] for family in families if family[0]]
-        
+
         return jsonify({
             "success": True,
             "families": family_list
@@ -262,7 +262,7 @@ def get_family_contracts(family_id):
     """获取指定家庭的所有合同"""
     try:
         contracts = BaseContract.query.filter_by(family_id=family_id).all()
-        
+
         contract_list = []
         for contract in contracts:
             contract_list.append({
@@ -274,7 +274,7 @@ def get_family_contracts(family_id):
                 "end_date": contract.end_date.isoformat() if contract.end_date else None,
                 "status": contract.status
             })
-        
+
         return jsonify({
             "success": True,
             "contracts": contract_list
@@ -291,18 +291,18 @@ def update_contract_family(contract_id):
     try:
         data = request.get_json()
         family_id = data.get('family_id')
-        
+
         # 查找合同
         contract = BaseContract.query.get(contract_id)
         if not contract:
             return jsonify({"success": False, "error": "合同不存在"}), 404
-        
+
         # 更新家庭ID
         contract.family_id = family_id if family_id else None
         db.session.commit()
-        
+
         current_app.logger.info(f"Updated contract {contract_id} family_id to {family_id}")
-        
+
         return jsonify({
             "success": True,
             "message": "家庭ID更新成功"
@@ -562,7 +562,7 @@ def search_unpaid_bills():
 
     try:
         pinyin_search_term = search_term.replace(" ", "")
-        
+
         query = db.session.query(CustomerBill).join(BaseContract).filter(
             or_(
                 BaseContract.customer_name.ilike(f"%{search_term}%"),
@@ -589,13 +589,13 @@ def search_unpaid_bills():
             }
             for bill in bills
         ]
-        
+
         return jsonify(results)
 
     except Exception as e:
         current_app.logger.error(f"Failed to search unpaid bills: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
-    
+
 from weasyprint import HTML
 import io
 from flask import render_template, send_file
@@ -616,7 +616,7 @@ def get_signature_image(signature_id):
 
     # The file_path in DB is relative, e.g., "static/signatures/file.png".
     # `send_from_directory` needs the directory path and the filename separately.
-    
+
     # Let's construct the absolute path to the directory containing the signatures.
     # current_app.root_path is the 'backend' folder.
     signatures_dir = os.path.join(current_app.root_path, 'static', 'signatures')
@@ -666,7 +666,7 @@ def download_contract_pdf(contract_id):
         else:
             # 如果不是列表，则假定为字符串或 None
             markdown_text = service_content or ''
-            
+
         service_content_html = markdown.markdown(markdown_text)
         # 1. 读取并转换主模板内容
         template_content = contract.template.content if contract.template else ''
@@ -680,7 +680,7 @@ def download_contract_pdf(contract_id):
 
         # 构造签名文件的绝对路径
         signatures_dir = os.path.join(current_app.root_path, 'static', 'signatures')
-        
+
         customer_sig_abs_path = os.path.join(signatures_dir, os.path.basename(customer_sig.file_path)) if customer_sig and customer_sig.file_path else None
         employee_sig_abs_path = os.path.join(signatures_dir, os.path.basename(employee_sig.file_path)) if employee_sig and employee_sig.file_path else None
 
@@ -691,7 +691,7 @@ def download_contract_pdf(contract_id):
 
         rendered_html = render_template(
             "contract_pdf.html",
-            pdf_title=pdf_title, 
+            pdf_title=pdf_title,
             service_content=service_content_html,
             main_content=main_content_html,
             attachment_content=attachment_content_html,
@@ -706,7 +706,7 @@ def download_contract_pdf(contract_id):
 
         # --- 核心修改：构建符合用户要求的下载文件名 ---
         employee_name = contract.service_personnel.name if contract.service_personnel else "未知员工"
-        
+
         # 定义类型映射（带“合同”后缀）
         TYPE_LABELS = {
             "nanny": "育儿嫂合同",
@@ -715,7 +715,7 @@ def download_contract_pdf(contract_id):
             "external_substitution": "外部替班合同",
         }
         contract_type_label = TYPE_LABELS.get(contract.type, "合同")
-        
+
         # 清理文件名非法字符
         today_str = datetime.now().strftime('%Y%m%d')
         safe_filename = f"{employee_name}-{contract_type_label}-{today_str}.pdf"
@@ -765,7 +765,7 @@ def search_contracts():
                     ServicePersonnel.name_pinyin.ilike(f"%{pinyin_search_term}%"),
                 )
             )
-        
+
         if type_filter:
             if type_filter == 'nanny':
                 query = query.filter(BaseContract.type.in_(['nanny', 'external_substitution']))
@@ -773,7 +773,7 @@ def search_contracts():
                 query = query.filter(BaseContract.type.in_(['nanny', 'maternity_nurse']))
             else:
                 query = query.filter(BaseContract.type == type_filter)
-        
+
         is_monthly_auto_renew_filter = request.args.get("is_monthly_auto_renew")
         if type_filter == 'nanny' and is_monthly_auto_renew_filter in ['true', 'false']:
             query = query.filter(NannyContract.is_monthly_auto_renew == (is_monthly_auto_renew_filter == 'true'))
@@ -811,7 +811,7 @@ def search_contracts():
         for contract in contracts:
             remaining_months = 0
             highlight_remaining = False
-            
+
             # 修复：pending（待上户）以及提前终止的 terminated 状态的合同也应该显示剩余月数
             if contract.status in ['pending', 'active','terminated'] and contract.end_date:
                 end_date_obj = contract.end_date
@@ -850,7 +850,7 @@ def search_contracts():
                 # "employee_signature": contract.employee_signature,
             }
             results.append(contract_data)
-        
+
         return jsonify({
             "contracts": results,
             "total": paginated_contracts.total,
@@ -1026,7 +1026,7 @@ def preview_trial_conversion_for_draft_contract(trial_contract_id):
     except Exception as e:
         current_app.logger.error(f"预览创建正式合同时的试工成功费用失败 {trial_contract_id}: {e}", exc_info=True)
         return jsonify({"error": "计算试工成功费用预览失败"}), 500
-     
+
 @contract_bp.route("/<uuid:contract_id>/successor", methods=["GET"])
 @jwt_required()
 def find_successor_contract(contract_id):
@@ -1253,13 +1253,13 @@ def create_formal_contract():
             return jsonify({"error": "试工成功只能关联到育儿嫂正式合同"}), 400
 
         new_contract = ContractModel(**common_attributes)
-        
+
         # --- 处理无需签署的情况 ---
         if data.get("requires_signature") is False:
             new_contract.signing_status = SigningStatus.NOT_REQUIRED
             new_contract.status = "active"
             current_app.logger.info(f"合同 {new_contract.id} 无需签署，自动激活")
-        
+
         db.session.add(new_contract)
         db.session.flush()
         create_contract_operation_log(
@@ -1277,7 +1277,7 @@ def create_formal_contract():
             changes={"created": {"from": None, "to": snapshot_contract(new_contract)}},
         )
         db.session.commit()
-        
+
         # --- 无需签署时，更新薪资历史 ---
         if data.get("requires_signature") is False:
             update_salary_history_on_contract_activation(new_contract)
@@ -1343,7 +1343,7 @@ def delete_contract(contract_id):
             FinancialActivityLog.query.filter(FinancialActivityLog.customer_bill_id.in_(bill_ids)).delete(synchronize_session=False)
         if payroll_ids:
             FinancialActivityLog.query.filter(FinancialActivityLog.employee_payroll_id.in_(payroll_ids)).delete(synchronize_session=False)
-        
+
         # 3. 删除支付记录
         if bill_ids:
             PaymentRecord.query.filter(PaymentRecord.customer_bill_id.in_(bill_ids)).delete(synchronize_session=False)
@@ -1372,9 +1372,9 @@ def delete_contract(contract_id):
 
         # 9. 最后，删除合同本身
         db.session.delete(contract)
-        
+
         db.session.commit()
-        
+
         current_app.logger.info(f"合同 {contract_id_str} 已被成功级联删除。")
         return jsonify({"message": "合同及所有关联数据已成功删除"}), 200
 
@@ -1621,7 +1621,7 @@ def _serialize_derived_contract_operation_log(
         "created_at": created_at.isoformat() if created_at else None,
         "derived": True,
     }
-    
+
 @contract_bp.route("/<uuid:contract_id>", methods=["PUT"])
 @jwt_required()
 def update_contract(contract_id):
@@ -1661,7 +1661,7 @@ def update_contract(contract_id):
 
         # 3. 对 'pending' 状态的合同，允许更广泛的编辑
         current_app.logger.info(f"正在为 PENDING 状态的合同 {contract_id_str} 执行更新...")
-        
+
         def to_decimal(value, default=None):
             if value is None or value == '':
                 return default if default is not None else None
@@ -1672,10 +1672,10 @@ def update_contract(contract_id):
             contract.start_date = datetime.fromisoformat(data['start_date'].split('T')[0])
         if 'end_date' in data and data['end_date']:
             contract.end_date = datetime.fromisoformat(data['end_date'].split('T')[0])
-        
+
         if 'introduction_fee' in data:
             contract.introduction_fee = to_decimal(data['introduction_fee'], 0)
-        
+
         if 'management_fee_amount' in data:
             contract.management_fee_amount = to_decimal(data['management_fee_amount'], 0)
         if 'management_fee_rate' in data:
@@ -1711,7 +1711,7 @@ def update_contract(contract_id):
 
         if 'is_monthly_auto_renew' in data and contract.type == 'nanny':
             contract.is_monthly_auto_renew = data['is_monthly_auto_renew']
-        
+
         if 'service_content' in data and contract.type in ['nanny', 'nanny_trial']:
             contract.service_content = data['service_content']
         if 'service_type' in data and contract.type in ['nanny', 'nanny_trial']:
@@ -1724,7 +1724,7 @@ def update_contract(contract_id):
                 contract.deposit_rate = to_decimal(data['deposit_rate'], 0)
             if 'provisional_start_date' in data and data['provisional_start_date']:
                 contract.provisional_start_date = datetime.fromisoformat(data['provisional_start_date'].split('T')[0])
-        
+
         # Handle requires_signature and signing_status editing
         if 'requires_signature' in data:
             new_requires_signature = data['requires_signature']
@@ -1740,7 +1740,7 @@ def update_contract(contract_id):
                     current_app.logger.info(f"编辑合同：签署需求变更为需要签署，signing_status 设置为 UNSIGNED")
             else:
                 current_app.logger.info(f"编辑合同：签署需求未变化({new_requires_signature})，保留当前签署状态 {contract.signing_status}")
-        
+
         # 4. 重要：触发账单重算
         trigger_initial_bill_generation_task.delay(str(contract.id))
         current_app.logger.info(f"已为更新后的合同 {contract.id} 触发账单重算任务。")
@@ -1764,7 +1764,7 @@ def update_contract(contract_id):
         db.session.rollback()
         current_app.logger.error(f"更新合同 {contract_id_str} 时发生错误: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
-    
+
 def get_contract_for_signing(token):
     """
     一个公开的API，供客户或员工使用专属令牌查看合同。
@@ -1859,7 +1859,7 @@ def handle_signing_page_action(token):
         joinedload(BaseContract.customer),
         joinedload(BaseContract.service_personnel)
     )
-    
+
     contract = contract_query.filter_by(customer_signing_token=token).first()
     if contract:
         role = "customer"
@@ -1894,7 +1894,7 @@ def handle_signing_page_action(token):
                     "id_card_number": contract.service_personnel.id_card_number,
                     "address": contract.service_personnel.address,
                 }
-            
+
             # 安全地获取特定子类的属性
             deposit_amount = getattr(contract, 'deposit_amount', None)
             security_deposit_paid = getattr(contract, 'security_deposit_paid', None)
@@ -1993,18 +1993,18 @@ def handle_signing_page_action(token):
                     header, encoded = signature_data.split(",", 1)
                 else:
                     encoded = signature_data
-                
+
                 img_data = base64.b64decode(encoded)
-                
+
                 sig_dir = os.path.join(current_app.root_path, 'static', 'signatures')
                 os.makedirs(sig_dir, exist_ok=True)
-                
+
                 filename = f"contract_{contract.id}_{role}_{uuid.uuid4()}.png"
                 file_path = os.path.join(sig_dir, filename)
-                
+
                 with open(file_path, "wb") as f:
                     f.write(img_data)
-                
+
                 sig_record = ContractSignature.query.filter_by(contract_id=contract.id, signature_type=role).first()
                 if not sig_record:
                     sig_record = ContractSignature(
@@ -2028,7 +2028,7 @@ def handle_signing_page_action(token):
                 # --- 核心修复：使用行锁和真实签名记录来更新状态，防止并发覆盖 ---
                 # 1. 重新获取并锁定合同行
                 contract_locked = BaseContract.query.with_for_update().get(contract.id)
-                
+
                 # 2. 检查双方签名是否存在
                 has_customer_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').count() > 0
                 has_employee_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='employee').count() > 0
@@ -2068,18 +2068,18 @@ def handle_signing_page_action(token):
                     header, encoded = signature_data.split(",", 1)
                 else:
                     encoded = signature_data
-                
+
                 img_data = base64.b64decode(encoded)
-                
+
                 sig_dir = os.path.join(current_app.root_path, 'static', 'signatures')
                 os.makedirs(sig_dir, exist_ok=True)
-                
+
                 filename = f"contract_{contract.id}_{role}_{uuid.uuid4()}.png"
                 file_path = os.path.join(sig_dir, filename)
-                
+
                 with open(file_path, "wb") as f:
                     f.write(img_data)
-                
+
                 sig_record = ContractSignature.query.filter_by(contract_id=contract.id, signature_type=role).first()
                 if not sig_record:
                     sig_record = ContractSignature(
@@ -2102,7 +2102,7 @@ def handle_signing_page_action(token):
                 # --- 核心修复：使用行锁和真实签名记录来更新状态，防止并发覆盖 ---
                 # 1. 重新获取并锁定合同行
                 contract_locked = BaseContract.query.with_for_update().get(contract.id)
-                
+
                 # 2. 检查双方签名是否存在
                 has_customer_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').count() > 0
                 has_employee_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='employee').count() > 0
@@ -2141,11 +2141,11 @@ def handle_signing_page_action(token):
             # --- 触发企业微信异步推送 ---
             try:
                 from backend.tasks import send_wechat_notification_task
-                
+
                 # 获取相关属性
                 customer_name = contract.customer_name
                 employee_name = contract.service_personnel.name if contract.service_personnel else "服务人员"
-                
+
                 type_choices = {
                     "nanny": "育儿嫂合同",
                     "maternity_nurse": "月嫂合同",
@@ -2153,7 +2153,7 @@ def handle_signing_page_action(token):
                     "external_substitution": "外部替班合同",
                 }
                 contract_type_label = type_choices.get(contract.type, contract.type)
-                
+
                 frontend_base_url = current_app.config.get('FRONTEND_BASE_URL', 'http://localhost:5175')
                 jump_url = f"{frontend_base_url}/contract/detail/{contract.id}"
 
@@ -2186,10 +2186,10 @@ def handle_signing_page_action(token):
                         f'<div class="highlight">目前等待客户签署。</div>'
                     )
                 from backend.api.setting_api import get_or_create_notification_config
-                
+
                 config_obj = get_or_create_notification_config()
                 sign_event_cfg = config_obj.value.get("reminders", {}).get("sign_event", {})
-                    
+
                 if sign_event_cfg.get("enabled", True):
                     notify_users = (sign_event_cfg.get("notify_users") or "").strip() or None
                     send_wechat_notification_task.delay(
@@ -2208,9 +2208,9 @@ def handle_signing_page_action(token):
             db.session.rollback()
             current_app.logger.error(f"处理签名时发生错误: {e}", exc_info=True)
             return jsonify({"error": "处理签名时发生服务器内部错误"}), 500
-    
+
     return jsonify({"error": "不支持的请求方法"}), 405
-    
+
 # 1. 定义一个从“资产ID”到真实文件名的映射
 # 这两个UUID是我们为签章图片指定的唯一ID
 SEAL_ASSETS = {
@@ -2248,198 +2248,204 @@ def generate_signing_messages(contract_id):
     为新创建的合同生成客户和员工的签署通知消息 (V3 - 包含支付记录)。
     """
     try:
-        # 1. 关联加载获取合同、客户及服务人员信息
-        contract = BaseContract.query.options(
-            joinedload(BaseContract.customer),
-            joinedload(BaseContract.service_personnel)
-        ).filter_by(id=contract_id).first()
-
-        if not contract:
-            return jsonify({"error": "合同未找到"}), 404
-
-        customer_name = contract.customer.name if contract.customer else contract.customer_name
-        employee_name = contract.service_personnel.name if contract.service_personnel else "服务人员"
-        
-
-        # 2. 根据合同类型选择正确的银行账户
-        if contract.type == 'maternity_nurse':
-            account_nickname = '萌姨萌嫂账号'
-        else:
-            account_nickname = '家福安账号'
-
-        bank_account = CompanyBankAccount.query.filter_by(account_nickname=account_nickname, is_active=True).first()
-        if not bank_account:
-            return jsonify({"error": f"未找到昵称为 '{account_nickname}' 的有效公司银行账户"}), 500
-
-        # 3. 查找第一期账单
-        first_bill = CustomerBill.query.filter_by(
-            contract_id=contract_id,
-            is_substitute_bill=False
-        ).order_by(CustomerBill.cycle_start_date.asc()).first()
-
-        # 4. 构建签署链接。小程序 URL Link 启用后作为主链接，Web 链接仍保留为兜底。
-        from backend.api.setting_api import get_or_create_miniapp_signing_config
-        miniapp_config = get_or_create_miniapp_signing_config().value or {}
-        customer_signing_link = _build_contract_signing_link(
-            contract.customer_signing_token,
-            "customer",
-            miniapp_config,
-        )
-        employee_signing_link = _build_contract_signing_link(
-            contract.employee_signing_token,
-            "employee",
-            miniapp_config,
-        )
-        customer_signing_url = customer_signing_link["primary_url"]
-        employee_signing_url = employee_signing_link["primary_url"]
-
-        # 5. 生成客户消息
-        customer_message_lines = []
-        customer_message_lines.append(f"{customer_name}——{employee_name}：签约 {contract.start_date.strftime('%Y.%m.%d')}~{contract.end_date.strftime('%Y.%m.%d')}，")
-
-        payment_records = []
-        if first_bill:
-            # --- V3 核心修改：强制刷新账单支付状态 ---
-            _update_bill_payment_status(first_bill)
-            db.session.commit()
-            db.session.refresh(first_bill)
-
-                        # --- 提取费用详情 (V4 - 增加月嫂合同特殊处理) ---
-            calculation_details = first_bill.calculation_details or {}
-            
-            # --- 核心修改：统一处理管理费的显示逻辑 ---
-            calc_values = [] # 用于收集计算项
-            management_fee_amount = D(calculation_details.get('management_fee', 0))
-            if management_fee_amount > 0:
-                calc_values.append(management_fee_amount)
-                log_extras = calculation_details.get('log_extras', {})
-                management_fee_reason = log_extras.get('management_fee_reason')
-                
-                if management_fee_reason and ':' in management_fee_reason:
-                    # 优先使用带有计算过程的详细描述
-                    calculation_process = management_fee_reason.split(':', 1)[-1].strip()
-                    customer_message_lines.append(f"管理费: {calculation_process}")
-                else:
-                    # 如果没有详细描述，则只显示总金额
-                    customer_message_lines.append(f"管理费: {management_fee_amount:.2f}元")
-            # --- 修改结束 ---
-
-
-
-
-            # --- 通用逻辑：处理其他增减款项 ---
-            adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=first_bill.id).all ()
-            for adj in adjustments:
-                # --- 核心修正：为月嫂合同增加更强的过滤，防止重复 ---
-                if contract.type == 'maternity_nurse':
-                    # 如果 adjustment 类型或描述是我们已经明确处理过的，就跳过
-                    # 注意：这里使用 str() 转换以兼容 Enum 和 字符串
-                    adj_type_str = str(adj.adjustment_type.value) if hasattr(adj.adjustment_type, 'value') else str(adj.adjustment_type)
-                    
-                    if adj_type_str in ['customer_deposit', 'management_fee'] or \
-                       adj.description.strip() in ["保证金", "客交保证金", "管理费"]:
-                        continue
-                
-                # 排除不应由客户看到的员工侧调整
-                # 同样使用字符串比较以确保安全
-                adj_type_str = str(adj.adjustment_type.value) if hasattr(adj.adjustment_type, 'value') else str(adj.adjustment_type)
-                
-                if adj_type_str not in ['employee_salary_adjustment', 'employee_bonus', 'employee_deduction']:
-                    customer_message_lines.append(f"{adj.description.strip()}：{adj.amount:.2f} 元")
-                    
-                    # --- 核心修复：根据类型判断正负号 ---
-                    val = adj.amount
-                    if adj_type_str in ['customer_decrease', 'customer_discount']:
-                        val = -val
-                    calc_values.append(val)
-
-            # --- 添加总计 (带计算过程) ---
-            amount_to_pay = first_bill.total_due
-            if len(calc_values) > 1:
-                calc_str = ""
-                for i, val in enumerate(calc_values):
-                    if i == 0:
-                        calc_str += f"{val:.2f}"
-                    else:
-                        if val >= 0:
-                            calc_str += f" + {val:.2f}"
-                        else:
-                            calc_str += f" - {abs(val):.2f}"
-                customer_message_lines.append(f"费用总计：{calc_str} = {amount_to_pay:.2f}元")
-            else:
-                customer_message_lines.append(f"费用总计：{amount_to_pay:.2f}元")
-            if first_bill.total_paid > 0:
-                customer_message_lines.append(f"已支付：{first_bill.total_paid:.2f}元")
-                customer_message_lines.append(f"还需支付：{(amount_to_pay - first_bill.total_paid):.2f}元，")
-            # else:
-            #      customer_message_lines.append("，") # 保持格式一致
-
-            # 查询收款记录
-            payment_records = PaymentRecord.query.filter_by(customer_bill_id=first_bill.id ).order_by(PaymentRecord.payment_date.asc()).all()
-        else:
-            current_app.logger.warning(f"合同 {contract_id} 的首期账单尚未生成，月嫂合同、试工消息中将不包含费用信息。" )
-            # --- 月嫂合同的特殊消息格式,月嫂合同创建时没有首月账单 ---
-            if contract.type == 'maternity_nurse':
-                deposit_amount = contract.deposit_amount or D(0)
-                customer_deposit = deposit_amount
-                customer_message_lines.append(f"定金：{customer_deposit:.2f} 元")
-
-            if contract.type == 'nanny_trial':
-                introduction_fee = contract.introduction_fee or D(0)
-                customer_deposit = introduction_fee
-                if introduction_fee > 0:
-                    customer_message_lines.append(f"介绍费：{customer_deposit:.2f} 元")
-                
-
-        customer_message_lines.append(f"\n户名：{bank_account.payee_name}")
-        customer_message_lines.append(f"帐号：{bank_account.account_number}")
-        customer_message_lines.append(f"银行：{bank_account.bank_name}")
-        customer_message_lines.append("\n合同：")
-        customer_message_lines.append(customer_signing_url)
-        customer_message_lines.append("1、 请点开上面链接，将甲方内容填写完整")
-        customer_message_lines.append("2、 阅读完内容后，最下面签字")
-        customer_message_lines.append("3、 签署完毕，最后关闭页面即可")
-
-        # --- V3 新增：附上收款记录 ---
-        if payment_records:
-            customer_message_lines.append("\n--- 收款记录 ---")
-            for p in payment_records:
-                payment_date_str = p.payment_date.strftime('%Y-%m-%d') if p.payment_date else 'N/A'
-                # 【已修复】移除.2和f之间的空格
-                customer_message_lines.append(f"通过「{p.method}」打款 {p.amount:.2f}元 {p.notes} ")
-
-        # 6. 生成员工消息 (保持不变)
-        employee_message_lines = []
-        # employee_message_lines.append(f"{customer_name}——{employee_name}：签约 {contract.start_date.strftime('%Y.%m.%d')}~{contract.end_date.strftime('%Y.%m.%d')}，")
-        # employee_message_lines.append(f"月薪：{contract.employee_level or '待定'}，")
-        employee_message_lines.append("\n合同：")
-        employee_message_lines.append(employee_signing_url)
-        employee_message_lines.append("1、 请点开上面链接，将乙方内容填写完整")
-        employee_message_lines.append("2、 阅读完内容后，最下面签字")
-        employee_message_lines.append("3、 签署完毕，最后关闭页面即可")
-
-        customer_message = '\n'.join(customer_message_lines).replace("[系统添加] ", "").strip()
-        employee_message = '\n'.join(employee_message_lines).replace("[系统添加] ", "").strip()
-
-        return jsonify({
-            "customer_message": customer_message,
-            "employee_message": employee_message,
-            "links": {
-                "customer": customer_signing_link,
-                "employee": employee_signing_link,
-            },
-            "miniapp_config": {
-                "enabled": bool(miniapp_config.get("enabled")),
-                "env_version": miniapp_config.get("env_version") or "release",
-                "expire_days": miniapp_config.get("expire_days") or 30,
-                "diagnostics": miniapp_credential_status(miniapp_config.get("appid")),
-            }
-        })
-
+        return jsonify(_build_signing_messages_payload(contract_id))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 500
     except Exception as e:
         current_app.logger.error(f"为合同 {contract_id} 生成签署消息失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
 
+
+def _build_signing_messages_payload(contract_id):
+    # 1. 关联加载获取合同、客户及服务人员信息
+    contract = BaseContract.query.options(
+        joinedload(BaseContract.customer),
+        joinedload(BaseContract.service_personnel)
+    ).filter_by(id=contract_id).first()
+
+    if not contract:
+        raise ValueError("合同未找到")
+
+    customer_name = contract.customer.name if contract.customer else contract.customer_name
+    employee_name = contract.service_personnel.name if contract.service_personnel else "服务人员"
+
+
+    # 2. 根据合同类型选择正确的银行账户
+    if contract.type == 'maternity_nurse':
+        account_nickname = '萌姨萌嫂账号'
+    else:
+        account_nickname = '家福安账号'
+
+    bank_account = CompanyBankAccount.query.filter_by(account_nickname=account_nickname, is_active=True).first()
+    if not bank_account:
+        raise RuntimeError(f"未找到昵称为 '{account_nickname}' 的有效公司银行账户")
+
+    # 3. 查找第一期账单
+    first_bill = CustomerBill.query.filter_by(
+        contract_id=contract_id,
+        is_substitute_bill=False
+    ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+    # 4. 构建签署链接。小程序 URL Link 启用后作为主链接，Web 链接仍保留为兜底。
+    from backend.api.setting_api import get_or_create_miniapp_signing_config
+    miniapp_config = get_or_create_miniapp_signing_config().value or {}
+    customer_signing_link = _build_contract_signing_link(
+        contract.customer_signing_token,
+        "customer",
+        miniapp_config,
+    )
+    employee_signing_link = _build_contract_signing_link(
+        contract.employee_signing_token,
+        "employee",
+        miniapp_config,
+    )
+    customer_signing_url = customer_signing_link["primary_url"]
+    employee_signing_url = employee_signing_link["primary_url"]
+
+    # 5. 生成客户消息
+    customer_message_lines = []
+    customer_message_lines.append(f"{customer_name}——{employee_name}：签约 {contract.start_date.strftime('%Y.%m.%d')}~{contract.end_date.strftime('%Y.%m.%d')}，")
+
+    payment_records = []
+    if first_bill:
+        # --- V3 核心修改：强制刷新账单支付状态 ---
+        _update_bill_payment_status(first_bill)
+        db.session.commit()
+        db.session.refresh(first_bill)
+
+                    # --- 提取费用详情 (V4 - 增加月嫂合同特殊处理) ---
+        calculation_details = first_bill.calculation_details or {}
+
+        # --- 核心修改：统一处理管理费的显示逻辑 ---
+        calc_values = [] # 用于收集计算项
+        management_fee_amount = D(calculation_details.get('management_fee', 0))
+        if management_fee_amount > 0:
+            calc_values.append(management_fee_amount)
+            log_extras = calculation_details.get('log_extras', {})
+            management_fee_reason = log_extras.get('management_fee_reason')
+
+            if management_fee_reason and ':' in management_fee_reason:
+                # 优先使用带有计算过程的详细描述
+                calculation_process = management_fee_reason.split(':', 1)[-1].strip()
+                customer_message_lines.append(f"管理费: {calculation_process}")
+            else:
+                # 如果没有详细描述，则只显示总金额
+                customer_message_lines.append(f"管理费: {management_fee_amount:.2f}元")
+        # --- 修改结束 ---
+
+
+
+
+        # --- 通用逻辑：处理其他增减款项 ---
+        adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=first_bill.id).all ()
+        for adj in adjustments:
+            # --- 核心修正：为月嫂合同增加更强的过滤，防止重复 ---
+            if contract.type == 'maternity_nurse':
+                # 如果 adjustment 类型或描述是我们已经明确处理过的，就跳过
+                # 注意：这里使用 str() 转换以兼容 Enum 和 字符串
+                adj_type_str = str(adj.adjustment_type.value) if hasattr(adj.adjustment_type, 'value') else str(adj.adjustment_type)
+
+                if adj_type_str in ['customer_deposit', 'management_fee'] or \
+                   adj.description.strip() in ["保证金", "客交保证金", "管理费"]:
+                    continue
+
+            # 排除不应由客户看到的员工侧调整
+            # 同样使用字符串比较以确保安全
+            adj_type_str = str(adj.adjustment_type.value) if hasattr(adj.adjustment_type, 'value') else str(adj.adjustment_type)
+
+            if adj_type_str not in ['employee_salary_adjustment', 'employee_bonus', 'employee_deduction']:
+                customer_message_lines.append(f"{adj.description.strip()}：{adj.amount:.2f} 元")
+
+                # --- 核心修复：根据类型判断正负号 ---
+                val = adj.amount
+                if adj_type_str in ['customer_decrease', 'customer_discount']:
+                    val = -val
+                calc_values.append(val)
+
+        # --- 添加总计 (带计算过程) ---
+        amount_to_pay = first_bill.total_due
+        if len(calc_values) > 1:
+            calc_str = ""
+            for i, val in enumerate(calc_values):
+                if i == 0:
+                    calc_str += f"{val:.2f}"
+                else:
+                    if val >= 0:
+                        calc_str += f" + {val:.2f}"
+                    else:
+                        calc_str += f" - {abs(val):.2f}"
+            customer_message_lines.append(f"费用总计：{calc_str} = {amount_to_pay:.2f}元")
+        else:
+            customer_message_lines.append(f"费用总计：{amount_to_pay:.2f}元")
+        if first_bill.total_paid > 0:
+            customer_message_lines.append(f"已支付：{first_bill.total_paid:.2f}元")
+            customer_message_lines.append(f"还需支付：{(amount_to_pay - first_bill.total_paid):.2f}元，")
+        # else:
+        #      customer_message_lines.append("，") # 保持格式一致
+
+        # 查询收款记录
+        payment_records = PaymentRecord.query.filter_by(customer_bill_id=first_bill.id ).order_by(PaymentRecord.payment_date.asc()).all()
+    else:
+        current_app.logger.warning(f"合同 {contract_id} 的首期账单尚未生成，月嫂合同、试工消息中将不包含费用信息。" )
+        # --- 月嫂合同的特殊消息格式,月嫂合同创建时没有首月账单 ---
+        if contract.type == 'maternity_nurse':
+            deposit_amount = contract.deposit_amount or D(0)
+            customer_deposit = deposit_amount
+            customer_message_lines.append(f"定金：{customer_deposit:.2f} 元")
+
+        if contract.type == 'nanny_trial':
+            introduction_fee = contract.introduction_fee or D(0)
+            customer_deposit = introduction_fee
+            if introduction_fee > 0:
+                customer_message_lines.append(f"介绍费：{customer_deposit:.2f} 元")
+
+
+    customer_message_lines.append(f"\n户名：{bank_account.payee_name}")
+    customer_message_lines.append(f"帐号：{bank_account.account_number}")
+    customer_message_lines.append(f"银行：{bank_account.bank_name}")
+    customer_message_lines.append("\n合同：")
+    customer_message_lines.append(customer_signing_url)
+    customer_message_lines.append("1、 请点开上面链接，将甲方内容填写完整")
+    customer_message_lines.append("2、 阅读完内容后，最下面签字")
+    customer_message_lines.append("3、 签署完毕，最后关闭页面即可")
+
+    # --- V3 新增：附上收款记录 ---
+    if payment_records:
+        customer_message_lines.append("\n--- 收款记录 ---")
+        for p in payment_records:
+            payment_date_str = p.payment_date.strftime('%Y-%m-%d') if p.payment_date else 'N/A'
+            # 【已修复】移除.2和f之间的空格
+            customer_message_lines.append(f"通过「{p.method}」打款 {p.amount:.2f}元 {p.notes} ")
+
+    # 6. 生成员工消息 (保持不变)
+    employee_message_lines = []
+    # employee_message_lines.append(f"{customer_name}——{employee_name}：签约 {contract.start_date.strftime('%Y.%m.%d')}~{contract.end_date.strftime('%Y.%m.%d')}，")
+    # employee_message_lines.append(f"月薪：{contract.employee_level or '待定'}，")
+    employee_message_lines.append("\n合同：")
+    employee_message_lines.append(employee_signing_url)
+    employee_message_lines.append("1、 请点开上面链接，将乙方内容填写完整")
+    employee_message_lines.append("2、 阅读完内容后，最下面签字")
+    employee_message_lines.append("3、 签署完毕，最后关闭页面即可")
+
+    customer_message = '\n'.join(customer_message_lines).replace("[系统添加] ", "").strip()
+    employee_message = '\n'.join(employee_message_lines).replace("[系统添加] ", "").strip()
+
+    return {
+        "customer_message": customer_message,
+        "employee_message": employee_message,
+        "links": {
+            "customer": customer_signing_link,
+            "employee": employee_signing_link,
+        },
+        "miniapp_config": {
+            "enabled": bool(miniapp_config.get("enabled")),
+            "env_version": miniapp_config.get("env_version") or "release",
+            "expire_days": miniapp_config.get("expire_days") or 30,
+            "diagnostics": miniapp_credential_status(miniapp_config.get("appid")),
+        }
+    }
 @contract_bp.route("/<uuid:contract_id>/renew", methods=["POST"])
 @jwt_required()
 def renew_contract_api(contract_id):
@@ -2464,7 +2470,7 @@ def renew_contract_api(contract_id):
 
         # 2. 在同一事务中，同步生成初始账单并处理自动续约
         engine = BillingEngine()
-        
+
         # 月嫂合同续约优化：自动确认上户日期后生成账单
         if isinstance(renewed_contract, MaternityNurseContract):
             if renewed_contract.actual_onboarding_date:
@@ -2540,7 +2546,7 @@ def extend_contract_api(contract_id):
     try:
         from datetime import datetime
         new_end_date = datetime.fromisoformat(data["new_end_date"]).date()
-        
+
         contract_service = ContractService()
         contract_before = db.session.get(BaseContract, str(contract_id))
         before_snapshot = snapshot_contract(contract_before)
@@ -2555,11 +2561,11 @@ def extend_contract_api(contract_id):
             details={"new_end_date": str(new_end_date), "bills_count": bills_count},
             changes=changes,
         )
-        
+
         # 提交事务
         db.session.commit()
         current_app.logger.info(f"已为合同 {contract_id} 的延长操作提交数据库事务。")
-        
+
         return jsonify({
             "message": "合同延长成功",
             "contract_id": str(contract.id),
@@ -2598,10 +2604,10 @@ def change_contract_api(contract_id):
         old_contract = db.session.get(BaseContract, str(contract_id))
         before_snapshot = snapshot_contract(old_contract)
         changed_contract = contract_service.change_contract(str(contract_id), data)
-        
+
         # Optional: trigger background tasks if needed, like for the new contract's bills
         trigger_initial_bill_generation_task.delay(str(changed_contract.id))
-        
+
         # --- 在这里添加下面这行 ---
         old_contract_after = db.session.get(BaseContract, str(contract_id))
         old_changes = diff_snapshots(before_snapshot, snapshot_contract(old_contract_after))
@@ -2644,7 +2650,7 @@ def change_contract_api(contract_id):
         db.session.rollback()
         current_app.logger.error(f"变更合同 {contract_id} 失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
-    
+
 
 
 @contract_bp.route("/customer/<uuid:customer_id>/transferable-contracts", methods=["GET"])
@@ -2682,10 +2688,10 @@ def get_transferable_contracts_for_customer(customer_id):
 
         # 3. 分步应用过滤条件并打印每一步的结果
         contract_poly = db.with_polymorphic(BaseContract, "*")
-        
+
         # 过滤条件 a: 客户ID
         query = db.session.query(contract_poly).filter(BaseContract.customer_id == customer_id)
-        
+
         # 过滤条件 b: 已付保证金 > 0
         query = query.filter(BaseContract.security_deposit_paid > 0)
         current_app.logger.debug(f"[DEBUG] 步骤3.1: 应用“已付保证金 > 0”后，剩下 {query.count()} 个合同。")
@@ -2700,7 +2706,7 @@ def get_transferable_contracts_for_customer(customer_id):
         )
         query = query.filter(status_and_date_filter)
         current_app.logger.debug(f"[DEBUG] 步骤3.2: 应用“状态和日期”过滤后，剩下 {query.count()} 个合同。")
-        
+
         # --- 调试代码块结束 ---
 
         # 执行最终查询
@@ -2723,7 +2729,7 @@ def get_transferable_contracts_for_customer(customer_id):
     except Exception as e:
         current_app.logger.error(f"查找客户 {customer_id} 的可转移合同失败: {e}", exc_info=True )
         return jsonify({"error": "内部服务器错误"}), 500
-    
+
 @contract_bp.route("/<uuid:contract_id>/signature/<string:role>", methods=["GET"])
 @jwt_required()
 def get_contract_signature(contract_id, role):
@@ -2732,7 +2738,7 @@ def get_contract_signature(contract_id, role):
     """
     try:
         contract = BaseContract.query.get_or_404(str(contract_id))
-        
+
         sig_record = None
         if role == "customer":
             sig_record = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').first()

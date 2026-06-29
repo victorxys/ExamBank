@@ -51,6 +51,45 @@
         bindtap="prepareShare"
       >员工签署</button>
     </view>
+    <view class="signing-message-panel">
+      <view class="signing-message-head">
+        <view class="signing-message-title">签约信息</view>
+        <view class="signing-message-actions">
+          <view class="mini-action" bindtap="resetSigningMessage">刷新</view>
+          <view class="mini-action primary" bindtap="copySigningMessage">复制</view>
+        </view>
+      </view>
+      <view class="signing-message-tabs">
+        <view
+          class="signing-message-tab {{signingMessageRole === 'customer' ? 'active' : ''}}"
+          data-role="customer"
+          bindtap="switchSigningMessageRole"
+        >客户</view>
+        <view
+          class="signing-message-tab {{signingMessageRole === 'employee' ? 'active' : ''}}"
+          data-role="employee"
+          bindtap="switchSigningMessageRole"
+        >员工</view>
+      </view>
+      <view wx:if="{{signingMessagesLoading}}" class="signing-message-empty">签约信息加载中...</view>
+      <view wx:elif="{{signingMessagesError}}" class="signing-message-empty error">{{signingMessagesError}}</view>
+      <block wx:else>
+        <textarea
+          wx:if="{{signingMessageEditing}}"
+          class="signing-message-editor"
+          maxlength="-1"
+          value="{{signingMessageDraft}}"
+          bindinput="onSigningMessageInput"
+          auto-height
+        ></textarea>
+        <view wx:else class="signing-message-preview">{{signingMessageDraft || '暂无签约信息'}}</view>
+        <view class="signing-message-footer">
+          <view wx:if="{{signingMessageEditing}}" class="outline-action" bindtap="cancelSigningMessageEdit">取消</view>
+          <view wx:if="{{signingMessageEditing}}" class="solid-action" bindtap="saveSigningMessageDraft">保存修改</view>
+          <view wx:else class="outline-action" bindtap="editSigningMessage">修改</view>
+        </view>
+      </block>
+    </view>
   </view>
 
   <view class="card">

@@ -40,7 +40,7 @@ from backend.api.attendance_form_api import (
     has_following_contract,
     is_continuous_service,
 )
-from backend.api.contract_api import handle_signing_page_action
+from backend.api.contract_api import _build_signing_messages_payload, handle_signing_page_action
 from backend.services.attendance_sync_service import normalize_auto_overtime_form_data
 from backend.utils.miniapp_config import get_miniapp_credentials
 
@@ -2015,6 +2015,24 @@ def staff_contract_detail(contract_id):
     data["customer_signing_token"] = contract.customer_signing_token
     data["employee_signing_token"] = contract.employee_signing_token
     return jsonify({"success": True, "contract": data})
+
+
+@miniapp_bp.route("/staff/contracts/<uuid:contract_id>/signing-messages", methods=["GET"])
+def staff_contract_signing_messages(contract_id):
+    _, error = _ensure_staff_access("仅后台运营或管理员可查看签约信息")
+    if error:
+        return error
+
+    try:
+        payload = _build_signing_messages_payload(str(contract_id))
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 404
+    except RuntimeError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 500
+    except Exception as exc:
+        current_app.logger.error("小程序生成签约信息失败 contract_id=%s error=%s", contract_id, exc, exc_info=True)
+        return jsonify({"success": False, "error": "签约信息生成失败"}), 500
+    return jsonify({"success": True, **payload})
 
 
 @miniapp_bp.route("/employee/overview", methods=["GET"])

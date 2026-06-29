@@ -79,6 +79,16 @@ Page({
     canStaffShareCustomer: false,
     canStaffShareEmployee: false,
     shareRole: '',
+    signingMessagesLoaded: false,
+    signingMessagesLoading: false,
+    signingMessagesError: '',
+    signingMessageRole: 'customer',
+    signingMessageEditing: false,
+    signingMessages: {
+      customer: '',
+      employee: ''
+    },
+    signingMessageDraft: '',
     loadedOnce: false,
     loadError: '',
     shareTitle: '服务合同',
@@ -171,6 +181,9 @@ Page({
         markdownNodes: markdownToNodes(markdown),
         attachmentNodes: markdownToNodes(attachmentMarkdown)
       });
+      if (this.data.role === 'staff') {
+        this.loadSigningMessages();
+      }
     } catch (error) {
       const message = error.message || '加载失败';
       this.setData({
@@ -182,6 +195,34 @@ Page({
       wx.showToast({ title: error.message || '加载失败', icon: 'none' });
     } finally {
       wx.hideLoading();
+    }
+  },
+
+  async loadSigningMessages() {
+    if (!this.data.id || this.data.signingMessagesLoading) return;
+    this.setData({
+      signingMessagesLoading: true,
+      signingMessagesError: ''
+    });
+    try {
+      const result = await api.staffContractSigningMessages(this.data.id);
+      const role = this.data.signingMessageRole || 'customer';
+      const messages = {
+        customer: result.customer_message || '',
+        employee: result.employee_message || ''
+      };
+      this.setData({
+        signingMessages: messages,
+        signingMessageDraft: messages[role] || '',
+        signingMessagesLoaded: true,
+        signingMessageEditing: false
+      });
+    } catch (error) {
+      this.setData({
+        signingMessagesError: error.message || '签约信息加载失败'
+      });
+    } finally {
+      this.setData({ signingMessagesLoading: false });
     }
   },
 
@@ -230,6 +271,58 @@ Page({
 
   prepareShare(event) {
     this.setData({ shareRole: event.currentTarget.dataset.role || '' });
+  },
+
+  switchSigningMessageRole(event) {
+    const role = event.currentTarget.dataset.role || 'customer';
+    const messages = this.data.signingMessages || {};
+    this.setData({
+      signingMessageRole: role,
+      signingMessageDraft: messages[role] || '',
+      signingMessageEditing: false
+    });
+  },
+
+  editSigningMessage() {
+    this.setData({ signingMessageEditing: true });
+  },
+
+  cancelSigningMessageEdit() {
+    const role = this.data.signingMessageRole || 'customer';
+    const messages = this.data.signingMessages || {};
+    this.setData({
+      signingMessageDraft: messages[role] || '',
+      signingMessageEditing: false
+    });
+  },
+
+  onSigningMessageInput(event) {
+    this.setData({ signingMessageDraft: event.detail.value || '' });
+  },
+
+  saveSigningMessageDraft() {
+    const role = this.data.signingMessageRole || 'customer';
+    this.setData({
+      [`signingMessages.${role}`]: this.data.signingMessageDraft || '',
+      signingMessageEditing: false
+    });
+    wx.showToast({ title: '已更新本页内容', icon: 'success' });
+  },
+
+  copySigningMessage() {
+    const text = this.data.signingMessageDraft || '';
+    if (!text.trim()) {
+      wx.showToast({ title: '暂无可复制内容', icon: 'none' });
+      return;
+    }
+    wx.setClipboardData({
+      data: text,
+      success: () => wx.showToast({ title: '已复制', icon: 'success' })
+    });
+  },
+
+  resetSigningMessage() {
+    this.loadSigningMessages();
   },
 
   onShareAppMessage(event = {}) {
