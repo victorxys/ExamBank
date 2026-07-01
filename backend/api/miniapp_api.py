@@ -39,6 +39,7 @@ from backend.api.attendance_form_api import (
     get_attendance_contract_end_date,
     has_following_contract,
     is_continuous_service,
+    resolve_effective_attendance_window_for_contract,
 )
 from backend.api.contract_api import _build_signing_messages_payload, handle_signing_page_action
 from backend.services.attendance_sync_service import normalize_auto_overtime_form_data
@@ -2193,7 +2194,12 @@ def employee_attendance_detail(form_id):
 
     cycle_start = form.cycle_start_date.date() if hasattr(form.cycle_start_date, "date") else form.cycle_start_date
     cycle_end = form.cycle_end_date.date() if hasattr(form.cycle_end_date, "date") else form.cycle_end_date
-    _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
+    effective_start, effective_end = resolve_effective_attendance_window_for_contract(
+        form.employee_id,
+        cycle_start,
+        cycle_end,
+        form.contract,
+    )
     return jsonify({"success": True, "attendance_form": form_to_dict(form, effective_start, effective_end)})
 
 
