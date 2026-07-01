@@ -464,6 +464,58 @@ def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
 
     return primary_contract, effective_start, effective_end
 
+
+def resolve_effective_attendance_window_for_contract(employee_id, cycle_start, cycle_end, target_contract):
+    """
+    按指定合同归属的同一客户/家庭，合并当前考勤周期内的服务区间。
+
+    小程序从考勤表 ID 进入时没有 year/month 参数，原先只使用考勤表绑定合同自身的
+    start_date/end_date；续签合同在同一个月内会把续签前的日期禁用。这里复用 Web
+    按 contractId 查询时的同客户/家庭合并规则，但以当前考勤表绑定合同为目标合同。
+    """
+    if isinstance(cycle_start, datetime):
+        cycle_start = cycle_start.date()
+    if isinstance(cycle_end, datetime):
+        cycle_end = cycle_end.date()
+
+    if not target_contract:
+        _, effective_start, effective_end = find_consecutive_contracts(employee_id, cycle_start, cycle_end)
+        return effective_start, effective_end
+
+    employee_contracts = filter_contracts_for_cycle(employee_id, cycle_start, cycle_end)
+
+    if target_contract.family_id:
+        family_contracts = [c for c in employee_contracts if c.family_id == target_contract.family_id]
+    elif target_contract.customer_name:
+        family_contracts = [c for c in employee_contracts if c.customer_name == target_contract.customer_name]
+    elif target_contract.customer_id:
+        family_contracts = [c for c in employee_contracts if c.customer_id == target_contract.customer_id]
+    else:
+        family_contracts = [c for c in employee_contracts if c.id == target_contract.id]
+
+    if not any(c.id == target_contract.id for c in family_contracts):
+        family_contracts.append(target_contract)
+
+    def get_eff_start(contract):
+        onboarding = getattr(contract, 'actual_onboarding_date', None)
+        if onboarding:
+            return onboarding.date() if isinstance(onboarding, datetime) else onboarding
+        return contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
+
+    def get_eff_end(contract):
+        is_monthly = bool(getattr(contract, 'is_monthly_auto_renew', False) and contract.status in ('active', 'pending'))
+        if is_monthly:
+            return None
+        return get_attendance_contract_end_date(contract)
+
+    starts = [get_eff_start(c) for c in family_contracts if get_eff_start(c)]
+    ends = [get_eff_end(c) for c in family_contracts]
+
+    effective_start = min(starts) if starts else None
+    effective_end = None if any(end is None for end in ends) else max((end for end in ends if end), default=None)
+    return effective_start, effective_end
+
+
 @attendance_form_bp.route('/by-token/<employee_token>', methods=['GET'])
 def get_attendance_form_by_token(employee_token):
     """
@@ -526,19 +578,21 @@ def get_attendance_form_by_token(employee_token):
                 
                 # 如果没有年月参数，直接返回这个考勤表
                 if not year or not month:
-                    # 直接使用该考勤表关联的合同日期，不合并其他合同
                     contract = existing_form.contract
-                    effective_start = contract.start_date if contract else None
-                    effective_end = contract.end_date if contract else None
-                    
-                    # 对于月签合同，根据状态处理 effective_end
-                    if contract:
-                        effective_end = get_attendance_contract_end_date(contract)
-                    
-                    result = form_to_dict(existing_form, effective_start, effective_end)
                     cycle_start = existing_form.cycle_start_date
+                    cycle_end = existing_form.cycle_end_date
                     if isinstance(cycle_start, datetime):
                         cycle_start = cycle_start.date()
+                    if isinstance(cycle_end, datetime):
+                        cycle_end = cycle_end.date()
+                    effective_start, effective_end = resolve_effective_attendance_window_for_contract(
+                        existing_form.employee_id,
+                        cycle_start,
+                        cycle_end,
+                        contract,
+                    )
+
+                    result = form_to_dict(existing_form, effective_start, effective_end)
                     result['actual_year'] = cycle_start.year
                     result['actual_month'] = cycle_start.month
                     
@@ -672,38 +726,13 @@ def get_attendance_form_by_token(employee_token):
                 if specified_contract and not employee:
                     employee = specified_contract.service_personnel
                 
-                # 【修复】使用指定的合同，也要像 find_consecutive_contracts 一样合并关联的家庭合同
-                # 这样续签的合同（上一个结束，下一个开始）才能在一个考勤表中填写
-                from backend.api.attendance_form_api import filter_contracts_for_cycle
-                employee_contracts = filter_contracts_for_cycle(employee.id, cycle_start, cycle_end)
-                family_contracts = []
-                if target_contract.family_id:
-                    family_contracts = [c for c in employee_contracts if c.family_id == target_contract.family_id]
-                elif target_contract.customer_name:
-                    family_contracts = [c for c in employee_contracts if c.customer_name == target_contract.customer_name]
-                elif target_contract.customer_id:
-                    family_contracts = [c for c in employee_contracts if c.customer_id == target_contract.customer_id]
-                
-                if target_contract not in family_contracts:
-                    family_contracts.append(target_contract)
-                    
-                def get_eff_start(c):
-                    onboarding = getattr(c, 'actual_onboarding_date', None)
-                    if onboarding:
-                        return onboarding.date() if isinstance(onboarding, datetime) else onboarding
-                    return c.start_date.date() if isinstance(c.start_date, datetime) else c.start_date
-                    
-                def get_act_end(c):
-                    is_mo = getattr(c, 'is_monthly_auto_renew', False) and c.status in ('active', 'pending')
-                    if is_mo:
-                        return None
-                    return get_attendance_contract_end_date(c)
-                
-                starts = [get_eff_start(c) for c in family_contracts]
-                ends = [get_act_end(c) for c in family_contracts]
-                
-                effective_start = min(starts)
-                effective_end = None if None in ends else max(ends)
+                # 使用指定合同时，也要合并同客户/家庭的续签合同，避免同月续签把考勤日期截断。
+                effective_start, effective_end = resolve_effective_attendance_window_for_contract(
+                    employee.id,
+                    cycle_start,
+                    cycle_end,
+                    target_contract,
+                )
         
         # 如果没有通过指定合同找到有效合同，使用原来的逻辑查找
         if not contract:
