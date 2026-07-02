@@ -237,6 +237,7 @@ scripts/*
 !scripts/cleanup_renewed_nanny_contract_history.py
 !scripts/normalize_attendance_auto_overtime.py
 !scripts/resync_signed_attendance_forms.py
+!scripts/fix_june_holiday_overtime_billing.py
 commit_message.txt
 
 design_proposals/
