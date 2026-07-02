@@ -516,6 +516,29 @@ def resolve_effective_attendance_window_for_contract(employee_id, cycle_start, c
     return effective_start, effective_end
 
 
+def ensure_confirmed_auto_overtime(form):
+    """Backfill missing auto overtime for confirmed forms before returning shared attendance data."""
+    if not form or form.status not in ('employee_confirmed', 'customer_signed', 'synced'):
+        return False
+    normalized_form_data, normalized = normalize_auto_overtime_form_data(
+        form,
+        allow_create_missing_auto=True,
+    )
+    if not normalized:
+        return False
+    form.form_data = normalized_form_data
+    flag_modified(form, "form_data")
+    db.session.commit()
+    return True
+
+
+def ensure_confirmed_auto_overtime_for_response(form):
+    changed = ensure_confirmed_auto_overtime(form)
+    if changed and form:
+        db.session.refresh(form)
+    return changed
+
+
 @attendance_form_bp.route('/by-token/<employee_token>', methods=['GET'])
 def get_attendance_form_by_token(employee_token):
     """
@@ -578,6 +601,7 @@ def get_attendance_form_by_token(employee_token):
                 
                 # 如果没有年月参数，直接返回这个考勤表
                 if not year or not month:
+                    ensure_confirmed_auto_overtime_for_response(existing_form)
                     contract = existing_form.contract
                     cycle_start = existing_form.cycle_start_date
                     cycle_end = existing_form.cycle_end_date
@@ -769,6 +793,7 @@ def get_attendance_form_by_token(employee_token):
         
         if existing_form:
             reconciled = reconcile_attendance_form_with_contract_end(existing_form)
+            ensure_confirmed_auto_overtime_for_response(existing_form)
             
             # 检查并补充上户/下户记录（如果缺失）
             form_data = existing_form.form_data or {}
@@ -779,6 +804,7 @@ def get_attendance_form_by_token(employee_token):
                         'out_of_country_records', 'paid_leave_records', 'onboarding_records', 'offboarding_records']:
                 if key not in form_data:
                     form_data[key] = []
+                    form_data_updated = True
             
             # 转换合同日期为 date 类型（如果是 datetime）
             contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
@@ -966,7 +992,10 @@ def update_attendance_form(employee_token):
         if form_data:
             form.form_data = form_data
             if should_apply_auto:
-                normalized_form_data, normalized = normalize_auto_overtime_form_data(form)
+                normalized_form_data, normalized = normalize_auto_overtime_form_data(
+                    form,
+                    allow_create_missing_auto=True,
+                )
                 if normalized:
                     form.form_data = normalized_form_data
                     form_data = normalized_form_data
@@ -980,7 +1009,10 @@ def update_attendance_form(employee_token):
         # 如果是提交确认
         if action == 'confirm':
             if not form_data:
-                normalized_form_data, normalized = normalize_auto_overtime_form_data(form)
+                normalized_form_data, normalized = normalize_auto_overtime_form_data(
+                    form,
+                    allow_create_missing_auto=True,
+                )
                 if normalized:
                     form.form_data = normalized_form_data
                     form_data = normalized_form_data
@@ -1180,6 +1212,8 @@ def get_sign_page_data(signature_token):
                     f"token_form={form.id}, corrected_form={corrected_form.id}, contractId={contract_id_param}"
                 )
                 form = corrected_form
+
+        ensure_confirmed_auto_overtime_for_response(form)
             
         # 调用 find_consecutive_contracts 获取合并后的日期范围
         try:

@@ -6,6 +6,40 @@ import calendar
 from decimal import Decimal, ROUND_HALF_UP
 from flask import current_app
 
+EXPLICIT_STATUTORY_HOLIDAYS = {
+    2025: {
+        (1, 1),
+        (1, 28),
+        (1, 29),
+        (1, 30),
+        (1, 31),
+        (4, 4),
+        (5, 1),
+        (5, 2),
+        (5, 31),
+        (10, 1),
+        (10, 2),
+        (10, 3),
+        (10, 6),
+    },
+    2026: {
+        (1, 1),
+        (2, 16),
+        (2, 17),
+        (2, 18),
+        (2, 19),
+        (4, 5),
+        (5, 1),
+        (5, 2),
+        (6, 19),
+        (9, 25),
+        (10, 1),
+        (10, 2),
+        (10, 3),
+    },
+}
+FIXED_STATUTORY_HOLIDAYS = {(1, 1), (5, 1), (5, 2), (5, 3), (10, 1), (10, 2), (10, 3)}
+
 
 def _parse_date(value):
     if isinstance(value, datetime):
@@ -29,7 +63,10 @@ def _attendance_contract_end_date(contract):
 def _record_hours(record):
     hours = record.get("hours", 0) or 0
     minutes = record.get("minutes", 0) or 0
-    return Decimal(str(hours)) + Decimal(str(minutes)) / Decimal(60)
+    total_hours = Decimal(str(hours)) + Decimal(str(minutes)) / Decimal(60)
+    if total_hours == 0 and int(record.get("daysOffset") or 0) > 0:
+        return Decimal(int(record.get("daysOffset") or 0) + 1) * Decimal(24)
+    return total_hours
 
 
 def _time_to_minutes(time_value):
@@ -55,6 +92,8 @@ def _onboarding_time_from_data(data):
 
 def _contract_start_day_to_exclude(contract, cycle_start, cycle_end):
     if not contract:
+        return None
+    if _is_continuous_service_start(contract):
         return None
 
     raw_start = getattr(contract, "actual_onboarding_date", None) or getattr(contract, "start_date", None)
@@ -87,20 +126,114 @@ def _onboarding_days_to_exclude(data, cycle_start, cycle_end, contract=None):
     return Decimal(len(dates))
 
 
-def _contract_valid_days_for_cycle(form, cycle_start, cycle_end):
+def _contract_actual_start(contract):
+    raw_start = getattr(contract, "actual_onboarding_date", None) or getattr(contract, "start_date", None)
+    return _parse_date(raw_start) if raw_start else None
+
+
+def _is_continuous_service_start(contract):
+    if not contract or not getattr(contract, "service_personnel_id", None):
+        return False
+
+    contract_start = _contract_actual_start(contract)
+    if not contract_start:
+        return False
+
+    query = BaseContract.query.filter(
+        BaseContract.service_personnel_id == contract.service_personnel_id,
+        BaseContract.id != contract.id,
+        BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed']),
+    )
+    if contract.family_id:
+        query = query.filter(BaseContract.family_id == contract.family_id)
+    elif contract.customer_name:
+        query = query.filter(BaseContract.customer_name == contract.customer_name)
+    elif contract.customer_id:
+        query = query.filter(BaseContract.customer_id == contract.customer_id)
+    else:
+        return False
+
+    for previous_contract in query.all():
+        previous_end = _attendance_contract_end_date(previous_contract)
+        if not previous_end:
+            continue
+        gap_days = (contract_start - previous_end).days
+        if 0 <= gap_days <= 1:
+            return True
+    return False
+
+
+def _contract_overlaps_cycle(contract, cycle_start, cycle_end):
+    actual_start = _contract_actual_start(contract)
+    if not actual_start or actual_start > cycle_end:
+        return False
+
+    is_monthly = bool(getattr(contract, 'is_monthly_auto_renew', False) and contract.status in ('active', 'pending'))
+    if is_monthly:
+        return True
+
+    actual_end = _attendance_contract_end_date(contract)
+    return bool(actual_end and actual_end >= cycle_start)
+
+
+def _same_attendance_family(left, right):
+    if not left or not right:
+        return False
+    if left.family_id:
+        return right.family_id == left.family_id
+    if left.customer_name:
+        return right.customer_name == left.customer_name
+    if left.customer_id:
+        return right.customer_id == left.customer_id
+    return right.id == left.id
+
+
+def _related_contracts_for_cycle(form, cycle_start, cycle_end):
     contract = getattr(form, "contract", None)
     if not contract:
-        return Decimal((cycle_end - cycle_start).days + 1)
+        return []
 
-    raw_start = getattr(contract, "actual_onboarding_date", None) or contract.start_date
-    contract_start = _parse_date(raw_start)
-    effective_start = max(cycle_start, contract_start)
+    contracts = BaseContract.query.filter(
+        BaseContract.service_personnel_id == form.employee_id,
+        BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed']),
+        BaseContract.start_date <= cycle_end,
+    ).all()
+    related = [
+        item
+        for item in contracts
+        if _same_attendance_family(contract, item) and _contract_overlaps_cycle(item, cycle_start, cycle_end)
+    ]
+    if not any(item.id == contract.id for item in related):
+        related.append(contract)
+    return related
 
-    contract_end = _attendance_contract_end_date(contract)
-    effective_end = min(cycle_end, contract_end) if contract_end else cycle_end
+
+def _effective_service_window_for_cycle(form, cycle_start, cycle_end):
+    related_contracts = _related_contracts_for_cycle(form, cycle_start, cycle_end)
+    if not related_contracts:
+        return cycle_start, cycle_end
+
+    starts = [_contract_actual_start(contract) for contract in related_contracts]
+    starts = [item for item in starts if item]
+    ends = [_attendance_contract_end_date(contract) for contract in related_contracts]
+
+    effective_start = max(cycle_start, min(starts)) if starts else cycle_start
+    effective_end = cycle_end if any(end is None for end in ends) else min(cycle_end, max(end for end in ends if end))
+    return effective_start, effective_end
+
+
+def _valid_days_for_cycle(form, cycle_start, cycle_end):
+    effective_start, effective_end = _effective_service_window_for_cycle(form, cycle_start, cycle_end)
     if effective_end < effective_start:
-        return Decimal(0)
-    return Decimal((effective_end - effective_start).days + 1)
+        return []
+    return [
+        date.fromordinal(day_ordinal)
+        for day_ordinal in range(effective_start.toordinal(), effective_end.toordinal() + 1)
+    ]
+
+
+def _contract_valid_days_for_cycle(form, cycle_start, cycle_end):
+    return Decimal(len(_valid_days_for_cycle(form, cycle_start, cycle_end)))
 
 
 def _offboarding_adjustment_days(data, onboarding_time):
@@ -130,9 +263,67 @@ def _is_full_day_overtime(record):
 
 
 def _is_statutory_holiday(target_date):
-    # 目前自动补齐只需要避免把 5/1、5/2 这类法定假日加班误识别为月末补齐。
-    fixed_holidays = {(1, 1), (5, 1), (5, 2), (5, 3), (10, 1), (10, 2), (10, 3)}
-    return (target_date.month, target_date.day) in fixed_holidays
+    if not target_date:
+        return False
+    holidays = EXPLICIT_STATUTORY_HOLIDAYS.get(target_date.year, FIXED_STATUTORY_HOLIDAYS)
+    return (target_date.month, target_date.day) in holidays
+
+
+def _record_date_range(record):
+    record_date = record.get("date")
+    if not record_date:
+        return None, None
+    try:
+        start = _parse_date(record_date)
+    except (TypeError, ValueError):
+        return None, None
+    days_offset = int(record.get("daysOffset") or 0)
+    return start, date.fromordinal(start.toordinal() + days_offset)
+
+
+def _record_covers_day(record, target_date):
+    start, end = _record_date_range(record)
+    return bool(start and end and start <= target_date <= end)
+
+
+def _record_hours_in_cycle(record, cycle_start, cycle_end):
+    start, end = _record_date_range(record)
+    if not start or not end or start > cycle_end or end < cycle_start:
+        return Decimal(0)
+
+    actual_start = max(start, cycle_start)
+    actual_end = min(end, cycle_end)
+    days_in_cycle = Decimal((actual_end - actual_start).days + 1)
+    total_span = Decimal(max(1, int(record.get("daysOffset") or 0) + 1))
+    return _record_hours(record) * days_in_cycle / total_span
+
+
+def _record_is_holiday_like(record, data, target_date):
+    if _is_statutory_holiday(target_date):
+        return True
+    for key in ("rest_records", "leave_records"):
+        for other_record in data.get(key) or []:
+            if other_record is record:
+                continue
+            if _record_covers_day(other_record, target_date):
+                return True
+    return False
+
+
+def _occupied_record_dates(data, legacy_auto_date_set):
+    occupied_dates = set()
+    for key, records in data.items():
+        if not key.endswith("_records") or not isinstance(records, list):
+            continue
+        for record in records:
+            if key == "overtime_records" and (record.get("is_auto") or record.get("date") in legacy_auto_date_set):
+                continue
+            start, end = _record_date_range(record)
+            if not start or not end:
+                continue
+            for day_ordinal in range(start.toordinal(), end.toordinal() + 1):
+                occupied_dates.add(date.fromordinal(day_ordinal))
+    return occupied_dates
 
 
 def _calculate_records_days(records):
@@ -142,14 +333,43 @@ def _calculate_records_days(records):
     return total_days
 
 
-def normalize_auto_overtime_form_data(form):
+def _split_overtime_days_by_holiday(data, cycle_start, cycle_end):
+    normal_days = Decimal(0)
+    holiday_days = Decimal(0)
+
+    for record in data.get('overtime_records') or []:
+        record_start, record_end = _record_date_range(record)
+        if not record_start or not record_end or record_start > cycle_end or record_end < cycle_start:
+            continue
+
+        actual_start = max(record_start, cycle_start)
+        actual_end = min(record_end, cycle_end)
+        days_in_span = Decimal((actual_end - actual_start).days + 1)
+        if days_in_span <= 0:
+            continue
+
+        record_days = _record_hours_in_cycle(record, cycle_start, cycle_end) / Decimal(24)
+        daily_overtime_days = record_days / days_in_span
+
+        current = actual_start
+        while current <= actual_end:
+            if _record_is_holiday_like(record, data, current):
+                holiday_days += daily_overtime_days
+            else:
+                normal_days += daily_overtime_days
+            current = date.fromordinal(current.toordinal() + 1)
+
+    return normal_days, holiday_days
+
+
+def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
     """
     规范化自动补齐加班数据，避免历史表把月末补齐块按整天入库导致工资多算。
     返回 (normalized_data, changed)。
     """
     data = deepcopy(form.form_data or {})
     overtime_records = data.get("overtime_records") or []
-    if not overtime_records:
+    if not allow_create_missing_auto and not overtime_records:
         return data, False
 
     cycle_start = _parse_date(form.cycle_start_date)
@@ -158,6 +378,7 @@ def normalize_auto_overtime_form_data(form):
         date.fromordinal(day_ordinal)
         for day_ordinal in range(cycle_start.toordinal(), cycle_end.toordinal() + 1)
     ]
+    valid_days = _valid_days_for_cycle(form, cycle_start, cycle_end)
 
     overtime_by_date = {}
     for record in overtime_records:
@@ -174,7 +395,7 @@ def normalize_auto_overtime_form_data(form):
             break
 
     existing_auto_records = [r for r in overtime_records if r.get("is_auto")]
-    if not legacy_auto_dates and not existing_auto_records:
+    if not allow_create_missing_auto and not legacy_auto_dates and not existing_auto_records:
         return data, False
 
     rest_days = _calculate_records_days(data.get("rest_records", []))
@@ -186,11 +407,20 @@ def normalize_auto_overtime_form_data(form):
     for record in overtime_records:
         if record.get("is_auto") or record.get("date") in legacy_auto_date_set:
             continue
-        record_date = _parse_date(record.get("date"))
-        if not _is_statutory_holiday(record_date):
-            manual_normal_overtime_days += _record_hours(record) / Decimal(24)
+        record_start, record_end = _record_date_range(record)
+        if not record_start or not record_end:
+            continue
+        record_hours = _record_hours_in_cycle(record, cycle_start, cycle_end)
+        days_in_span = Decimal((min(record_end, cycle_end) - max(record_start, cycle_start)).days + 1)
+        daily_overtime_days = record_hours / Decimal(24) / days_in_span if days_in_span > 0 else Decimal(0)
+        current = max(record_start, cycle_start)
+        actual_end = min(record_end, cycle_end)
+        while current <= actual_end:
+            if not _record_is_holiday_like(record, data, current):
+                manual_normal_overtime_days += daily_overtime_days
+            current = date.fromordinal(current.toordinal() + 1)
 
-    valid_days_count = _contract_valid_days_for_cycle(form, cycle_start, cycle_end)
+    valid_days_count = Decimal(len(valid_days))
     onboarding_days = _onboarding_days_to_exclude(data, cycle_start, cycle_end, form.contract)
     onboarding_time = _onboarding_time_from_data(data)
     if not onboarding_time:
@@ -203,10 +433,9 @@ def normalize_auto_overtime_form_data(form):
     if auto_overtime_days <= 0:
         auto_overtime_days = Decimal(0)
 
-    # 对没有 is_auto 标记的历史数据，只做“降噪/等量规范化”，绝不自动增加加班天数。
-    # 否则可能把真实手填的月末加班误判为自动补齐。
+    # 默认只规范化已有自动补齐/历史月末块；确认态和签署同步可显式补上历史漏生成的自动补齐。
     legacy_auto_days = Decimal(len(legacy_auto_dates))
-    if legacy_auto_dates and not existing_auto_records and auto_overtime_days > legacy_auto_days:
+    if not allow_create_missing_auto and legacy_auto_dates and not existing_auto_records and auto_overtime_days > legacy_auto_days:
         return data, False
 
     auto_minutes = int((auto_overtime_days * Decimal(24) * Decimal(60)).to_integral_value(rounding=ROUND_HALF_UP))
@@ -228,6 +457,16 @@ def normalize_auto_overtime_form_data(form):
                 date.fromordinal(day_ordinal).isoformat()
                 for day_ordinal in range(first_date.toordinal(), first_date.toordinal() + days_offset + 1)
             ]
+        if not auto_dates and allow_create_missing_auto:
+            days_to_convert = int((auto_overtime_days).to_integral_value(rounding=ROUND_HALF_UP))
+            if Decimal(days_to_convert) < auto_overtime_days:
+                days_to_convert += 1
+            occupied_dates = _occupied_record_dates(data, legacy_auto_date_set)
+            auto_dates = [
+                item.isoformat()
+                for item in valid_days
+                if item not in occupied_dates
+            ][-days_to_convert:]
         if auto_dates:
             max_minutes = len(auto_dates) * 24 * 60
             missing_minutes_on_first_day = max(0, max_minutes - auto_minutes)
@@ -390,7 +629,7 @@ def sync_attendance_to_record(attendance_form_id):
         current_app.logger.error(f"[ATTENDANCE_SYNC] AttendanceForm {attendance_form_id} not found")
         raise ValueError(f"AttendanceForm {attendance_form_id} not found")
         
-    data, normalized = normalize_auto_overtime_form_data(form)
+    data, normalized = normalize_auto_overtime_form_data(form, allow_create_missing_auto=True)
     if normalized:
         form.form_data = data
         current_app.logger.info(f"[ATTENDANCE_SYNC] 已规范化自动补齐加班数据: form_id={form.id}")
@@ -447,16 +686,17 @@ def sync_attendance_to_record(attendance_form_id):
             total_days += days
         return total_days
 
+    cycle_start = _parse_date(form.cycle_start_date)
+    cycle_end = _parse_date(form.cycle_end_date)
+
     # 2. 计算各项天数
     rest_days = calculate_days(data.get('rest_records', []))
     leave_days = calculate_days(data.get('leave_records', []))
-    overtime_days = calculate_days(data.get('overtime_records', []))
+    normal_overtime_days, statutory_holiday_days = _split_overtime_days_by_holiday(data, cycle_start, cycle_end)
+    overtime_days = normal_overtime_days + statutory_holiday_days
     out_of_beijing_days = calculate_days(data.get('out_of_beijing_records', []))  # 修复：使用正确的键名
     out_of_country_days = calculate_days(data.get('out_of_country_records', []))  # 修复：使用正确的键名
     paid_leave_days = calculate_days(data.get('paid_leave_records', []))
-    
-    cycle_start = _parse_date(form.cycle_start_date)
-    cycle_end = _parse_date(form.cycle_end_date)
 
     # 【新增】上户/下户特殊处理
     onboarding_records = data.get('onboarding_records', [])
@@ -582,6 +822,7 @@ def sync_attendance_to_record(attendance_form_id):
     # 更新字段
     attendance.total_days_worked = total_days_worked
     attendance.overtime_days = overtime_days
+    attendance.statutory_holiday_days = 0
     attendance.out_of_beijing_days = out_of_beijing_days
     attendance.out_of_country_days = out_of_country_days
     attendance.attendance_form_id = form.id
@@ -592,6 +833,8 @@ def sync_attendance_to_record(attendance_form_id):
         "leave_days": float(leave_days),
         "paid_leave_days": float(paid_leave_days),
         "overtime_days": float(overtime_days),
+        "normal_overtime_days": float(normal_overtime_days),
+        "statutory_holiday_days": float(statutory_holiday_days),
         "out_of_beijing_days": float(out_of_beijing_days),
         "out_of_country_days": float(out_of_country_days),
         "onboarding_days": float(onboarding_days),

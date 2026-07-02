@@ -79,6 +79,12 @@ D = decimal.Decimal
 
 billing_bp = Blueprint("billing_api", __name__, url_prefix="/api/billing")
 
+
+def _attendance_total_overtime_days(attendance_record):
+    if not attendance_record:
+        return D(0)
+    return D(attendance_record.overtime_days or 0) + D(attendance_record.statutory_holiday_days or 0)
+
 ADJUSTMENT_TYPE_LABELS = {
     AdjustmentType.CUSTOMER_INCREASE: "客户增款",
     AdjustmentType.CUSTOMER_DECREASE: "退客户款",
@@ -1143,7 +1149,7 @@ def batch_update_billing_details():
         original_overtime_days = D("0")
         attendance_record=AttendanceRecord.query.filter_by(contract_id=bill.contract_id,cycle_start_date=bill.cycle_start_date).first()
         if attendance_record:
-            original_overtime_days =attendance_record.overtime_days
+            original_overtime_days = _attendance_total_overtime_days(attendance_record)
 
         # 记录原始实际工作天数
         original_actual_work_days = bill.actual_work_days
@@ -1186,15 +1192,16 @@ def batch_update_billing_details():
         new_overtime_decimal = D(str(data.get("overtime_days", "0")))
         attendance_record=AttendanceRecord.query.filter_by(contract_id=bill.contract_id,cycle_start_date=bill.cycle_start_date).first()
         if attendance_record:
-            if attendance_record.overtime_days.quantize(D('0.01'))!=new_overtime_decimal.quantize(D('0.01')):
+            if _attendance_total_overtime_days(attendance_record).quantize(D('0.01'))!=new_overtime_decimal.quantize(D('0.01')):
                 attendance_record.overtime_days = new_overtime_decimal
+                attendance_record.statutory_holiday_days = 0
         elif new_overtime_decimal > 0:
             employee_id = bill.contract.service_personnel_id
             if employee_id:
                 db.session.add(AttendanceRecord(
                     employee_id=employee_id, contract_id=bill.contract_id,
                     cycle_start_date=bill.cycle_start_date, cycle_end_date=bill.cycle_end_date,
-                    overtime_days=new_overtime_decimal, total_days_worked=0
+                    overtime_days=new_overtime_decimal, statutory_holiday_days=0, total_days_worked=0
                 ))
 
         if 'invoice_needed' in data:
