@@ -102,6 +102,9 @@ class BillingEngine:
     def _attendance_overtime_days(self, attendance):
         if not attendance:
             return D(0)
+        details = attendance.attendance_details or {}
+        if details.get("overtime_days") is not None:
+            return D(details.get("overtime_days") or 0)
         return D(attendance.overtime_days or 0) + D(attendance.statutory_holiday_days or 0)
 
     def _to_date(self, dt_obj):

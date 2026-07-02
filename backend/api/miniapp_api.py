@@ -1038,7 +1038,10 @@ def _attendance_record_stats(form):
     leave_days = float(details.get("leave_days") or 0)
     paid_leave_days = float(details.get("paid_leave_days") or 0)
     leave_total = rest_days + leave_days + paid_leave_days
-    overtime_days = float(record.overtime_days or details.get("overtime_days") or 0)
+    if details.get("overtime_days") is not None:
+        overtime_days = float(details.get("overtime_days") or 0)
+    else:
+        overtime_days = float(record.overtime_days or 0)
     work_days = float(record.total_days_worked or 0)
 
     return {

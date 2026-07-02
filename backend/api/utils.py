@@ -57,6 +57,9 @@ def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=Fal
 def _attendance_total_overtime_days(attendance_record):
     if not attendance_record:
         return D(0)
+    details = attendance_record.attendance_details or {}
+    if details.get("overtime_days") is not None:
+        return D(details.get("overtime_days") or 0)
     return D(attendance_record.overtime_days or 0) + D(attendance_record.statutory_holiday_days or 0)
 
 def _get_details_template(contract, cycle_start, cycle_end):
