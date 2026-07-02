@@ -40,7 +40,9 @@ from backend.api.attendance_form_api import (
     has_following_contract,
     is_continuous_service,
     ensure_confirmed_auto_overtime_for_response,
+    ensure_attendance_form_onboarding_record,
     resolve_effective_attendance_window_for_contract,
+    validate_required_onboarding_times,
 )
 from backend.api.contract_api import _build_signing_messages_payload, handle_signing_page_action
 from backend.services.attendance_sync_service import normalize_auto_overtime_form_data
@@ -1376,6 +1378,12 @@ def _get_or_create_employee_attendance_forms(employee, year=None, month=None):
             (item for item in family_contracts if item.status == "active"),
             max(family_contracts, key=lambda item: item.start_date),
         )
+        service_start = min(
+            (contract.actual_onboarding_date.date() if isinstance(contract.actual_onboarding_date, datetime) else contract.actual_onboarding_date)
+            if contract.actual_onboarding_date
+            else (contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date)
+            for contract in family_contracts
+        )
         form = AttendanceForm.query.filter(
             AttendanceForm.employee_id == employee.id,
             AttendanceForm.cycle_start_date >= cycle_start_dt,
@@ -1393,6 +1401,10 @@ def _get_or_create_employee_attendance_forms(employee, year=None, month=None):
                 form_data={},
                 status="draft",
             )
+            ensure_attendance_form_onboarding_record(form, primary_contract, service_start)
+            db.session.add(form)
+            db.session.flush()
+        elif ensure_attendance_form_onboarding_record(form, primary_contract, service_start):
             db.session.add(form)
             db.session.flush()
         forms.append(form)
@@ -2263,7 +2275,7 @@ def employee_attendance_update(form_id):
     should_apply_auto = action == "confirm" or form.status == "employee_confirmed"
     if form_data is not None:
         form.form_data = form_data or {}
-        if should_apply_auto:
+        if should_apply_auto and action != "confirm":
             normalized_form_data, normalized = normalize_auto_overtime_form_data(
                 form,
                 allow_create_missing_auto=True,
@@ -2278,20 +2290,22 @@ def employee_attendance_update(form_id):
         flag_modified(form, "form_data")
 
     if action == "confirm":
-        if form_data is None:
-            normalized_form_data, normalized = normalize_auto_overtime_form_data(
-                form,
-                allow_create_missing_auto=True,
-            )
-            if normalized:
-                form.form_data = normalized_form_data
-                flag_modified(form, "form_data")
-
-        validation_errors = []
         contract = BaseContract.query.get(form.contract_id)
         cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
         cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
+        _, effective_start, _ = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
+        if ensure_attendance_form_onboarding_record(form, contract, effective_start):
+            flag_modified(form, "form_data")
 
+        normalized_form_data, normalized = normalize_auto_overtime_form_data(
+            form,
+            allow_create_missing_auto=True,
+        )
+        if normalized:
+            form.form_data = normalized_form_data
+            flag_modified(form, "form_data")
+
+        validation_errors = []
         contract_start = None
         if contract and contract.start_date:
             contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
@@ -2306,6 +2320,14 @@ def employee_attendance_update(form_id):
                 validation_errors.append(f"合同开始日 {contract_start.strftime('%m月%d日')} 需要填写「上户」记录")
             elif not onboarding_record.get("startTime") or not onboarding_record.get("endTime"):
                 validation_errors.append(f"上户日 {contract_start.strftime('%m月%d日')} 的具体时间未填写")
+
+        validation_errors.extend(
+            validate_required_onboarding_times(
+                current_form_data,
+                cycle_start,
+                cycle_end,
+            )
+        )
 
         contract_end_date = get_attendance_contract_end_date(contract)
 

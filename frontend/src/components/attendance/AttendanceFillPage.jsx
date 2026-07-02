@@ -673,7 +673,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         type: 'normal',
         daysOffset: 0,
         startTime: '09:00',
-        endTime: '18:00'
+        endTime: '18:00',
+        label: ''
     });
 
     // Scroll state for header shrink effect
@@ -975,7 +976,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             if (key.endsWith('_records') && Array.isArray(attendanceData[key])) {
                 attendanceData[key].forEach(record => {
                     const recordType = record.type || key.replace('_records', '');
-                    if (recordType === 'onboarding' && !record.startTime) return;
+                    if (recordType === 'onboarding' && !record.startTime && !record.label) return;
                     if (recordType === 'offboarding' && !record.endTime) return;
 
                     // 【关键修复】计算当前月份内的实际天数
@@ -1026,7 +1027,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                     allRecords.push({
                         ...record,
                         type: recordType,
-                        typeLabel: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === recordType)]?.label,
+                        typeLabel: record.label || ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === recordType)]?.label,
                         // 【关键】使用当前月份内的时长
                         hours: hoursInCurrentMonth,
                         minutes: minutesInCurrentMonth,
@@ -1094,7 +1095,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             result = {
                 ...displayResult.record,
                 type: displayResult.type,
-                typeLabel: displayResult.typeLabel,
+                typeLabel: displayResult.record?.label || displayResult.typeLabel,
                 typeConfig: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === displayResult.type)],
                 hours: Math.floor(totalHours),
                 minutes: Math.round((totalHours % 1) * 60),
@@ -1218,7 +1219,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 // 下户：startTime 显示的是离开时间（即 endTime）
                 // 上户/其他：保留原始 startTime
                 startTime: isOffboarding ? (originalRecord.endTime || '') : (originalRecord.startTime || ''),
-                endTime: originalRecord.endTime || ''
+                endTime: originalRecord.endTime || '',
+                label: originalRecord.label || '',
+                source_contract_id: originalRecord.source_contract_id,
+                source_contract_type: originalRecord.source_contract_type
             });
         } else {
             // 没有找到原始记录，使用默认值
@@ -1226,7 +1230,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 type: 'normal',
                 daysOffset: 0,
                 startTime: '09:00',
-                endTime: '18:00'
+                endTime: '18:00',
+                label: ''
             });
         }
 
@@ -1494,6 +1499,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             // If not normal, add to the new list
             if (tempRecord.type !== 'normal') {
                 const recordKey = `${tempRecord.type}_records`;
+                const preservedOnboardingFields = tempRecord.type === 'onboarding'
+                    ? {
+                        ...(tempRecord.label ? { label: tempRecord.label } : {}),
+                        ...(tempRecord.source_contract_id ? { source_contract_id: tempRecord.source_contract_id } : {}),
+                        ...(tempRecord.source_contract_type ? { source_contract_type: tempRecord.source_contract_type } : {})
+                    }
+                    : {};
                 newData[recordKey] = [...(newData[recordKey] || []), {
                     date: actualStartDateStr, // 出京/出境使用计算后的开始日期
                     hours: calculatedDuration.hours,
@@ -1501,7 +1513,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                     type: tempRecord.type,
                     daysOffset: actualDaysOffset,
                     startTime: startTime,
-                    endTime: endTime
+                    endTime: endTime,
+                    ...preservedOnboardingFields
                 }];
             }
 

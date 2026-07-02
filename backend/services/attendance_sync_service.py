@@ -702,8 +702,7 @@ def sync_attendance_to_record(attendance_form_id):
     onboarding_records = data.get('onboarding_records', [])
     offboarding_records = data.get('offboarding_records', [])
     
-    # 上户月不把上户当天计入基础出勤；该日剩余小时留到下户月合并计算。
-    onboarding_days = _onboarding_days_to_exclude(data, cycle_start, cycle_end, form.contract)
+    onboarding_days = Decimal(0)
     
     # 下户月需要把首月上户日剩余小时与下户日已工作小时合并计算。
     offboarding_days = Decimal(0)
@@ -778,8 +777,15 @@ def sync_attendance_to_record(attendance_form_id):
         current_app.logger.info(f"[ATTENDANCE_SYNC] 合同有效期: {effective_start} 到 {effective_end}, 基础劳务天数: {base_work_days}")
     else:
         # 如果没有合同信息，回退到使用考勤周期
+        effective_start = cycle_start
+        effective_end = cycle_end
         base_work_days = (cycle_end - cycle_start).days + 1
         current_app.logger.warning(f"[ATTENDANCE_SYNC] 未找到合同信息，使用考勤周期天数: {base_work_days}")
+
+    # 上户月不把上户当天计入基础出勤；该日剩余小时留到下户月合并计算。
+    # 合并试工/正式考勤时，试工上户日可能早于当前正式合同账单周期，
+    # 只在当前合同实际计薪窗口内扣减，避免正式账单基础劳务天数被多扣一天。
+    onboarding_days = _onboarding_days_to_exclude(data, effective_start, effective_end, form.contract)
     
     # 出勤天数 = 基础劳务天数 - 休息天数 - 请假天数 - 上户日 + 末月小时合并调整
     if offboarding_records and offboarding_day_work > 0:

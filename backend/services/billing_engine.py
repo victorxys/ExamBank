@@ -2421,6 +2421,13 @@ class BillingEngine:
                 cycle_start_date,
                 cycle_end_date,
             )
+        elif not attendance.attendance_form_id:
+            attendance = self._apply_monthly_form_to_attendance(
+                attendance,
+                contract,
+                cycle_start_date,
+                cycle_end_date,
+            ) or attendance
 
         if not attendance:
             employee_id = contract.service_personnel_id
@@ -2489,7 +2496,7 @@ class BillingEngine:
                 return str(form_contract.customer_id) == str(contract.customer_id)
             return bool(contract.customer_name and form_contract.customer_name == contract.customer_name)
 
-        signed_form = next((form for form in candidate_forms if same_family_or_customer(form)), None)
+        signed_form = self._find_signed_monthly_attendance_form(contract, cycle_start, candidate_forms)
         if not signed_form or not signed_form.form_data:
             return None
 
@@ -2506,6 +2513,65 @@ class BillingEngine:
         self._apply_attendance_allocation(attendance, signed_form, cycle_start, cycle_end)
         db.session.flush()
         return attendance
+
+    def _apply_monthly_form_to_attendance(self, attendance, contract, cycle_start_date, cycle_end_date):
+        cycle_start = self._to_date(cycle_start_date)
+        cycle_end = self._to_date(cycle_end_date)
+        if not cycle_start or not cycle_end:
+            return None
+
+        month_start = date(cycle_start.year, cycle_start.month, 1)
+        next_month_start = (
+            date(cycle_start.year + 1, 1, 1)
+            if cycle_start.month == 12
+            else date(cycle_start.year, cycle_start.month + 1, 1)
+        )
+        candidate_forms = AttendanceForm.query.filter(
+            AttendanceForm.employee_id == contract.service_personnel_id,
+            AttendanceForm.cycle_start_date >= month_start,
+            AttendanceForm.cycle_start_date < next_month_start,
+            AttendanceForm.status.in_(["customer_signed", "synced"]),
+        ).order_by(AttendanceForm.updated_at.desc().nullslast(), AttendanceForm.created_at.desc()).all()
+
+        signed_form = self._find_signed_monthly_attendance_form(contract, cycle_start, candidate_forms)
+        if not signed_form or not signed_form.form_data:
+            return None
+
+        attendance.attendance_form_id = signed_form.id
+        self._apply_attendance_allocation(attendance, signed_form, cycle_start, cycle_end)
+        db.session.flush()
+        return attendance
+
+    def _find_signed_monthly_attendance_form(self, contract, cycle_start, candidate_forms):
+        def same_family_or_customer(form):
+            form_contract = form.contract
+            if not form_contract:
+                return False
+            if str(form_contract.id) == str(contract.id):
+                return True
+            if contract.family_id and form_contract.family_id:
+                return form_contract.family_id == contract.family_id
+            if contract.customer_id and form_contract.customer_id:
+                return str(form_contract.customer_id) == str(contract.customer_id)
+            return bool(contract.customer_name and form_contract.customer_name == contract.customer_name)
+
+        matching_forms = [form for form in candidate_forms if same_family_or_customer(form)]
+        exact_form = next(
+            (
+                form for form in matching_forms
+                if str(form.contract_id) == str(contract.id)
+            ),
+            None,
+        )
+        if exact_form:
+            return exact_form
+        return next(
+            (
+                form for form in matching_forms
+                if self._to_date(form.cycle_start_date) <= cycle_start <= self._to_date(form.cycle_end_date)
+            ),
+            None,
+        )
 
     def _attendance_days_in_cycle(self, records, cycle_start, cycle_end):
         total = D(0)
