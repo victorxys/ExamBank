@@ -28,7 +28,7 @@ logging.getLogger().setLevel(logging.ERROR)
 logging.disable(logging.WARNING)
 
 from backend.app import app
-from backend.models import AttendanceForm, AttendanceRecord, CustomerBill, EmployeePayroll, db
+from backend.models import AttendanceForm, AttendanceRecord, BaseContract, CustomerBill, EmployeePayroll, db
 from backend.services.attendance_sync_service import (
     _parse_date,
     _record_covers_day,
@@ -63,6 +63,15 @@ def build_urls(host, form):
 def total_record_overtime(attendance):
     if not attendance:
         return Decimal("0")
+    details = attendance.attendance_details or {}
+    if details.get("overtime_days") is not None:
+        return D(details.get("overtime_days") or 0)
+    return D(attendance.overtime_days) + D(attendance.statutory_holiday_days)
+
+
+def record_field_overtime(attendance):
+    if not attendance:
+        return Decimal("0")
     return D(attendance.overtime_days) + D(attendance.statutory_holiday_days)
 
 
@@ -71,6 +80,10 @@ def bill_overtime_days(bill):
         return Decimal("0")
     details = bill.calculation_details or {}
     return D(details.get("overtime_days"))
+
+
+def same_days(left, right):
+    return D(left).quantize(Decimal("0.001")) == D(right).quantize(Decimal("0.001"))
 
 
 def employee_name(form):
@@ -82,6 +95,19 @@ def employee_name(form):
 def customer_name(form):
     contract = form.contract
     return getattr(contract, "customer_name", None) or str(form.contract_id)
+
+
+def has_successor(contract):
+    if not contract:
+        return False
+    return db.session.query(BaseContract.id).filter_by(previous_contract_id=contract.id).first() is not None
+
+
+def is_renewal_related(form):
+    contract = form.contract
+    if not contract:
+        return False
+    return bool(contract.previous_contract_id or has_successor(contract))
 
 
 def has_june_statutory_overtime(form_data):
@@ -145,17 +171,22 @@ def analyze_form(form):
     ).first()
 
     record_overtime = total_record_overtime(attendance)
+    record_field_total = record_field_overtime(attendance)
     current_bill_overtime = bill_overtime_days(bill)
     record_has_legacy_holiday = bool(attendance and D(attendance.statutory_holiday_days) > 0)
+    bill_mismatch = not same_days(expected_overtime_days, current_bill_overtime)
+    record_mismatch = not same_days(expected_overtime_days, record_overtime)
+    record_needs_normalize = record_has_legacy_holiday and not same_days(record_field_total, record_overtime)
     needs_resync = (
         normalized_changed
-        or record_has_legacy_holiday
-        or expected_overtime_days.quantize(Decimal("0.001")) != record_overtime.quantize(Decimal("0.001"))
-        or expected_overtime_days.quantize(Decimal("0.001")) != current_bill_overtime.quantize(Decimal("0.001"))
+        or record_mismatch
+        or bill_mismatch
+        or record_needs_normalize
     )
 
     return {
         "form": form,
+        "is_renewal_related": is_renewal_related(form),
         "original_data": original_data,
         "normalized_data": normalized_data,
         "normalized_changed": normalized_changed,
@@ -166,6 +197,8 @@ def analyze_form(form):
         "bill": bill,
         "payroll": payroll,
         "record_overtime": record_overtime,
+        "record_field_total": record_field_total,
+        "record_needs_normalize": record_needs_normalize,
         "bill_overtime_days": current_bill_overtime,
         "needs_resync": needs_resync,
     }
@@ -185,12 +218,25 @@ def print_case(case, host, index):
         f"AttendanceRecord 当前 {fmt_decimal(case['record_overtime'])} 天, "
         f"账单当前 {fmt_decimal(case['bill_overtime_days'])} 天"
     )
+    if case["record_needs_normalize"]:
+        print(
+            "字段归一化: "
+            f"AttendanceRecord 字段合计 {fmt_decimal(case['record_field_total'])} 天，"
+            f"将按明细总加班 {fmt_decimal(case['record_overtime'])} 天重写"
+        )
     if case["normalized_changed"]:
         original_count = len((case["original_data"] or {}).get("overtime_records") or [])
         new_count = len((case["normalized_data"] or {}).get("overtime_records") or [])
         print(f"自动补齐: 将更新 overtime_records 数量 {original_count} -> {new_count}")
     if not case["bill"]:
         print("提示: 未找到 2026-06 主账单，apply 只会同步考勤，无法重算对应账单")
+
+
+def print_form_links(form, host, index):
+    contract_url, attendance_url = build_urls(host, form)
+    print(f"[{index}] {customer_name(form)} | {employee_name(form)}")
+    print(f"合同: {contract_url}")
+    print(f"考勤: {attendance_url}")
 
 
 def restore_form_data(form, original_data):
@@ -205,6 +251,11 @@ def main():
     parser.add_argument("--host", default="http://localhost:5175", help="Frontend host used in clickable report links.")
     parser.add_argument("--apply", action="store_true", help="Apply resync and billing recalculation.")
     parser.add_argument("--contract-id", help="Only inspect one contract.")
+    parser.add_argument(
+        "--include-renewals",
+        action="store_true",
+        help="Include renewal-related contracts. Default skips them because renewal backfill has its own flow.",
+    )
     parser.add_argument(
         "--include-employee-confirmed",
         action="store_true",
@@ -227,16 +278,28 @@ def main():
 
         forms = query.all()
         cases = [analyze_form(form) for form in forms]
-        actionable = [case for case in cases if case["needs_resync"]]
-        already_ok_holiday = [
+        skipped_renewals = [
             case for case in cases
+            if case["is_renewal_related"] and not args.include_renewals
+        ]
+        active_cases = [
+            case for case in cases
+            if args.include_renewals or not case["is_renewal_related"]
+        ]
+        actionable = [case for case in active_cases if case["needs_resync"]]
+        already_ok_holiday = [
+            case for case in active_cases
             if not case["needs_resync"] and case["holiday_days"] > 0
         ]
-        manual_review = [form for form in forms if needs_manual_holiday_review(form)]
+        manual_review = [
+            case["form"] for case in active_cases
+            if needs_manual_holiday_review(case["form"])
+        ]
 
         print(f"模式: {'APPLY' if args.apply else 'DRY-RUN'}")
         print(f"扫描状态: {', '.join(statuses)}")
         print(f"扫描考勤表: {len(forms)}")
+        print(f"跳过续签相关: {len(skipped_renewals)}")
         print(f"需要处理: {len(actionable)}")
         print(f"已有法定加班且账单一致: {len(already_ok_holiday)}")
         print(f"需要人工确认是否漏填法定加班: {len(manual_review)}")
@@ -249,13 +312,15 @@ def main():
             for index, case in enumerate(already_ok_holiday, 1):
                 print_case(case, args.host, index)
 
+        if skipped_renewals:
+            print("\n已跳过的续签相关考勤单（由续签专项逻辑处理）:")
+            for index, case in enumerate(skipped_renewals, 1):
+                print_form_links(case["form"], args.host, index)
+
         if manual_review:
             print("\n需要人工确认的考勤单（6月19日在服务期内，但没有对应加班/休假记录）:")
             for index, form in enumerate(manual_review, 1):
-                contract_url, attendance_url = build_urls(args.host, form)
-                print(f"[{index}] {customer_name(form)} | {employee_name(form)}")
-                print(f"合同: {contract_url}")
-                print(f"考勤: {attendance_url}")
+                print_form_links(form, args.host, index)
 
         if not args.apply:
             print("\nDRY-RUN 完成，未修改数据。确认后加 --apply 执行。")

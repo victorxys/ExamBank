@@ -83,7 +83,21 @@ billing_bp = Blueprint("billing_api", __name__, url_prefix="/api/billing")
 def _attendance_total_overtime_days(attendance_record):
     if not attendance_record:
         return D(0)
+    details = attendance_record.attendance_details or {}
+    if details.get("overtime_days") is not None:
+        return D(details.get("overtime_days") or 0)
     return D(attendance_record.overtime_days or 0) + D(attendance_record.statutory_holiday_days or 0)
+
+
+def _set_attendance_total_overtime_days(attendance_record, overtime_days):
+    attendance_record.overtime_days = overtime_days
+    attendance_record.statutory_holiday_days = 0
+    details = dict(attendance_record.attendance_details or {})
+    details["overtime_days"] = float(overtime_days or 0)
+    details["statutory_holiday_days"] = 0
+    attendance_record.attendance_details = details
+    attributes.flag_modified(attendance_record, "attendance_details")
+
 
 ADJUSTMENT_TYPE_LABELS = {
     AdjustmentType.CUSTOMER_INCREASE: "客户增款",
@@ -275,9 +289,7 @@ def save_attendance():
         ).first()
 
         if attendance_record:
-            attendance_record.overtime_days = overtime_days
-            # 删掉 statutory_holiday_days 的处理，统一为 overtime_days
-            attendance_record.statutory_holiday_days = 0
+            _set_attendance_total_overtime_days(attendance_record, overtime_days)
             attendance_record.total_days_worked = 26 + overtime_days
             msg = "考勤记录更新成功"
         else:
@@ -1193,8 +1205,7 @@ def batch_update_billing_details():
         attendance_record=AttendanceRecord.query.filter_by(contract_id=bill.contract_id,cycle_start_date=bill.cycle_start_date).first()
         if attendance_record:
             if _attendance_total_overtime_days(attendance_record).quantize(D('0.01'))!=new_overtime_decimal.quantize(D('0.01')):
-                attendance_record.overtime_days = new_overtime_decimal
-                attendance_record.statutory_holiday_days = 0
+                _set_attendance_total_overtime_days(attendance_record, new_overtime_decimal)
         elif new_overtime_decimal > 0:
             employee_id = bill.contract.service_personnel_id
             if employee_id:
