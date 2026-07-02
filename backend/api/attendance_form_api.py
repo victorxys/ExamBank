@@ -152,6 +152,166 @@ def get_attendance_contract_end_date(contract):
     return to_date_value(contract.end_date)
 
 
+ATTENDANCE_RECORD_KEYS = [
+    'rest_records',
+    'leave_records',
+    'overtime_records',
+    'out_of_beijing_records',
+    'out_of_country_records',
+    'paid_leave_records',
+    'onboarding_records',
+    'offboarding_records',
+]
+
+
+def _ensure_attendance_record_keys(form_data):
+    changed = False
+    if not isinstance(form_data, dict):
+        form_data = {}
+        changed = True
+    for key in ATTENDANCE_RECORD_KEYS:
+        if key not in form_data:
+            form_data[key] = []
+            changed = True
+    return form_data, changed
+
+
+def _contract_start_date(contract):
+    if not contract:
+        return None
+    actual_onboarding = getattr(contract, 'actual_onboarding_date', None)
+    if actual_onboarding:
+        return to_date_value(actual_onboarding)
+    return to_date_value(contract.start_date)
+
+
+def _same_attendance_family(left, right):
+    if not left or not right:
+        return False
+    if left.family_id:
+        return right.family_id == left.family_id
+    if left.customer_name:
+        return right.customer_name == left.customer_name
+    if left.customer_id:
+        return right.customer_id == left.customer_id
+    return left.id == right.id
+
+
+def _attendance_family_contracts(employee_id, cycle_start, cycle_end, target_contract):
+    if not target_contract:
+        return []
+    contracts = filter_contracts_for_cycle(employee_id, cycle_start, cycle_end)
+    family_contracts = [
+        contract
+        for contract in contracts
+        if _same_attendance_family(target_contract, contract)
+    ]
+    if not any(contract.id == target_contract.id for contract in family_contracts):
+        family_contracts.append(target_contract)
+    return family_contracts
+
+
+def _first_attendance_contract(employee_id, cycle_start, cycle_end, target_contract):
+    family_contracts = _attendance_family_contracts(employee_id, cycle_start, cycle_end, target_contract)
+    candidates = [
+        (contract, _contract_start_date(contract))
+        for contract in family_contracts
+    ]
+    candidates = [
+        (contract, start)
+        for contract, start in candidates
+        if start and cycle_start <= start <= cycle_end
+    ]
+    if not candidates:
+        return None, None
+    return min(candidates, key=lambda item: (item[1], str(item[0].created_at or ""), str(item[0].id)))
+
+
+def ensure_attendance_form_onboarding_record(form, contract=None, effective_start_date=None, mark_modified=True):
+    """Ensure the first day of a merged attendance cycle has an onboarding marker."""
+    if not form:
+        return False
+
+    contract = contract or form.contract
+    if not contract:
+        return False
+
+    cycle_start = to_date_value(form.cycle_start_date)
+    cycle_end = to_date_value(form.cycle_end_date)
+    if not cycle_start or not cycle_end:
+        return False
+
+    first_contract, onboarding_date = _first_attendance_contract(
+        form.employee_id,
+        cycle_start,
+        cycle_end,
+        contract,
+    )
+    if not first_contract and effective_start_date:
+        onboarding_date = to_date_value(effective_start_date)
+        first_contract = contract
+
+    if not onboarding_date or not (cycle_start <= onboarding_date <= cycle_end):
+        return False
+
+    form_data, changed = _ensure_attendance_record_keys(form.form_data or {})
+    onboarding_records = form_data.get('onboarding_records') or []
+    onboarding_date_str = onboarding_date.isoformat()
+    onboarding_label = '试工上户' if getattr(first_contract, 'type', None) == 'nanny_trial' else '上户'
+
+    matching_record = next((item for item in onboarding_records if item.get('date') == onboarding_date_str), None)
+    if matching_record:
+        if matching_record.get('type') != 'onboarding':
+            matching_record['type'] = 'onboarding'
+            changed = True
+        if matching_record.get('label') != onboarding_label:
+            matching_record['label'] = onboarding_label
+            changed = True
+        if first_contract and str(matching_record.get('source_contract_id') or '') != str(first_contract.id):
+            matching_record['source_contract_id'] = str(first_contract.id)
+            matching_record['source_contract_type'] = first_contract.type
+            changed = True
+    else:
+        onboarding_records.append({
+            'date': onboarding_date_str,
+            'type': 'onboarding',
+            'label': onboarding_label,
+            'source_contract_id': str(first_contract.id) if first_contract else str(contract.id),
+            'source_contract_type': first_contract.type if first_contract else contract.type,
+            'startTime': '',
+            'endTime': '',
+            'hours': 0,
+            'minutes': 0,
+            'daysOffset': 0,
+        })
+        changed = True
+
+    form_data['onboarding_records'] = onboarding_records
+    if changed:
+        form.form_data = form_data
+        if mark_modified:
+            flag_modified(form, "form_data")
+    return changed
+
+
+def validate_required_onboarding_times(form_data, cycle_start, cycle_end):
+    errors = []
+    for record in (form_data or {}).get('onboarding_records') or []:
+        raw_date = record.get('date')
+        if not raw_date:
+            continue
+        try:
+            onboarding_date = datetime.fromisoformat(str(raw_date)).date()
+        except (TypeError, ValueError):
+            continue
+        if not (cycle_start <= onboarding_date <= cycle_end):
+            continue
+        label = record.get('label') or '上户'
+        if not record.get('startTime') or not record.get('endTime'):
+            errors.append(f"{label}日 {onboarding_date.strftime('%m月%d日')} 的具体时间未填写")
+    return errors
+
+
 def reconcile_attendance_form_with_contract_end(form):
     """Keep existing attendance forms aligned when a contract is ended early."""
     if not form or not form.contract:
@@ -167,14 +327,8 @@ def reconcile_attendance_form_with_contract_end(form):
         return False
 
     changed = False
-    form_data = form.form_data or {}
-    if not isinstance(form_data, dict):
-        form_data = {}
-    for key in ['rest_records', 'leave_records', 'overtime_records', 'out_of_beijing_records',
-                'out_of_country_records', 'paid_leave_records', 'onboarding_records', 'offboarding_records']:
-        if key not in form_data:
-            form_data[key] = []
-            changed = True
+    form_data, keys_changed = _ensure_attendance_record_keys(form.form_data or {})
+    changed = changed or keys_changed
 
     contract_end_str = contract_end.isoformat()
     offboarding_records = form_data.get('offboarding_records') or []
@@ -793,15 +947,19 @@ def get_attendance_form_by_token(employee_token):
         
         if existing_form:
             reconciled = reconcile_attendance_form_with_contract_end(existing_form)
+            onboarding_reconciled = ensure_attendance_form_onboarding_record(
+                existing_form,
+                contract,
+                effective_start,
+            )
             ensure_confirmed_auto_overtime_for_response(existing_form)
             
             # 检查并补充上户/下户记录（如果缺失）
             form_data = existing_form.form_data or {}
-            form_data_updated = reconciled
+            form_data_updated = reconciled or onboarding_reconciled
             
             # 确保所有记录类型都存在
-            for key in ['rest_records', 'leave_records', 'overtime_records', 'out_of_beijing_records', 
-                        'out_of_country_records', 'paid_leave_records', 'onboarding_records', 'offboarding_records']:
+            for key in ATTENDANCE_RECORD_KEYS:
                 if key not in form_data:
                     form_data[key] = []
                     form_data_updated = True
@@ -826,6 +984,12 @@ def get_attendance_form_by_token(employee_token):
                     })
                     form_data_updated = True
                     current_app.logger.info(f"已存在的考勤表补充上户记录: {contract_start}")
+
+            # 合并试工/正式合同时，上户记录可能来自前置试工合同。
+            # 上面只检查当前合同开始日，这里重新确保合并周期的首个上户日也存在。
+            if ensure_attendance_form_onboarding_record(existing_form, contract, effective_start):
+                form_data = existing_form.form_data or form_data
+                form_data_updated = True
             
             # 检查是否为合同结束月，且缺少下户记录
             
@@ -913,6 +1077,17 @@ def get_attendance_form_by_token(employee_token):
                 current_app.logger.info(f"合同开始月，自动添加上户记录: {contract_start}")
             else:
                 current_app.logger.info(f"续约合同，跳过上户记录: {contract_start}")
+
+        temp_form = AttendanceForm(
+            contract_id=contract.id,
+            employee_id=employee.id,
+            cycle_start_date=cycle_start,
+            cycle_end_date=cycle_end,
+            employee_access_token=access_token,
+            form_data=initial_form_data,
+            status='draft'
+        )
+        ensure_attendance_form_onboarding_record(temp_form, contract, effective_start)
         
         # 判断是否为合同结束月
         # 对于自动月签合同，使用终止日期；否则使用结束日期
@@ -935,15 +1110,7 @@ def get_attendance_form_by_token(employee_token):
             else:
                 current_app.logger.info(f"有续约合同，跳过下户记录: {contract_end_date}")
         
-        new_form = AttendanceForm(
-            contract_id=contract.id,
-            employee_id=employee.id,
-            cycle_start_date=cycle_start,
-            cycle_end_date=cycle_end,
-            employee_access_token=access_token,
-            form_data=initial_form_data,
-            status='draft'
-        )
+        new_form = temp_form
         db.session.add(new_form)
         db.session.commit()
         
@@ -989,9 +1156,9 @@ def update_attendance_form(employee_token):
         action = data.get('action')
         should_apply_auto = action == 'confirm' or form.status == 'employee_confirmed'
         
-        if form_data:
-            form.form_data = form_data
-            if should_apply_auto:
+        if form_data is not None:
+            form.form_data = form_data or {}
+            if should_apply_auto and action != 'confirm':
                 normalized_form_data, normalized = normalize_auto_overtime_form_data(
                     form,
                     allow_create_missing_auto=True,
@@ -1008,21 +1175,22 @@ def update_attendance_form(employee_token):
             
         # 如果是提交确认
         if action == 'confirm':
-            if not form_data:
-                normalized_form_data, normalized = normalize_auto_overtime_form_data(
-                    form,
-                    allow_create_missing_auto=True,
-                )
-                if normalized:
-                    form.form_data = normalized_form_data
-                    form_data = normalized_form_data
-            # 验证"上户"和"下户"记录的时间是否已填写
-            validation_errors = []
-            
-            # 获取合同信息
             contract = BaseContract.query.get(form.contract_id)
             cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
             cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
+            _, effective_start, _ = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
+            if ensure_attendance_form_onboarding_record(form, contract, effective_start):
+                form_data = form.form_data
+
+            normalized_form_data, normalized = normalize_auto_overtime_form_data(
+                form,
+                allow_create_missing_auto=True,
+            )
+            if normalized:
+                form.form_data = normalized_form_data
+                form_data = normalized_form_data
+            # 验证"上户"和"下户"记录的时间是否已填写
+            validation_errors = []
             
             # 转换合同日期为 date 类型
             contract_start = None
@@ -1047,6 +1215,14 @@ def update_attendance_form(employee_token):
                         validation_errors.append(f"上户日 {contract_start.strftime('%m月%d日')} 的具体时间未填写")
                 else:
                     current_app.logger.info(f"[验证] 续约合同，跳过上户记录验证: {contract_start}")
+
+            validation_errors.extend(
+                validate_required_onboarding_times(
+                    form_data if form_data else form.form_data or {},
+                    cycle_start,
+                    cycle_end,
+                )
+            )
             
             # 检查是否为合同结束月
             contract_end_date = get_attendance_contract_end_date(contract)

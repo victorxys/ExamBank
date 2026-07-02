@@ -16,6 +16,7 @@ import sys
 from copy import deepcopy
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 from dotenv import load_dotenv
 from sqlalchemy.orm.attributes import flag_modified
@@ -29,6 +30,7 @@ logging.disable(logging.WARNING)
 
 from backend.app import app
 from backend.models import AttendanceForm, AttendanceRecord, BaseContract, CustomerBill, EmployeePayroll, db
+from backend.api.attendance_form_api import ensure_attendance_form_onboarding_record
 from backend.services.attendance_sync_service import (
     _parse_date,
     _record_covers_day,
@@ -120,6 +122,28 @@ def has_june_statutory_overtime(form_data):
         return Decimal("0")
 
 
+def form_snapshot(form, form_data):
+    return SimpleNamespace(
+        id=form.id,
+        contract=form.contract,
+        contract_id=form.contract_id,
+        employee_id=form.employee_id,
+        cycle_start_date=form.cycle_start_date,
+        cycle_end_date=form.cycle_end_date,
+        form_data=deepcopy(form_data or {}),
+    )
+
+
+def preview_onboarding_reconcile(form):
+    snapshot = form_snapshot(form, form.form_data or {})
+    changed = ensure_attendance_form_onboarding_record(
+        snapshot,
+        form.contract,
+        mark_modified=False,
+    )
+    return changed, snapshot.form_data
+
+
 def needs_manual_holiday_review(form):
     holiday_date = _parse_date("2026-06-19")
     try:
@@ -146,8 +170,10 @@ def analyze_form(form):
     cycle_start = _parse_date(form.cycle_start_date)
     cycle_end = _parse_date(form.cycle_end_date)
     original_data = deepcopy(form.form_data or {})
+    onboarding_changed, onboarding_data = preview_onboarding_reconcile(form)
+    normalized_form = form_snapshot(form, onboarding_data)
     normalized_data, normalized_changed = normalize_auto_overtime_form_data(
-        form,
+        normalized_form,
         allow_create_missing_auto=True,
     )
     normal_days, holiday_days = _split_overtime_days_by_holiday(normalized_data, cycle_start, cycle_end)
@@ -178,7 +204,8 @@ def analyze_form(form):
     record_mismatch = not same_days(expected_overtime_days, record_overtime)
     record_needs_normalize = record_has_legacy_holiday and not same_days(record_field_total, record_overtime)
     needs_resync = (
-        normalized_changed
+        onboarding_changed
+        or normalized_changed
         or record_mismatch
         or bill_mismatch
         or record_needs_normalize
@@ -190,6 +217,7 @@ def analyze_form(form):
         "original_data": original_data,
         "normalized_data": normalized_data,
         "normalized_changed": normalized_changed,
+        "onboarding_changed": onboarding_changed,
         "holiday_days": holiday_days,
         "normal_days": normal_days,
         "expected_overtime_days": expected_overtime_days,
@@ -228,6 +256,14 @@ def print_case(case, host, index):
         original_count = len((case["original_data"] or {}).get("overtime_records") or [])
         new_count = len((case["normalized_data"] or {}).get("overtime_records") or [])
         print(f"自动补齐: 将更新 overtime_records 数量 {original_count} -> {new_count}")
+    if case["onboarding_changed"]:
+        onboarding_records = (case["normalized_data"] or {}).get("onboarding_records") or []
+        trial_labels = [
+            f"{item.get('date')} {item.get('label') or '上户'}"
+            for item in onboarding_records
+            if item.get("source_contract_type") == "nanny_trial" or item.get("label") == "试工上户"
+        ]
+        print(f"试工上户: 将补充/更新 {', '.join(trial_labels) if trial_labels else '上户记录'}")
     if not case["bill"]:
         print("提示: 未找到 2026-06 主账单，apply 只会同步考勤，无法重算对应账单")
 
@@ -329,13 +365,14 @@ def main():
         applied = 0
         for case in actionable:
             form = case["form"]
+            form.form_data = case["normalized_data"]
+            flag_modified(form, "form_data")
+            db.session.add(form)
+            db.session.flush()
             if form.status in ("customer_signed", "synced"):
                 sync_attendance_to_record(form.id)
                 applied += 1
             else:
-                form.form_data = case["normalized_data"]
-                flag_modified(form, "form_data")
-                db.session.add(form)
                 db.session.commit()
                 applied += 1
 
