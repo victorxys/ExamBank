@@ -39,6 +39,7 @@ from backend.api.attendance_form_api import (
     get_attendance_contract_end_date,
     has_following_contract,
     is_continuous_service,
+    ensure_confirmed_auto_overtime_for_response,
     resolve_effective_attendance_window_for_contract,
 )
 from backend.api.contract_api import _build_signing_messages_payload, handle_signing_page_action
@@ -2191,6 +2192,7 @@ def employee_attendance_detail(form_id):
     ).first()
     if not form:
         return jsonify({"success": False, "error": "考勤表不存在或无权访问"}), 404
+    ensure_confirmed_auto_overtime_for_response(form)
 
     cycle_start = form.cycle_start_date.date() if hasattr(form.cycle_start_date, "date") else form.cycle_start_date
     cycle_end = form.cycle_end_date.date() if hasattr(form.cycle_end_date, "date") else form.cycle_end_date
@@ -2259,7 +2261,10 @@ def employee_attendance_update(form_id):
     if form_data is not None:
         form.form_data = form_data or {}
         if should_apply_auto:
-            normalized_form_data, normalized = normalize_auto_overtime_form_data(form)
+            normalized_form_data, normalized = normalize_auto_overtime_form_data(
+                form,
+                allow_create_missing_auto=True,
+            )
             if normalized:
                 form.form_data = normalized_form_data
         else:
@@ -2271,7 +2276,10 @@ def employee_attendance_update(form_id):
 
     if action == "confirm":
         if form_data is None:
-            normalized_form_data, normalized = normalize_auto_overtime_form_data(form)
+            normalized_form_data, normalized = normalize_auto_overtime_form_data(
+                form,
+                allow_create_missing_auto=True,
+            )
             if normalized:
                 form.form_data = normalized_form_data
                 flag_modified(form, "form_data")
@@ -2368,6 +2376,7 @@ def miniapp_attendance_sign_detail(signature_token):
 
     cycle_start = form.cycle_start_date.date() if hasattr(form.cycle_start_date, "date") else form.cycle_start_date
     cycle_end = form.cycle_end_date.date() if hasattr(form.cycle_end_date, "date") else form.cycle_end_date
+    ensure_confirmed_auto_overtime_for_response(form)
     _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
     result = form_to_dict(form, effective_start, effective_end)
     if access:

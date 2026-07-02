@@ -53,6 +53,12 @@ def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=Fal
             label = label_map.get(key, key)
             group_fields[label] = calc[key]
 
+
+def _attendance_total_overtime_days(attendance_record):
+    if not attendance_record:
+        return D(0)
+    return D(attendance_record.overtime_days or 0) + D(attendance_record.statutory_holiday_days or 0)
+
 def _get_details_template(contract, cycle_start, cycle_end):
     is_maternity = contract.type == "maternity_nurse"
     is_nanny = contract.type == "nanny"
@@ -278,7 +284,7 @@ def get_billing_details_internal(
         attendance_record = BillingEngine()._get_or_create_attendance(contract, cycle_start, cycle_end)
         
         if attendance_record:
-            overtime_days = attendance_record.overtime_days
+            overtime_days = _attendance_total_overtime_days(attendance_record)
 
     if contract.type == 'nanny_trial':
         customer_details['groups'][0]['fields']['介绍费'] = str(getattr(contract, "introduction_fee", "0.00"))

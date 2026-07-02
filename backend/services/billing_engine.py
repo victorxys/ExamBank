@@ -99,6 +99,11 @@ def _update_payroll_payout_status(payroll: EmployeePayroll):
     current_app.logger.info(f"Updated payroll {payroll.id} status to {payroll.payout_status.value} with total_paid_out {payroll.total_paid_out}")
 
 class BillingEngine:
+    def _attendance_overtime_days(self, attendance):
+        if not attendance:
+            return D(0)
+        return D(attendance.overtime_days or 0) + D(attendance.statutory_holiday_days or 0)
+
     def _to_date(self, dt_obj):
         """健壮的辅助函数，将 datetime 或 date 对象统一转换为纯 date 对象。"""
         # 因为我们已从 datetime 导入了 datetime 类，所以这里的 `datetime` 是正确的类型
@@ -522,7 +527,7 @@ class BillingEngine:
         cycle_end = bill.cycle_end_date
 
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
-        overtime_days = D(attendance.overtime_days)
+        overtime_days = self._attendance_overtime_days(attendance)
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
@@ -869,11 +874,11 @@ class BillingEngine:
         management_fee_amount = D(contract.management_fee_amount) if contract.management_fee_amount is not None else None
 
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
-        overtime_days = D(attendance.overtime_days)
+        overtime_days = self._attendance_overtime_days(attendance)
         attendance_details = attendance.attendance_details or {}
         rest_days = D(str(attendance_details.get("rest_days") or 0))
         leave_days = D(str(attendance_details.get("leave_days") or 0))
-        current_app.logger.info(f"[OVERTIME_DEBUG] AttendanceRecord ID: {attendance.id}, overtime_days from DB: {attendance.overtime_days}, converted to Decimal: {overtime_days}")
+        current_app.logger.info(f"[OVERTIME_DEBUG] AttendanceRecord ID: {attendance.id}, overtime_days from DB: {attendance.overtime_days}, statutory_holiday_days: {attendance.statutory_holiday_days}, total overtime: {overtime_days}")
 
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
@@ -1628,7 +1633,7 @@ class BillingEngine:
         
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
         # 打印从考勤记录中获取的原始数据
-        overtime_days = D(attendance.overtime_days)
+        overtime_days = self._attendance_overtime_days(attendance)
         actual_cycle_days = (cycle_end - cycle_start).days
         
         # --- NEW LOGIC for actual_work_days ---
@@ -2211,7 +2216,7 @@ class BillingEngine:
 
         # 加班费用
         attendance = self._get_or_create_attendance(contract, bill.cycle_start_date, bill.cycle_end_date)
-        overtime_days = D(attendance.overtime_days or 0)
+        overtime_days = self._attendance_overtime_days(attendance)
         overtime_fee = (daily_rate * overtime_days).quantize(QUANTIZER)
         if overtime_fee > 0:
             log_extras["overtime_reason"] = f"加班费: 日薪({daily_rate:.2f}) * 加班天数( {overtime_days:.2f}) = {overtime_fee:.2f}"
@@ -2546,6 +2551,7 @@ class BillingEngine:
             "allocated_cycle_end_date": cycle_end.isoformat(),
         })
         attendance.overtime_days = overtime_days
+        attendance.statutory_holiday_days = 0
         attendance.out_of_beijing_days = out_of_beijing_days
         attendance.out_of_country_days = out_of_country_days
         attendance.attendance_details = details
@@ -2895,7 +2901,7 @@ class BillingEngine:
 
         # 获取考勤，计算加班
         attendance = self._get_or_create_attendance(contract,contract.start_date, contract.end_date)
-        overtime_days = D(attendance.overtime_days)
+        overtime_days = self._attendance_overtime_days(attendance)
         # 使用修正后的日薪计算加班费
         overtime_fee = (final_daily_rate * overtime_days).quantize(QUANTIZER)
 
