@@ -759,17 +759,6 @@ class ContractService:
         if hasattr(contract, 'expected_offboarding_date'):
             contract.expected_offboarding_date = termination_date
 
-        # 3. 重算最后一期账单
-        engine = BillingEngine()
-        engine.calculate_for_month(
-            year=termination_year,
-            month=termination_month,
-            contract_id=str(contract.id),
-            force_recalculate=True,
-            end_date_override=termination_date
-        )
-        db.session.flush() # 确保更改被写入会话
-
         try:
             from backend.api.attendance_form_api import reconcile_attendance_form_with_contract_end
             forms = AttendanceForm.query.filter(
@@ -783,6 +772,17 @@ class ContractService:
                 db.session.flush()
         except Exception as attendance_err:
             current_app.logger.error(f"同步终止合同考勤表失败: {attendance_err}", exc_info=True)
+
+        # 3. 重算最后一期账单。终止后先对齐考勤，再重算账单，避免已签署整月休息继续扣减终止日后的合同外天数。
+        engine = BillingEngine()
+        engine.calculate_for_month(
+            year=termination_year,
+            month=termination_month,
+            contract_id=str(contract.id),
+            force_recalculate=True,
+            end_date_override=termination_date
+        )
+        db.session.flush() # 确保更改被写入会话
 
         # 4. 创建最终薪资调整
         final_bill = CustomerBill.query.filter(CustomerBill.contract_id == str(contract.id )).order_by(CustomerBill.cycle_end_date.desc()).first()

@@ -6,6 +6,8 @@ import uuid
 import time
 import urllib.parse
 import requests
+from copy import deepcopy
+from decimal import Decimal
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import calendar
@@ -174,6 +176,82 @@ def _ensure_attendance_record_keys(form_data):
             form_data[key] = []
             changed = True
     return form_data, changed
+
+
+def _display_record_date_range(record):
+    raw_date = record.get('date')
+    if not raw_date:
+        return None, None
+    try:
+        start = datetime.fromisoformat(str(raw_date)[:10]).date()
+    except (TypeError, ValueError):
+        return None, None
+    return start, start + timedelta(days=int(record.get('daysOffset') or 0))
+
+
+def _display_record_hours(record):
+    hours = Decimal(str(record.get('hours', 0) or 0))
+    minutes = Decimal(str(record.get('minutes', 0) or 0))
+    if hours == 0 and minutes == 0 and int(record.get('daysOffset') or 0) > 0:
+        return Decimal(int(record.get('daysOffset') or 0) + 1) * Decimal(24)
+    return hours + minutes / Decimal(60)
+
+
+def _trim_display_record_to_window(record, effective_start, effective_end):
+    record_start, record_end = _display_record_date_range(record)
+    if not record_start or not record_end or record_start > effective_end or record_end < effective_start:
+        return None
+
+    actual_start = max(record_start, effective_start)
+    actual_end = min(record_end, effective_end)
+    span_days = Decimal(max(1, (record_end - record_start).days + 1))
+    actual_days = Decimal((actual_end - actual_start).days + 1)
+    actual_hours = (_display_record_hours(record) * actual_days / span_days).quantize(Decimal("0.001"))
+
+    trimmed = dict(record)
+    trimmed['date'] = actual_start.isoformat()
+    trimmed['daysOffset'] = max(0, (actual_end - actual_start).days)
+    trimmed['hours'] = float(actual_hours)
+    trimmed['minutes'] = 0
+    return trimmed
+
+
+def build_display_form_data_for_contract_window(form, effective_start_date=None, effective_end_date=None):
+    """Build display-only form data clipped to the service window without rewriting history."""
+    form_data = deepcopy(form.form_data or {})
+    if not form or not form.contract:
+        return form_data
+
+    cycle_start = to_date_value(form.cycle_start_date)
+    cycle_end = to_date_value(form.cycle_end_date)
+    effective_start = to_date_value(effective_start_date) or cycle_start
+    effective_end = to_date_value(effective_end_date) or get_attendance_contract_end_date(form.contract) or cycle_end
+    if not cycle_start or not cycle_end or not effective_start or not effective_end:
+        return form_data
+
+    effective_start = max(cycle_start, effective_start)
+    effective_end = min(cycle_end, effective_end)
+    if effective_end < effective_start:
+        return form_data
+
+    display_data, _ = _ensure_attendance_record_keys(form_data)
+    for key in ATTENDANCE_RECORD_KEYS:
+        records = display_data.get(key) or []
+        if key in ('onboarding_records', 'offboarding_records'):
+            filtered_records = []
+            for record in records:
+                record_start, _ = _display_record_date_range(record)
+                if record_start and effective_start <= record_start <= effective_end:
+                    filtered_records.append(record)
+            display_data[key] = filtered_records
+            continue
+
+        display_data[key] = [
+            trimmed
+            for record in records
+            if (trimmed := _trim_display_record_to_window(record, effective_start, effective_end)) is not None
+        ]
+    return display_data
 
 
 def _contract_start_date(contract):
@@ -1716,6 +1794,12 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
             "contract_id": str(form.contract_id)
         }]
 
+    display_form_data = build_display_form_data_for_contract_window(
+        form,
+        display_start_date,
+        attendance_end_date or display_end_date,
+    )
+
     return {
         "id": str(form.id),
         "contract_id": str(form.contract_id),
@@ -1725,6 +1809,7 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
         "cycle_start_date": form.cycle_start_date.isoformat(),
         "cycle_end_date": form.cycle_end_date.isoformat(),
         "form_data": form.form_data,
+        "display_form_data": display_form_data,
         "status": form.status,
         "employee_access_token": form.employee_access_token,
         "customer_signature_token": form.customer_signature_token,

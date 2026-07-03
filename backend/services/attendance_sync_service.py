@@ -333,6 +333,16 @@ def _calculate_records_days(records):
     return total_days
 
 
+def _calculate_records_days_in_cycle(records, cycle_start, cycle_end):
+    if not cycle_start or not cycle_end or cycle_end < cycle_start:
+        return Decimal(0)
+
+    total_days = Decimal(0)
+    for record in records or []:
+        total_days += _record_hours_in_cycle(record, cycle_start, cycle_end) / Decimal(24)
+    return total_days
+
+
 def _split_overtime_days_by_holiday(data, cycle_start, cycle_end):
     normal_days = Decimal(0)
     holiday_days = Decimal(0)
@@ -635,68 +645,8 @@ def sync_attendance_to_record(attendance_form_id):
         current_app.logger.info(f"[ATTENDANCE_SYNC] 已规范化自动补齐加班数据: form_id={form.id}")
     current_app.logger.debug(f"[ATTENDANCE_SYNC] 表单数据: {data}")
     
-    # 1. 辅助函数: 将小时分钟转换为天数 (8小时制? 还是24小时? 通常考勤按工作日计算)
-    # 假设: 
-    # - 休息、请假、加班等输入的是小时数
-    # - 这里的转换规则需要明确: 
-    #   - 如果是"天"，则直接使用
-    #   - 如果是"小时"，需要除以标准工作时长(例如8小时)
-    #   - 但根据需求文档，前端输入的是时长(小时:分钟)
-    #   - 之前的 AttendanceRecord.overtime_days 是 Numeric(10, 3)
-    #   - 我们假设标准工作日为 8 小时? 或者 24 小时?
-    #   - 育儿嫂/月嫂通常是 24 小时住家，但计算工资时可能按"天"算。
-    #   - 之前的逻辑: overtime_days = int(data["overtime_days"]) (直接是天数)
-    #   - 新前端: 输入小时:分钟
-    #   - 让我们假设一天是 24 小时 (对于住家保姆) 或者 8 小时 (对于白班)
-    #   - 这是一个业务规则问题。根据之前的 BillingEngine，似乎没有明确的小时转换。
-    #   - 让我们查看 requirement_document.md 中的描述: "休息日期选择 + 时长输入"
-    #   - 既然是"天数"，那我们应该把小时转换为天。
-    #   - 对于住家保姆，通常一天就是一天。休息半天?
-    #   - 让我们假设 24 小时为 1 天 (简化计算，或者根据合同类型?)
-    #   - 实际上，如果用户输入的是"天数"，那就更好了。
-    #   - 让我们假设前端传来的数据结构中包含 hours 和 minutes，我们需要转换为 days。
-    #   - 规则: days = hours / 24 + minutes / 1440 (如果是住家)
-    #   - 或者 days = hours / 8 (如果是白班)
-    #   - 鉴于系统主要是月嫂/育儿嫂，通常是住家，所以 24 小时制可能更合理，或者直接让用户输入"天数"。
-    #   - 但前端需求说 "时长输入"。
-    #   - 让我们暂定: 1天 = 24小时。
-    
-    def calculate_days(records):
-        total_days = Decimal(0)
-        if not records:
-            return total_days
-        for r in records:
-            # r 结构: {date: '...', hours: 24, minutes: 0}
-            h = r.get('hours', 0)
-            m = r.get('minutes', 0)
-            
-            # 兼容两种数据格式：
-            # 1. 旧格式：hours 是小数（如 10.5），minutes 也有值（如 30）- 此时 hours 已包含分钟
-            # 2. 新格式：hours 是整数（如 10），minutes 是余数（如 30）
-            # 检测方式：如果 hours 有小数部分，说明是旧格式
-            if isinstance(h, float) and h % 1 != 0:
-                # 旧格式：hours 已经是完整的小时数（包含小数），忽略 minutes
-                total_hours = Decimal(str(h))
-            else:
-                # 新格式：hours 是整数，minutes 是余数分钟
-                total_hours = Decimal(str(h)) + Decimal(str(m)) / Decimal(60)
-            
-            # 转换为天数（24小时 = 1天）
-            days = total_hours / Decimal(24)
-            total_days += days
-        return total_days
-
     cycle_start = _parse_date(form.cycle_start_date)
     cycle_end = _parse_date(form.cycle_end_date)
-
-    # 2. 计算各项天数
-    rest_days = calculate_days(data.get('rest_records', []))
-    leave_days = calculate_days(data.get('leave_records', []))
-    normal_overtime_days, statutory_holiday_days = _split_overtime_days_by_holiday(data, cycle_start, cycle_end)
-    overtime_days = normal_overtime_days + statutory_holiday_days
-    out_of_beijing_days = calculate_days(data.get('out_of_beijing_records', []))  # 修复：使用正确的键名
-    out_of_country_days = calculate_days(data.get('out_of_country_records', []))  # 修复：使用正确的键名
-    paid_leave_days = calculate_days(data.get('paid_leave_records', []))
 
     # 【新增】上户/下户特殊处理
     onboarding_records = data.get('onboarding_records', [])
@@ -748,14 +698,6 @@ def sync_attendance_to_record(attendance_form_id):
             offboarding_day_work = Decimal('1')
             current_app.logger.warning(f"[ATTENDANCE_SYNC] 未找到上户时间信息，下户日按1整天计算")
     
-    current_app.logger.info(f"[ATTENDANCE_SYNC] 计算结果 - 休息:{rest_days}, 请假:{leave_days}, 带薪休假:{paid_leave_days}, 加班:{overtime_days}, 出京:{out_of_beijing_days}, 出境:{out_of_country_days}, 上户扣除:{onboarding_days}, 合并出勤:{offboarding_day_work}")
-    
-    # 3. 计算总出勤天数
-    # 逻辑: 合同有效天数 - 休息天数 - 请假天数
-    # 注意: 带薪休假算做出勤? 
-    # 需求文档: "total_days_worked: 出勤天数(含带薪休假、出京、出境)"
-    # 所以: Total = ValidDays - Rest - Leave
-    
     # 【关键修复】使用合同的有效日期范围，而不是整个考勤周期
     contract = form.contract
     if contract:
@@ -782,10 +724,28 @@ def sync_attendance_to_record(attendance_form_id):
         base_work_days = (cycle_end - cycle_start).days + 1
         current_app.logger.warning(f"[ATTENDANCE_SYNC] 未找到合同信息，使用考勤周期天数: {base_work_days}")
 
+    # 2. 计算各项天数。已签署考勤在合同终止后重算时，历史表单仍可能保留整月数据；
+    # 汇总和账单只统计合同/账单实际有效周期内的数据，避免合同外休息把出勤扣成负数。
+    rest_days = _calculate_records_days_in_cycle(data.get('rest_records', []), effective_start, effective_end)
+    leave_days = _calculate_records_days_in_cycle(data.get('leave_records', []), effective_start, effective_end)
+    normal_overtime_days, statutory_holiday_days = _split_overtime_days_by_holiday(data, effective_start, effective_end)
+    overtime_days = normal_overtime_days + statutory_holiday_days
+    out_of_beijing_days = _calculate_records_days_in_cycle(data.get('out_of_beijing_records', []), effective_start, effective_end)
+    out_of_country_days = _calculate_records_days_in_cycle(data.get('out_of_country_records', []), effective_start, effective_end)
+    paid_leave_days = _calculate_records_days_in_cycle(data.get('paid_leave_records', []), effective_start, effective_end)
+
+    # 3. 计算总出勤天数
+    # 逻辑: 合同有效天数 - 休息天数 - 请假天数
+    # 注意: 带薪休假算做出勤?
+    # 需求文档: "total_days_worked: 出勤天数(含带薪休假、出京、出境)"
+    # 所以: Total = ValidDays - Rest - Leave
+
     # 上户月不把上户当天计入基础出勤；该日剩余小时留到下户月合并计算。
     # 合并试工/正式考勤时，试工上户日可能早于当前正式合同账单周期，
     # 只在当前合同实际计薪窗口内扣减，避免正式账单基础劳务天数被多扣一天。
     onboarding_days = _onboarding_days_to_exclude(data, effective_start, effective_end, form.contract)
+
+    current_app.logger.info(f"[ATTENDANCE_SYNC] 计算结果 - 休息:{rest_days}, 请假:{leave_days}, 带薪休假:{paid_leave_days}, 加班:{overtime_days}, 出京:{out_of_beijing_days}, 出境:{out_of_country_days}, 上户扣除:{onboarding_days}, 合并出勤:{offboarding_day_work}")
     
     # 出勤天数 = 基础劳务天数 - 休息天数 - 请假天数 - 上户日 + 末月小时合并调整
     if offboarding_records and offboarding_day_work > 0:
@@ -800,6 +760,12 @@ def sync_attendance_to_record(attendance_form_id):
     # 超过的部分在前端会被自动转换为 overtime_days 加班，防止在计算账单时被计算两遍
     if total_days_worked > Decimal('26'):
         total_days_worked = Decimal('26')
+    if total_days_worked < Decimal('0'):
+        current_app.logger.warning(
+            f"[ATTENDANCE_SYNC] 出勤天数小于0，已按0处理: form_id={form.id}, "
+            f"base={base_work_days}, rest={rest_days}, leave={leave_days}, onboarding={onboarding_days}"
+        )
+        total_days_worked = Decimal('0')
 
     
     # 保留3位小数
@@ -883,12 +849,19 @@ def sync_attendance_to_record(attendance_form_id):
         # 【关键修复】传入出勤天数（合同有效天数 - 休息 - 请假 - 上户 + 下户调整）
         # billing_engine 中的 actual_work_days_override 用于设置 base_work_days（基本劳务天数）
         # 基本劳务天数 = 出勤天数（不含加班），加班天数通过 AttendanceRecord.overtime_days 单独计算
+        end_date_override = None
+        if contract and contract.status == 'terminated' and getattr(contract, 'termination_date', None):
+            termination_date = _parse_date(contract.termination_date)
+            if cycle_start <= termination_date <= cycle_end:
+                end_date_override = termination_date
+
         engine.calculate_for_month(
             year, 
             month, 
             contract_id=form.contract_id, 
             force_recalculate=True,
-            actual_work_days_override=float(total_days_worked)  # 传入出勤天数（从考勤表计算）
+            actual_work_days_override=float(total_days_worked),  # 传入出勤天数（从考勤表计算）
+            end_date_override=end_date_override,
         )
         # 【关键修复】显式提交事务，确保账单更新保存到数据库
         db.session.commit()

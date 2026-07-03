@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from backend.app import app
 from backend.models import db, NannyContract, CustomerBill, EmployeePayroll
+from backend.services.attendance_sync_service import _calculate_records_days, _calculate_records_days_in_cycle
 from backend.services.billing_engine import BillingEngine
 from decimal import Decimal as D
 
@@ -152,8 +153,57 @@ def test_trial_contract_logic():
     assert amount_to_set == D("1200"), f"期望1200，实际{amount_to_set}"
     print("✅ 试工合同代付工资逻辑测试通过")
 
+def test_terminated_cycle_excludes_rest_days_after_contract_end():
+    """终止后重算时，合同外休息不能继续扣减实际出勤。"""
+    rest_records = [
+        {
+            "date": "2026-07-03",
+            "type": "rest",
+            "hours": 24 * 29,
+            "minutes": 0,
+            "daysOffset": 28,
+        }
+    ]
+
+    assert _calculate_records_days(rest_records) == D("29")
+    assert _calculate_records_days_in_cycle(
+        rest_records,
+        date(2026, 7, 1),
+        date(2026, 7, 3),
+    ) == D("1")
+
+    allocated_rest_days = BillingEngine()._attendance_days_in_cycle(
+        rest_records,
+        date(2026, 7, 1),
+        date(2026, 7, 3),
+    )
+    assert allocated_rest_days == D("1.000")
+    assert max(D("0"), D("3") - allocated_rest_days) == D("2.000")
+
+def test_terminated_cycle_work_days_are_never_negative_when_all_valid_days_are_rest():
+    """即使有效周期内全部休息，实际出勤也不能变成负数。"""
+    rest_records = [
+        {
+            "date": "2026-07-01",
+            "type": "rest",
+            "hours": 24 * 31,
+            "minutes": 0,
+            "daysOffset": 30,
+        }
+    ]
+
+    allocated_rest_days = BillingEngine()._attendance_days_in_cycle(
+        rest_records,
+        date(2026, 7, 1),
+        date(2026, 7, 3),
+    )
+    assert allocated_rest_days == D("3.000")
+    assert max(D("0"), D("3") - allocated_rest_days) == D("0")
+
 if __name__ == "__main__":
     test_final_salary_adjustment_logic()
     test_non_monthly_management_fee_refund()
     test_trial_contract_logic()
+    test_terminated_cycle_excludes_rest_days_after_contract_end()
+    test_terminated_cycle_work_days_are_never_negative_when_all_valid_days_are_rest()
     print("\n🎉 所有测试完成")
