@@ -941,6 +941,34 @@ def _format_attendance_result_amount(days):
     return f"{value:.2f}".rstrip("0").rstrip(".")
 
 
+def _should_use_display_form_data_for_miniapp(payload):
+    if not isinstance(payload, dict) or payload.get("display_form_data") is None:
+        return False
+
+    if payload.get("status") in ("customer_signed", "synced"):
+        return True
+
+    contract_info = payload.get("contract_info") or {}
+    return contract_info.get("status") == "terminated"
+
+
+def _prepare_miniapp_attendance_payload(payload):
+    if not isinstance(payload, dict):
+        return payload
+
+    prepared = dict(payload)
+    if _should_use_display_form_data_for_miniapp(prepared):
+        if prepared.get("raw_form_data") is None:
+            prepared["raw_form_data"] = prepared.get("form_data") or {}
+        prepared["form_data"] = prepared.get("display_form_data") or {}
+    return prepared
+
+
+def _miniapp_form_data_for_display(form, payload=None):
+    prepared = _prepare_miniapp_attendance_payload(payload or {})
+    return prepared.get("form_data") or (form.form_data if form else None) or {}
+
+
 def _is_attendance_day_disabled(day, contract_info):
     if not contract_info:
         return False
@@ -961,7 +989,7 @@ def _is_attendance_day_disabled(day, contract_info):
 
 
 def _attendance_preview(form, payload=None):
-    form_data = form.form_data or {}
+    form_data = _miniapp_form_data_for_display(form, payload)
     rest_records = form_data.get("rest_records", []) or []
     leave_records = form_data.get("leave_records", []) or []
     paid_leave_records = form_data.get("paid_leave_records", []) or []
@@ -1061,11 +1089,6 @@ def _attendance_record_stats(form):
 def _attendance_summary(form):
     contract = form.contract
     employee = contract.service_personnel if contract else None
-    form_data = form.form_data or {}
-    rest_records = form_data.get("rest_records", []) or []
-    leave_records = form_data.get("leave_records", []) or []
-    overtime_records = form_data.get("overtime_records", []) or []
-    paid_leave_records = form_data.get("paid_leave_records", []) or []
     cycle_start = _date_only(form.cycle_start_date)
     cycle_end = _date_only(form.cycle_end_date)
     payload = None
@@ -1076,8 +1099,13 @@ def _attendance_summary(form):
         if effective_end is None and payload.get("contract_info"):
             payload["contract_info"]["status"] = "active"
             payload["contract_info"]["is_monthly_auto_renew"] = True
-        normalized_payload = payload or {}
-    preview_stats = _attendance_preview(form, payload)
+        normalized_payload = _prepare_miniapp_attendance_payload(payload or {})
+    form_data = normalized_payload.get("form_data") or form.form_data or {}
+    rest_records = form_data.get("rest_records", []) or []
+    leave_records = form_data.get("leave_records", []) or []
+    overtime_records = form_data.get("overtime_records", []) or []
+    paid_leave_records = form_data.get("paid_leave_records", []) or []
+    preview_stats = _attendance_preview(form, normalized_payload)
     record_stats = _attendance_record_stats(form)
     return {
         "id": str(form.id),
@@ -1089,7 +1117,9 @@ def _attendance_summary(form):
         "month": form.cycle_start_date.month if form.cycle_start_date else None,
         "cycle_start_date": _iso(form.cycle_start_date),
         "cycle_end_date": _iso(form.cycle_end_date),
-        "form_data": normalized_payload.get("form_data") or form.form_data or {},
+        "form_data": form_data,
+        "raw_form_data": normalized_payload.get("raw_form_data"),
+        "display_form_data": normalized_payload.get("display_form_data"),
         "contract_info": normalized_payload.get("contract_info") or {},
         "actual_year": normalized_payload.get("actual_year") or (form.cycle_start_date.year if form.cycle_start_date else None),
         "actual_month": normalized_payload.get("actual_month") or (form.cycle_start_date.month if form.cycle_start_date else None),
@@ -2217,7 +2247,8 @@ def employee_attendance_detail(form_id):
         cycle_end,
         form.contract,
     )
-    return jsonify({"success": True, "attendance_form": form_to_dict(form, effective_start, effective_end)})
+    result = form_to_dict(form, effective_start, effective_end)
+    return jsonify({"success": True, "attendance_form": _prepare_miniapp_attendance_payload(result)})
 
 
 @miniapp_bp.route("/employee/attendance/by-token/<string:employee_token>", methods=["GET"])
@@ -2251,7 +2282,7 @@ def employee_attendance_detail_by_token(employee_token):
     payload = flask_response.get_json(silent=True) or {}
     if status_code >= 400:
         return jsonify({"success": False, "error": payload.get("error") or "考勤表加载失败"}), status_code
-    return jsonify({"success": True, "attendance_form": payload})
+    return jsonify({"success": True, "attendance_form": _prepare_miniapp_attendance_payload(payload)})
 
 
 @miniapp_bp.route("/employee/attendance/<uuid:form_id>", methods=["PUT"])
@@ -2358,7 +2389,7 @@ def employee_attendance_update(form_id):
     if effective_end is None and result.get("contract_info"):
         result["contract_info"]["status"] = "active"
         result["contract_info"]["is_monthly_auto_renew"] = True
-    return jsonify({"success": True, "attendance_form": result})
+    return jsonify({"success": True, "attendance_form": _prepare_miniapp_attendance_payload(result)})
 
 
 @miniapp_bp.route("/attendance/sign/<string:signature_token>", methods=["GET"])
@@ -2394,7 +2425,7 @@ def miniapp_attendance_sign_detail(signature_token):
         return jsonify(
             {
                 "success": True,
-                "attendance_form": payload,
+                "attendance_form": _prepare_miniapp_attendance_payload(payload),
                 "auth": _attendance_sign_auth_state(form),
             }
         )
@@ -2409,7 +2440,7 @@ def miniapp_attendance_sign_detail(signature_token):
     return jsonify(
         {
             "success": True,
-            "attendance_form": result,
+            "attendance_form": _prepare_miniapp_attendance_payload(result),
             "auth": _attendance_sign_auth_state(form),
         }
     )

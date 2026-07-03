@@ -927,10 +927,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 offboarding_records: []
             };
 
-            if (data.form_data && Object.keys(data.form_data).length > 0) {
+            const displayFormData = data.display_form_data || data.form_data;
+            if (displayFormData && Object.keys(displayFormData).length > 0) {
                 setAttendanceData({
                     ...emptyData,
-                    ...data.form_data
+                    ...displayFormData
                 });
             } else {
                 // 新表单：使用空数据

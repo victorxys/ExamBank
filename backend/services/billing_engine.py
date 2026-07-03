@@ -2414,6 +2414,8 @@ class BillingEngine:
             cycle_end = self._to_date(cycle_end_date)
             if signed_form and (form_start != cycle_start or form_end != cycle_end):
                 self._apply_attendance_allocation(attendance, signed_form, cycle_start, cycle_end)
+            if self._to_date(attendance.cycle_end_date) != cycle_end:
+                attendance.cycle_end_date = cycle_end_date
 
         if not attendance:
             attendance = self._build_attendance_from_monthly_form(
@@ -2600,10 +2602,17 @@ class BillingEngine:
         return total.quantize(D("0.001"))
 
     def _apply_attendance_allocation(self, attendance, signed_form, cycle_start, cycle_end):
+        from backend.services.attendance_sync_service import _split_overtime_days_by_holiday
+
         form_data = signed_form.form_data or {}
         rest_days = self._attendance_days_in_cycle(form_data.get("rest_records"), cycle_start, cycle_end)
         leave_days = self._attendance_days_in_cycle(form_data.get("leave_records"), cycle_start, cycle_end)
-        overtime_days = self._attendance_days_in_cycle(form_data.get("overtime_records"), cycle_start, cycle_end)
+        normal_overtime_days, statutory_holiday_days = _split_overtime_days_by_holiday(
+            form_data,
+            cycle_start,
+            cycle_end,
+        )
+        overtime_days = normal_overtime_days + statutory_holiday_days
         out_of_beijing_days = self._attendance_days_in_cycle(form_data.get("out_of_beijing_records"), cycle_start, cycle_end)
         out_of_country_days = self._attendance_days_in_cycle(form_data.get("out_of_country_records"), cycle_start, cycle_end)
 
@@ -2612,6 +2621,8 @@ class BillingEngine:
             "rest_days": float(rest_days),
             "leave_days": float(leave_days),
             "overtime_days": float(overtime_days),
+            "normal_overtime_days": float(normal_overtime_days),
+            "statutory_holiday_days": float(statutory_holiday_days),
             "out_of_beijing_days": float(out_of_beijing_days),
             "out_of_country_days": float(out_of_country_days),
             "raw_data": form_data,
@@ -2623,6 +2634,7 @@ class BillingEngine:
         attendance.statutory_holiday_days = 0
         attendance.out_of_beijing_days = out_of_beijing_days
         attendance.out_of_country_days = out_of_country_days
+        attendance.cycle_end_date = self._to_datetime(cycle_end, tzinfo=getattr(attendance.cycle_end_date, "tzinfo", None))
         attendance.attendance_details = details
         db.session.add(attendance)
         current_app.logger.info(
