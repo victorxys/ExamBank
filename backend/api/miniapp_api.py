@@ -1640,12 +1640,36 @@ def _get_or_create_employee_attendance_forms(employee, year=None, month=None):
             (item for item in family_contracts if item.status == "active"),
             max(family_contracts, key=lambda item: item.start_date),
         )
+        group_contract_ids = [contract.id for contract in family_contracts]
         service_start = min(
             (contract.actual_onboarding_date.date() if isinstance(contract.actual_onboarding_date, datetime) else contract.actual_onboarding_date)
             if contract.actual_onboarding_date
             else (contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date)
             for contract in family_contracts
         )
+        form = (
+            AttendanceForm.query.filter(
+                AttendanceForm.employee_id == employee.id,
+                AttendanceForm.cycle_start_date >= cycle_start_dt,
+                AttendanceForm.cycle_start_date < next_cycle_start_dt,
+                AttendanceForm.contract_id.in_(group_contract_ids),
+                AttendanceForm.status.in_(("draft", "employee_confirmed")),
+            )
+            .order_by(
+                db.case((AttendanceForm.status == "employee_confirmed", 0), else_=1),
+                AttendanceForm.updated_at.desc().nullslast(),
+                AttendanceForm.created_at.desc().nullslast(),
+            )
+            .first()
+        )
+        if form:
+            onboarding_contract = form.contract or primary_contract
+            if ensure_attendance_form_onboarding_record(form, onboarding_contract, service_start):
+                db.session.add(form)
+                db.session.flush()
+            forms.append(form)
+            continue
+
         form = AttendanceForm.query.filter(
             AttendanceForm.employee_id == employee.id,
             AttendanceForm.cycle_start_date >= cycle_start_dt,
