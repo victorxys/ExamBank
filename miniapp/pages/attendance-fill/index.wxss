@@ -39,13 +39,20 @@
   border-radius: 14rpx;
   background: #eef2f7;
   color: #475569;
-  font-size: 42rpx;
-  font-weight: 800;
 }
 
 .month-btn.disabled {
   color: #cbd5e1;
   background: #f3f4f6;
+}
+
+.month-arrow-img {
+  width: 34rpx;
+  height: 34rpx;
+}
+
+.month-btn.disabled .month-arrow-img {
+  opacity: 0.36;
 }
 
 .title-wrap {
@@ -303,11 +310,10 @@
   white-space: nowrap;
 }
 
-.day-disabled {
+.day-disabled-img {
   margin-top: 4rpx;
-  font-size: 28rpx;
-  line-height: 28rpx;
-  color: #94a3b8;
+  width: 24rpx;
+  height: 24rpx;
 }
 
 .day-time {
@@ -626,7 +632,11 @@
   border-radius: 28rpx;
   background: #f1f5f9;
   color: #475569;
-  font-size: 42rpx;
+}
+
+.icon-close-img {
+  width: 34rpx;
+  height: 34rpx;
 }
 
 .type-grid {
@@ -849,13 +859,16 @@
   border-radius: 18rpx;
   background: #111827;
   color: #fff;
-  font-size: 46rpx;
-  font-weight: 900;
 }
 
 .step-btn.disabled {
   background: #e2e8f0;
   color: #94a3b8;
+}
+
+.step-icon-img {
+  width: 42rpx;
+  height: 42rpx;
 }
 
 .warn-text {

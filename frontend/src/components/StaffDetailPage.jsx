@@ -10,6 +10,10 @@ import {
   Grid,
   Button,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Avatar,
   Chip,
   List,
@@ -18,6 +22,10 @@ import {
   ListItemIcon,
   IconButton,
   Container,
+  TextField,
+  Switch,
+  FormControlLabel,
+  Alert,
   useTheme
 } from '@mui/material';
 import {
@@ -39,7 +47,10 @@ import {
   History as HistoryIcon,
   Work as WorkIcon,
   Flag as FlagIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  AccountBalance as AccountBalanceIcon,
+  CreditCard as CreditCardIcon,
+  Save as SaveIcon
 } from '@mui/icons-material';
 import api from '../api';
 
@@ -73,6 +84,10 @@ function StaffDetailPage() {
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -123,6 +138,43 @@ function StaffDetailPage() {
   const handleViewForm = (token, dataId) => {
     if (token && dataId) {
       navigate(`/forms/${token}/${dataId}`);
+    }
+  };
+
+  const openEditDialog = () => {
+    setEditForm({
+      name: employee.name || '',
+      phone_number: employee.phone_number || '',
+      id_card_number: employee.id_card_number || '',
+      address: employee.address || '',
+      salary_card_holder_name: employee.salary_card_holder_name || '',
+      salary_card_bank_name: employee.salary_card_bank_name || '',
+      salary_card_number: employee.salary_card_number || '',
+      is_active: Boolean(employee.is_active),
+    });
+    setSaveError('');
+    setEditOpen(true);
+  };
+
+  const handleEditChange = (field, value) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveEmployee = async () => {
+    try {
+      setSaving(true);
+      setSaveError('');
+      const response = await api.staff.updateEmployeeDetails(employeeId, editForm);
+      setEmployee((prev) => ({
+        ...prev,
+        ...response.data,
+      }));
+      setEditOpen(false);
+    } catch (err) {
+      console.error(err);
+      setSaveError(err.response?.data?.error || '保存员工信息失败。');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -230,7 +282,12 @@ function StaffDetailPage() {
                   <BadgeIcon sx={{ fontSize: 16, mr: 0.5, verticalAlign: 'text-bottom' }} /> {employee.id_card_number || '未录入身份证'}
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, justifyContent: { xs: 'center', md: 'flex-start' } }}>
-                  <Button variant="contained" startIcon={<EditIcon />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', boxShadow: 'none' }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<EditIcon />}
+                    onClick={openEditDialog}
+                    sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold', boxShadow: 'none' }}
+                  >
                     编辑资料
                   </Button>
                   <Button variant="outlined" startIcon={<DescriptionIcon />} sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 'bold' }}>
@@ -296,7 +353,7 @@ function StaffDetailPage() {
                 title="基础与入职信息"
                 titleTypographyProps={{ variant: 'h6', fontWeight: '700' }}
                 avatar={<BadgeIcon sx={{ color: '#3b82f6', fontSize: 28 }} />}
-                action={<Button size="small" sx={{ fontWeight: 'bold', color: '#3b82f6' }}>编辑</Button>}
+                action={<Button size="small" onClick={openEditDialog} sx={{ fontWeight: 'bold', color: '#3b82f6' }}>编辑</Button>}
                 sx={{ borderBottom: '1px solid #f0f0f0', p: 3, pb: 2 }}
               />
               <CardContent sx={{ p: 3, pb: 2 }}>
@@ -334,6 +391,30 @@ function StaffDetailPage() {
                     </Button>
                   </Box>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Bank Account Info */}
+            <Card sx={{ ...cardStyle, mb: 4 }}>
+              <CardHeader
+                title="银行账户信息"
+                titleTypographyProps={{ variant: 'h6', fontWeight: '700' }}
+                avatar={<AccountBalanceIcon sx={{ color: '#10b981', fontSize: 28 }} />}
+                action={<Button size="small" onClick={openEditDialog} sx={{ fontWeight: 'bold', color: '#10b981' }}>编辑</Button>}
+                sx={{ borderBottom: '1px solid #f0f0f0', p: 3, pb: 2 }}
+              />
+              <CardContent sx={{ p: 3 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={4}>
+                    <InfoItem label="工资卡持卡人" value={employee.salary_card_holder_name} icon={<PersonIcon fontSize="small" />} />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <InfoItem label="工资卡开户行" value={employee.salary_card_bank_name} icon={<AccountBalanceIcon fontSize="small" />} />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <InfoItem label="工资卡卡号" value={employee.salary_card_number} icon={<CreditCardIcon fontSize="small" />} />
+                  </Grid>
+                </Grid>
               </CardContent>
             </Card>
 
@@ -549,6 +630,106 @@ function StaffDetailPage() {
           </Grid>
         </Grid>
       </Container>
+
+      <Dialog open={editOpen} onClose={() => !saving && setEditOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>编辑员工信息</DialogTitle>
+        <DialogContent dividers>
+          {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
+          <Grid container spacing={2} sx={{ mt: 0 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="姓名"
+                value={editForm.name || ''}
+                onChange={(event) => handleEditChange('name', event.target.value)}
+                fullWidth
+                required
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="手机号"
+                value={editForm.phone_number || ''}
+                onChange={(event) => handleEditChange('phone_number', event.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                label="身份证号"
+                value={editForm.id_card_number || ''}
+                onChange={(event) => handleEditChange('id_card_number', event.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={Boolean(editForm.is_active)}
+                    onChange={(event) => handleEditChange('is_active', event.target.checked)}
+                  />
+                }
+                label={editForm.is_active ? '在职员工' : '已离职'}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                label="现居住地址"
+                value={editForm.address || ''}
+                onChange={(event) => handleEditChange('address', event.target.value)}
+                fullWidth
+                multiline
+                minRows={2}
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <Divider sx={{ my: 1 }} />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                label="工资卡持卡人"
+                value={editForm.salary_card_holder_name || ''}
+                onChange={(event) => handleEditChange('salary_card_holder_name', event.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                label="工资卡开户行"
+                value={editForm.salary_card_bank_name || ''}
+                onChange={(event) => handleEditChange('salary_card_bank_name', event.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                label="工资卡卡号"
+                value={editForm.salary_card_number || ''}
+                onChange={(event) => handleEditChange('salary_card_number', event.target.value)}
+                fullWidth
+                size="small"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setEditOpen(false)} disabled={saving}>取消</Button>
+          <Button
+            onClick={handleSaveEmployee}
+            variant="contained"
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={18} color="inherit" /> : <SaveIcon />}
+          >
+            保存
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

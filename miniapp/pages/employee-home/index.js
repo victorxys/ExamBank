@@ -22,9 +22,9 @@ Page({
     overviewLoaded: false,
     canAccessAyiProfiles: false,
     icons: {
-      contractSign: api.miniappIconUrl('contract_sign'),
-      attendanceFill: api.miniappIconUrl('attendance_fill'),
-      ayiSearch: api.miniappIconUrl('ayi_search')
+      contractSign: '/assets/ui/icons/contract_sign.svg',
+      attendanceFill: '/assets/ui/icons/attendance_fill.svg',
+      ayiSearch: '/assets/ui/icons/ayi_search.svg'
     }
   },
 
@@ -52,9 +52,9 @@ Page({
       }));
       const attendanceForms = (todos.attendance_forms || []).map((item) => ({
         ...item,
-        cycle_start_date_text: formatDate(item.cycle_start_date),
-        cycle_end_date_text: formatDate(item.cycle_end_date),
-        date_range: `${formatDate(item.cycle_start_date)} - ${formatDate(item.cycle_end_date)}`
+        cycle_start_date_text: formatDate(item.attendance_start_date || item.cycle_start_date),
+        cycle_end_date_text: formatDate(item.attendance_end_date || item.cycle_end_date),
+        date_range: `${formatDate(item.attendance_start_date || item.cycle_start_date)} - ${formatDate(item.attendance_end_date || item.cycle_end_date)}`
       }));
       const activeContracts = (result.active_contracts || []).map(contractView);
       const recentContracts = ((result.recent_contracts && result.recent_contracts.length)
@@ -107,6 +107,10 @@ Page({
       const forms = result.attendance_forms || [];
       if (!forms.length) {
         wx.showToast({ title: '本月暂无可填写考勤', icon: 'none' });
+        return;
+      }
+      if (forms.length > 1) {
+        wx.navigateTo({ url: `/pages/attendance-select/index?year=${year}&month=${month}` });
         return;
       }
       const form = forms.find((item) => item.status === 'draft')

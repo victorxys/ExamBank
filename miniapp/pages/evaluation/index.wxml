@@ -31,7 +31,9 @@
     </view>
     <view class="star-row compact">
       <block wx:for="{{starItems}}" wx:key="value">
-        <button class="{{item.className}}" data-value="{{item.value}}" bindtap="setRating">{{item.text}}</button>
+        <button class="{{item.className}}" data-value="{{item.value}}" bindtap="setRating">
+          <image class="star-icon-img" src="{{item.icon}}" mode="aspectFit" />
+        </button>
       </block>
     </view>
   </view>

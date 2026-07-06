@@ -305,7 +305,7 @@ def _first_attendance_contract(employee_id, cycle_start, cycle_end, target_contr
     return min(candidates, key=lambda item: (item[1], str(item[0].created_at or ""), str(item[0].id)))
 
 
-def ensure_attendance_form_onboarding_record(form, contract=None, effective_start_date=None, mark_modified=True):
+def ensure_attendance_form_onboarding_record(form, contract=None, effective_start_date=None, effective_end_date=None, mark_modified=True):
     """Ensure the first day of a merged attendance cycle has an onboarding marker."""
     if not form:
         return False
@@ -329,7 +329,10 @@ def ensure_attendance_form_onboarding_record(form, contract=None, effective_star
         onboarding_date = to_date_value(effective_start_date)
         first_contract = contract
 
+    effective_end = to_date_value(effective_end_date) if effective_end_date is not None else None
     if not onboarding_date or not (cycle_start <= onboarding_date <= cycle_end):
+        return False
+    if effective_end and onboarding_date > effective_end:
         return False
 
     form_data, changed = _ensure_attendance_record_keys(form.form_data or {})
@@ -372,8 +375,63 @@ def ensure_attendance_form_onboarding_record(form, contract=None, effective_star
     return changed
 
 
-def validate_required_onboarding_times(form_data, cycle_start, cycle_end):
+def _onboarding_belongs_to_contract(record, contract):
+    if not contract:
+        return True
+    source_contract_id = record.get('source_contract_id')
+    if source_contract_id:
+        return str(source_contract_id) == str(contract.id)
+    return True
+
+
+def remove_out_of_contract_onboarding_records(form, contract=None, effective_start_date=None, effective_end_date=None, mark_modified=True):
+    """Remove onboarding markers that belong to another contract/window from this form."""
+    if not form:
+        return False
+
+    contract = contract or form.contract
+    if not contract:
+        return False
+
+    cycle_start = to_date_value(form.cycle_start_date)
+    cycle_end = to_date_value(form.cycle_end_date)
+    effective_start = to_date_value(effective_start_date) or cycle_start
+    effective_end = to_date_value(effective_end_date) or get_attendance_contract_end_date(contract) or to_date_value(contract.end_date) or cycle_end
+    if not cycle_start or not cycle_end or not effective_start or not effective_end:
+        return False
+
+    effective_start = max(cycle_start, effective_start)
+    effective_end = min(cycle_end, effective_end)
+    form_data, changed = _ensure_attendance_record_keys(form.form_data or {})
+    kept_records = []
+    for record in form_data.get('onboarding_records') or []:
+        raw_date = record.get('date')
+        try:
+            onboarding_date = datetime.fromisoformat(str(raw_date)).date() if raw_date else None
+        except (TypeError, ValueError):
+            onboarding_date = None
+
+        if (
+            onboarding_date
+            and effective_start <= onboarding_date <= effective_end
+            and _onboarding_belongs_to_contract(record, contract)
+        ):
+            kept_records.append(record)
+
+    if len(kept_records) != len(form_data.get('onboarding_records') or []):
+        form_data['onboarding_records'] = kept_records
+        form.form_data = form_data
+        changed = True
+
+    if changed and mark_modified:
+        flag_modified(form, "form_data")
+    return changed
+
+
+def validate_required_onboarding_times(form_data, cycle_start, cycle_end, contract=None, effective_start_date=None, effective_end_date=None):
     errors = []
+    effective_start = to_date_value(effective_start_date) or cycle_start
+    effective_end = to_date_value(effective_end_date) or cycle_end
     for record in (form_data or {}).get('onboarding_records') or []:
         raw_date = record.get('date')
         if not raw_date:
@@ -383,6 +441,10 @@ def validate_required_onboarding_times(form_data, cycle_start, cycle_end):
         except (TypeError, ValueError):
             continue
         if not (cycle_start <= onboarding_date <= cycle_end):
+            continue
+        if not (effective_start <= onboarding_date <= effective_end):
+            continue
+        if not _onboarding_belongs_to_contract(record, contract):
             continue
         label = record.get('label') or '上户'
         if not record.get('startTime') or not record.get('endTime'):
@@ -1025,16 +1087,24 @@ def get_attendance_form_by_token(employee_token):
         
         if existing_form:
             reconciled = reconcile_attendance_form_with_contract_end(existing_form)
+            effective_end_for_form = get_attendance_contract_end_date(contract) or effective_end
+            cleaned_onboarding = remove_out_of_contract_onboarding_records(
+                existing_form,
+                contract,
+                effective_start,
+                effective_end_for_form,
+            )
             onboarding_reconciled = ensure_attendance_form_onboarding_record(
                 existing_form,
                 contract,
                 effective_start,
+                effective_end_for_form,
             )
             ensure_confirmed_auto_overtime_for_response(existing_form)
             
             # 检查并补充上户/下户记录（如果缺失）
             form_data = existing_form.form_data or {}
-            form_data_updated = reconciled or onboarding_reconciled
+            form_data_updated = reconciled or cleaned_onboarding or onboarding_reconciled
             
             # 确保所有记录类型都存在
             for key in ATTENDANCE_RECORD_KEYS:
@@ -1065,7 +1135,7 @@ def get_attendance_form_by_token(employee_token):
 
             # 合并试工/正式合同时，上户记录可能来自前置试工合同。
             # 上面只检查当前合同开始日，这里重新确保合并周期的首个上户日也存在。
-            if ensure_attendance_form_onboarding_record(existing_form, contract, effective_start):
+            if ensure_attendance_form_onboarding_record(existing_form, contract, effective_start, effective_end_for_form):
                 form_data = existing_form.form_data or form_data
                 form_data_updated = True
             
@@ -1165,7 +1235,12 @@ def get_attendance_form_by_token(employee_token):
             form_data=initial_form_data,
             status='draft'
         )
-        ensure_attendance_form_onboarding_record(temp_form, contract, effective_start)
+        ensure_attendance_form_onboarding_record(
+            temp_form,
+            contract,
+            effective_start,
+            get_attendance_contract_end_date(contract) or effective_end,
+        )
         
         # 判断是否为合同结束月
         # 对于自动月签合同，使用终止日期；否则使用结束日期
@@ -1256,8 +1331,16 @@ def update_attendance_form(employee_token):
             contract = BaseContract.query.get(form.contract_id)
             cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
             cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
-            _, effective_start, _ = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
-            if ensure_attendance_form_onboarding_record(form, contract, effective_start):
+            effective_start, effective_end = resolve_effective_attendance_window_for_contract(
+                form.employee_id,
+                cycle_start,
+                cycle_end,
+                contract,
+            )
+            effective_end_for_form = get_attendance_contract_end_date(contract) or effective_end
+            if remove_out_of_contract_onboarding_records(form, contract, effective_start, effective_end_for_form):
+                form_data = form.form_data
+            if ensure_attendance_form_onboarding_record(form, contract, effective_start, effective_end_for_form):
                 form_data = form.form_data
 
             normalized_form_data, normalized = normalize_auto_overtime_form_data(
@@ -1299,6 +1382,9 @@ def update_attendance_form(employee_token):
                     form_data if form_data else form.form_data or {},
                     cycle_start,
                     cycle_end,
+                    contract,
+                    effective_start,
+                    effective_end_for_form,
                 )
             )
             

@@ -198,3 +198,8 @@
   font-size: 42rpx;
   line-height: 1;
 }
+
+.signature-placeholder-icon-img {
+  width: 40rpx;
+  height: 40rpx;
+}

@@ -18,9 +18,20 @@ export const getEmployeeDetails = (employeeId) => {
   return api.get(`/staff/employees/${employeeId}`);
 };
 
+/**
+ * 更新单个员工的基础资料和工资卡信息
+ * @param {string} employeeId - 员工的UUID
+ * @param {object} data - 员工资料
+ * @returns {Promise<AxiosResponse<any>>}
+ */
+export const updateEmployeeDetails = (employeeId, data) => {
+  return api.patch(`/staff/employees/${employeeId}`, data);
+};
+
 const staffApi = {
   getEmployees,
   getEmployeeDetails,
+  updateEmployeeDetails,
 };
 
 export default staffApi;

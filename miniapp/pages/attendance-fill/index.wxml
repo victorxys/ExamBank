@@ -2,12 +2,16 @@
   <view class="sticky-head">
     <view class="head-sub">客户：{{customerNameText}}</view>
     <view class="head-main">
-      <button class="{{prevMonthClass}}" bindtap="goPrevMonth">‹</button>
+      <button class="{{prevMonthClass}}" bindtap="goPrevMonth">
+        <image class="month-arrow-img" src="/assets/ui/icons/chevron-left.svg" mode="aspectFit" />
+      </button>
       <view class="title-wrap">
         <view class="page-title">{{pageTitleText}}</view>
         <view class="status-line">{{statusText}}</view>
       </view>
-      <button class="{{nextMonthClass}}" bindtap="goNextMonth">›</button>
+      <button class="{{nextMonthClass}}" bindtap="goNextMonth">
+        <image class="month-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
+      </button>
       <view class="avatar">{{avatarText}}</view>
     </view>
   </view>
@@ -62,7 +66,7 @@
         >
           <view wx:if="{{item.holidayLabelText}}" class="{{item.holidayLabelClass}}">{{item.holidayLabelText}}</view>
           <view class="day-num">{{item.day}}</view>
-          <view wx:if="{{item.disabled}}" class="day-disabled">×</view>
+          <image wx:if="{{item.disabled}}" class="day-disabled-img" src="/assets/ui/icons/disabled-cross.svg" mode="aspectFit" />
           <view wx:else class="day-label">{{item.typeLabel}}</view>
           <view wx:if="{{item.displayTime}}" class="day-time">{{item.displayTime}}</view>
         </view>
@@ -125,7 +129,9 @@
           <view wx:if="{{showHolidayBadge}}" class="{{holidayBadgeClass}}">{{holidayBadgeText}}</view>
           <view class="sheet-sub">请选择当日考勤状态</view>
         </view>
-        <view class="icon-close" bindtap="closeModal">×</view>
+        <view class="icon-close" bindtap="closeModal">
+          <image class="icon-close-img" src="/assets/ui/icons/close-line.svg" mode="aspectFit" />
+        </view>
       </view>
 
       <view wx:if="{{showHolidayHint}}" class="holiday-alert">{{holidayHintText}}</view>
@@ -194,12 +200,16 @@
         <view wx:if="{{showDurationBlock}}" class="duration-block">
           <view class="field-label">{{durationFieldLabel}}</view>
           <view class="duration-row">
-            <view class="{{decreaseButtonClass}}" data-delta="-1" bindtap="changeDays">−</view>
+            <view class="{{decreaseButtonClass}}" data-delta="-1" bindtap="changeDays">
+              <image class="step-icon-img" src="{{decreaseButtonIcon}}" mode="aspectFit" />
+            </view>
             <view class="duration-center">
               <view class="duration-main">{{dayCountText}}</view>
               <view class="duration-sub">天</view>
             </view>
-            <view class="step-btn" data-delta="1" bindtap="changeDays">+</view>
+            <view class="step-btn" data-delta="1" bindtap="changeDays">
+              <image class="step-icon-img" src="/assets/ui/icons/plus-white.svg" mode="aspectFit" />
+            </view>
           </view>
           <view wx:if="{{isOutType}}" class="warn-text">最少需要连续30天，不满30天的出京/出境不计入考勤。</view>
         </view>

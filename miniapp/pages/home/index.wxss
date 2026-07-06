@@ -84,10 +84,10 @@
   background: #14b8a6;
 }
 
-.tool-arrow {
-  color: #94a3b8;
-  font-size: 42rpx;
-  line-height: 72rpx;
+.tool-arrow-img {
+  width: 42rpx;
+  height: 72rpx;
+  flex: none;
 }
 
 .action-main {
@@ -165,6 +165,15 @@
 .todo-badge.teal {
   background: #ecfdfa;
   color: #0f766e;
+}
+
+.todo-badge.green {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.payroll-action-icon {
+  background: #10b981;
 }
 
 .attendance-card {
@@ -337,6 +346,12 @@
   font-weight: 800;
 }
 
+.calendar-disabled-img {
+  margin-top: 2rpx;
+  width: 22rpx;
+  height: 22rpx;
+}
+
 .attendance-stats {
   margin-top: 18rpx;
   display: grid;
@@ -392,4 +407,71 @@
   justify-content: space-between;
   font-size: 24rpx;
   color: #64748b;
+}
+
+.inline-arrow-img {
+  width: 36rpx;
+  height: 36rpx;
+  flex: none;
+}
+
+.payroll-entry-card {
+  margin: -2rpx 0 18rpx;
+  padding: 22rpx 24rpx;
+  border-radius: 16rpx;
+  border: 1rpx solid #d7f1eb;
+  background: linear-gradient(135deg, #f4fffc, #ffffff);
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+}
+
+.payroll-entry-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #10b981;
+  color: #fff;
+  font-size: 34rpx;
+  line-height: 1;
+  font-weight: 900;
+  flex: none;
+}
+
+.payroll-entry-icon-img {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.payroll-entry-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.payroll-entry-title {
+  color: #0f172a;
+  font-size: 28rpx;
+  line-height: 38rpx;
+  font-weight: 900;
+}
+
+.payroll-entry-desc {
+  margin-top: 4rpx;
+  color: #64748b;
+  font-size: 23rpx;
+  line-height: 32rpx;
+  word-break: break-word;
+}
+
+.payroll-entry-link {
+  min-width: 76rpx;
+  text-align: right;
+  color: #0f9f8f;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  font-weight: 900;
 }

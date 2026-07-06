@@ -239,6 +239,9 @@ function defaultModalUi(record, form, editingDate, modalReadOnly = false) {
     decreaseButtonClass: (isOut ? Number(record.daysOffset) <= 29 : Number(record.daysOffset || 0) <= 0)
       ? 'step-btn disabled'
       : 'step-btn',
+    decreaseButtonIcon: (isOut ? Number(record.daysOffset) <= 29 : Number(record.daysOffset || 0) <= 0)
+      ? '/assets/ui/icons/minus-muted.svg'
+      : '/assets/ui/icons/minus-white.svg',
     closeButtonText: modalReadOnly ? '我知道了' : '关闭',
     showConfirmButton: !modalReadOnly,
     sheetActionsClass: modalReadOnly ? 'sheet-actions single' : 'sheet-actions',
@@ -338,6 +341,7 @@ Page({
     showOnboardingReference: false,
     disableDecreaseDays: true,
     decreaseButtonClass: 'step-btn disabled',
+    decreaseButtonIcon: '/assets/ui/icons/minus-muted.svg',
     closeButtonText: '关闭',
     showConfirmButton: true,
     sheetActionsClass: 'sheet-actions',

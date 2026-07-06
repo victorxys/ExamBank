@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from backend.app import app
 from backend.models import db, NannyContract, CustomerBill, EmployeePayroll
+from backend.api.attendance_form_api import remove_out_of_contract_onboarding_records, validate_required_onboarding_times
 from backend.services.attendance_sync_service import _calculate_records_days, _calculate_records_days_in_cycle
 from backend.services.billing_engine import BillingEngine
 from decimal import Decimal as D
@@ -200,10 +201,64 @@ def test_terminated_cycle_work_days_are_never_negative_when_all_valid_days_are_r
     assert allocated_rest_days == D("3.000")
     assert max(D("0"), D("3") - allocated_rest_days) == D("0")
 
+def test_old_contract_form_does_not_require_next_contract_onboarding():
+    """旧合同考勤表不能要求填写后续新合同的上户日。"""
+    old_contract = NannyContract()
+    old_contract.id = "11111111-1111-1111-1111-111111111111"
+    old_contract.end_date = date(2026, 6, 1)
+    old_contract.termination_date = date(2026, 6, 1)
+    old_contract.type = "nanny"
+
+    form = type("AttendanceFormStub", (), {})()
+    form.contract = old_contract
+    form.cycle_start_date = date(2026, 6, 1)
+    form.cycle_end_date = date(2026, 6, 30)
+    form.form_data = {
+        "onboarding_records": [
+            {
+                "date": "2026-06-17",
+                "type": "onboarding",
+                "source_contract_id": "22222222-2222-2222-2222-222222222222",
+                "startTime": "09:00",
+                "endTime": "",
+                "hours": 0,
+                "minutes": 0,
+                "daysOffset": 0,
+            }
+        ],
+        "rest_records": [],
+        "leave_records": [],
+        "overtime_records": [],
+        "out_of_beijing_records": [],
+        "out_of_country_records": [],
+        "paid_leave_records": [],
+        "offboarding_records": [],
+    }
+
+    changed = remove_out_of_contract_onboarding_records(
+        form,
+        old_contract,
+        date(2026, 6, 1),
+        date(2026, 6, 1),
+        mark_modified=False,
+    )
+
+    assert changed is True
+    assert form.form_data["onboarding_records"] == []
+    assert validate_required_onboarding_times(
+        form.form_data,
+        date(2026, 6, 1),
+        date(2026, 6, 30),
+        old_contract,
+        date(2026, 6, 1),
+        date(2026, 6, 1),
+    ) == []
+
 if __name__ == "__main__":
     test_final_salary_adjustment_logic()
     test_non_monthly_management_fee_refund()
     test_trial_contract_logic()
     test_terminated_cycle_excludes_rest_days_after_contract_end()
     test_terminated_cycle_work_days_are_never_negative_when_all_valid_days_are_rest()
+    test_old_contract_form_does_not_require_next_contract_onboarding()
     print("\n🎉 所有测试完成")

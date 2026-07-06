@@ -1,0 +1,174 @@
+.compact-hero {
+  padding-bottom: 34rpx;
+}
+
+.no-margin {
+  margin-top: 0;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-bottom: 18rpx;
+}
+
+.count-text {
+  flex: none;
+  color: #0f9f8f;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  font-weight: 800;
+}
+
+.empty-card,
+.attendance-card {
+  margin-bottom: 20rpx;
+  padding: 26rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  border: 1rpx solid #e5e7eb;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+}
+
+.empty-title {
+  color: #0f172a;
+  font-size: 28rpx;
+  line-height: 40rpx;
+  font-weight: 850;
+}
+
+.empty-desc {
+  margin-top: 8rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.card-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.customer-name {
+  min-width: 0;
+  color: #0f172a;
+  font-size: 30rpx;
+  line-height: 40rpx;
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.date-range {
+  margin-top: 8rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  word-break: break-word;
+}
+
+.status-pill {
+  flex: none;
+  max-width: 180rpx;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  color: #0f766e;
+  background: #ecfdfa;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-pill.confirmed {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.status-pill.signed,
+.status-pill.synced {
+  color: #047857;
+  background: #dcfce7;
+}
+
+.stats-row {
+  margin-top: 22rpx;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.stat-box {
+  min-width: 0;
+  padding: 18rpx 8rpx;
+  border-radius: 14rpx;
+  text-align: center;
+}
+
+.stat-box.work {
+  background: #e5faf6;
+  color: #087c70;
+}
+
+.stat-box.overtime {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.stat-box.leave {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.stat-value {
+  font-size: 32rpx;
+  line-height: 38rpx;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-label {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  font-weight: 800;
+}
+
+.primary-btn {
+  margin-top: 24rpx;
+  width: 100%;
+  min-height: 88rpx;
+  border-radius: 14rpx;
+  background: #0f9f8f;
+  color: #fff;
+  font-size: 28rpx;
+  line-height: 88rpx;
+  font-weight: 850;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+
+.primary-btn::after {
+  border: none;
+}
+
+.btn-icon {
+  width: 36rpx;
+  height: 36rpx;
+  flex: none;
+}

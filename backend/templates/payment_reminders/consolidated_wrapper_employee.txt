@@ -3,3 +3,18 @@
 --------------------
 ') }}
 费用总计 (待付员工): {{ grand_total_amount }}元
+
+{% if employee_accounts %}
+
+员工工资卡信息:
+{% for account in employee_accounts %}
+{% if account.is_complete %}
+{% if employee_accounts|length > 1 %}{{ account.employee_name }}:
+{% endif %}户名：{{ account.holder_name }}
+帐号：{{ account.account_number }}
+银行：{{ account.bank_name }}
+{% else %}
+{{ account.employee_name }}：未维护工资卡信息
+{% endif %}
+{% endfor %}
+{% endif %}
