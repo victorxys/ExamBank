@@ -552,14 +552,14 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
     };
 
     const handleOpenPayrollMiniappLink = async () => {
-        const link = payrollMiniappLink || await handleLoadPayrollMiniappLink(false);
+        const link = await handleLoadPayrollMiniappLink(false);
         if (link?.miniapp_url) {
             window.open(link.miniapp_url, '_blank', 'noopener,noreferrer');
         }
     };
 
     const handleCopyPayrollMiniappLink = async () => {
-        const link = payrollMiniappLink || await handleLoadPayrollMiniappLink(false);
+        const link = await handleLoadPayrollMiniappLink(false);
         const url = link?.miniapp_url;
         if (!url) {
             setAlert({ open: true, message: link?.miniapp_error || '暂无可复制的小程序链接', severity: 'warning' });

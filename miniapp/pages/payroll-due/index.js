@@ -164,9 +164,17 @@ Page({
   onShareAppMessage() {
     const payroll = this.data.payroll || {};
     const shareToken = payroll.customer_share_token || this.data.shareToken;
-    const path = shareToken
-      ? `/pages/payroll-due/index?shareToken=${shareToken}`
-      : `/pages/payroll-due/index?payrollId=${payroll.id || this.data.payrollId}`;
+    const params = [];
+    const payrollId = payroll.id || this.data.payrollId;
+    const contractId = payroll.contract_id || this.data.contractId;
+    const year = payroll.year || this.data.year;
+    const month = payroll.month || this.data.month;
+    if (shareToken) params.push(`shareToken=${encodeURIComponent(shareToken)}`);
+    if (payrollId) params.push(`payrollId=${encodeURIComponent(payrollId)}`);
+    if (contractId) params.push(`contractId=${encodeURIComponent(contractId)}`);
+    if (year) params.push(`year=${encodeURIComponent(year)}`);
+    if (month) params.push(`month=${encodeURIComponent(month)}`);
+    const path = `/pages/payroll-due/index${params.length ? `?${params.join('&')}` : ''}`;
     return {
       title: `${payroll.customer_name || '客户'}${payroll.year || ''}年${payroll.month || ''}月应付劳务费`,
       path
