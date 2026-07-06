@@ -2143,6 +2143,7 @@ def customer_current_payroll():
         return jsonify({"success": False, "error": "请先完成微信登录"}), 401
 
     share_token = (request.args.get("share_token") or request.args.get("shareToken") or "").strip()
+    payroll_id_param = request.args.get("payroll_id") or request.args.get("payrollId")
     if share_token:
         payroll = EmployeePayroll.query.options(
             joinedload(EmployeePayroll.contract).joinedload(BaseContract.service_personnel),
@@ -2153,6 +2154,19 @@ def customer_current_payroll():
         ).first()
         if not payroll:
             return jsonify({"success": False, "error": "工资单链接无效或已失效"}), 404
+        if payroll_id_param:
+            try:
+                requested_payroll_id = uuid.UUID(str(payroll_id_param))
+            except ValueError:
+                return jsonify({"success": False, "error": "工资单ID格式不正确"}), 400
+            if payroll.id != requested_payroll_id:
+                current_app.logger.warning(
+                    "工资单分享令牌与工资单ID不匹配 share_token=%s token_payroll_id=%s requested_payroll_id=%s",
+                    share_token,
+                    payroll.id,
+                    requested_payroll_id,
+                )
+                return jsonify({"success": False, "error": "工资单链接参数不匹配，请重新打开最新链接"}), 400
 
         staff_account = _get_staff_account(openid)
         if not staff_account and payroll.contract:
@@ -2166,6 +2180,8 @@ def customer_current_payroll():
         payload["share_token"] = share_token
         payload["readonly"] = bool(staff_account)
         payload["viewer_role"] = "staff" if staff_account else "customer"
+        payload["source"] = "share_token"
+        payload["requested_payroll_id"] = str(payroll_id_param or "")
         return jsonify({"success": True, "payroll": payload})
 
     account = _get_account(openid)
@@ -2174,7 +2190,6 @@ def customer_current_payroll():
     if not contract_ids:
         return jsonify({"success": True, "payroll": None})
 
-    payroll_id_param = request.args.get("payroll_id") or request.args.get("payrollId")
     if payroll_id_param:
         try:
             payroll_id = uuid.UUID(str(payroll_id_param))

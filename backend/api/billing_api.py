@@ -143,10 +143,21 @@ def _miniapp_payroll_access_token(config=None):
     return access_token
 
 
-def _generate_payroll_miniapp_url_link(share_token, config):
+def _payroll_miniapp_query(payroll, share_token):
+    return {
+        "shareToken": share_token,
+        "payrollId": str(payroll.id),
+        "contractId": str(payroll.contract_id),
+        "year": payroll.year,
+        "month": payroll.month,
+        "source": "billing",
+    }
+
+
+def _generate_payroll_miniapp_url_link(payroll, share_token, config):
     access_token = _miniapp_payroll_access_token(config)
     path = "pages/payroll-due/index"
-    query = urllib.parse.urlencode({"shareToken": share_token, "source": "billing"})
+    query = urllib.parse.urlencode(_payroll_miniapp_query(payroll, share_token))
     expire_days = max(1, min(int((config or {}).get("expire_days") or 30), 30))
     expire_time = int(time.time()) + expire_days * 24 * 60 * 60
     payload = {
@@ -4288,11 +4299,15 @@ def get_payroll_miniapp_link(payroll_id):
 
     config = get_or_create_miniapp_signing_config().value or {}
     share_token = _ensure_payroll_customer_share_token(payroll)
-    miniapp_path = f"pages/payroll-due/index?{urllib.parse.urlencode({'shareToken': share_token, 'source': 'billing'})}"
+    miniapp_path = f"pages/payroll-due/index?{urllib.parse.urlencode(_payroll_miniapp_query(payroll, share_token))}"
     result = {
         "success": True,
         "payroll_id": str(payroll.id),
         "contract_id": str(payroll.contract_id),
+        "year": payroll.year,
+        "month": payroll.month,
+        "cycle_start_date": payroll.cycle_start_date.isoformat() if payroll.cycle_start_date else None,
+        "cycle_end_date": payroll.cycle_end_date.isoformat() if payroll.cycle_end_date else None,
         "share_token": share_token,
         "miniapp_path": miniapp_path,
         "miniapp_url": "",
@@ -4307,7 +4322,7 @@ def get_payroll_miniapp_link(payroll_id):
         if not config.get("enabled"):
             result["miniapp_error"] = "小程序 URL Link 未启用，请在小程序签署配置中开启。"
         else:
-            miniapp_url, generated_path = _generate_payroll_miniapp_url_link(share_token, config)
+            miniapp_url, generated_path = _generate_payroll_miniapp_url_link(payroll, share_token, config)
             result["miniapp_url"] = miniapp_url
             result["miniapp_path"] = generated_path or miniapp_path
     except Exception as exc:
