@@ -599,6 +599,16 @@
   font-weight: 800;
 }
 
+.more-payroll-footer {
+  margin-top: 18rpx;
+  padding: 8rpx 0 2rpx;
+  color: #059669;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  font-weight: 900;
+  text-align: right;
+}
+
 .attendance-record-card {
   margin-top: 20rpx;
   padding: 22rpx;

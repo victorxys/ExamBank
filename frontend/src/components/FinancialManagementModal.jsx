@@ -17,6 +17,8 @@ import {
     CheckCircle as CheckCircleIcon, HighlightOff as HighlightOffIcon,
     ArticleOutlined as ArticleOutlinedIcon,
     Link as LinkIcon,
+    ContentCopy as ContentCopyIcon,
+    Smartphone as SmartphoneIcon,
     Lock as LockIcon, // <-- 添加图标
     ArrowBackIosNew as ArrowBackIosNewIcon,
     ArrowForwardIos as ArrowForwardIosNewIcon
@@ -295,6 +297,9 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
     const [mergePreviewData, setMergePreviewData] = useState(null);
     const [deletionHappened, setDeletionHappened] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [payrollMiniappLink, setPayrollMiniappLink] = useState(null);
+    const [isLoadingPayrollMiniappLink, setIsLoadingPayrollMiniappLink] = useState(false);
+    const [copiedPayrollMiniappLink, setCopiedPayrollMiniappLink] = useState(false);
 
     const handleOpenMergePreview = async () => {
         if (!billingDetails?.customer_bill_details?.id || !successorContract?.id) {
@@ -440,6 +445,8 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
 
                     setBillingDetails(details);
                     setContract(details.contract_info);
+                    setPayrollMiniappLink(null);
+                    setCopiedPayrollMiniappLink(false);
 
                     // 2. 重置编辑模式和相关状态
                     setIsEditMode(false);
@@ -516,6 +523,52 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
         } finally {
             setIsGeneratingMessage(false);
         }
+    };
+
+    const handleLoadPayrollMiniappLink = async (openAfterLoad = false) => {
+        const payrollId = billingDetails?.employee_payroll_details?.id;
+        if (!payrollId) {
+            setAlert({ open: true, message: '无法生成小程序工资单链接，缺少工资单ID', severity: 'error' });
+            return null;
+        }
+        setIsLoadingPayrollMiniappLink(true);
+        try {
+            const response = await api.get(`/billing/payrolls/${payrollId}/miniapp-link`);
+            const link = response.data || {};
+            setPayrollMiniappLink(link);
+            if (link.miniapp_url && openAfterLoad) {
+                window.open(link.miniapp_url, '_blank', 'noopener,noreferrer');
+            }
+            if (!link.miniapp_url && link.miniapp_error) {
+                setAlert({ open: true, message: `小程序链接生成失败：${link.miniapp_error}`, severity: 'warning' });
+            }
+            return link;
+        } catch (error) {
+            setAlert({ open: true, message: `生成小程序工资单链接失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+            return null;
+        } finally {
+            setIsLoadingPayrollMiniappLink(false);
+        }
+    };
+
+    const handleOpenPayrollMiniappLink = async () => {
+        const link = payrollMiniappLink || await handleLoadPayrollMiniappLink(false);
+        if (link?.miniapp_url) {
+            window.open(link.miniapp_url, '_blank', 'noopener,noreferrer');
+        }
+    };
+
+    const handleCopyPayrollMiniappLink = async () => {
+        const link = payrollMiniappLink || await handleLoadPayrollMiniappLink(false);
+        const url = link?.miniapp_url;
+        if (!url) {
+            setAlert({ open: true, message: link?.miniapp_error || '暂无可复制的小程序链接', severity: 'warning' });
+            return;
+        }
+        await navigator.clipboard.writeText(url);
+        setCopiedPayrollMiniappLink(true);
+        setTimeout(() => setCopiedPayrollMiniappLink(false), 2000);
+        setAlert({ open: true, message: '已复制小程序工资单链接', severity: 'success' });
     };
 
     const handleNavigation = (direction) => {
@@ -1914,6 +1967,53 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                         </Typography>
                                         {employeeData.calculation_details?.type === 'substitute' && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
                                     </Typography>
+                                    {employeeData?.id && (
+                                        <Alert
+                                            severity={payrollMiniappLink?.miniapp_url ? 'success' : 'info'}
+                                            icon={<SmartphoneIcon fontSize="small" />}
+                                            sx={{
+                                                mb: 2,
+                                                py: 0.75,
+                                                '& .MuiAlert-message': { width: '100%' },
+                                            }}
+                                        >
+                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
+                                                <Box sx={{ minWidth: 0 }}>
+                                                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                                        客户小程序工资单
+                                                    </Typography>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        运营可先打开查看，再在小程序内分享给客户确认应付劳务费。
+                                                    </Typography>
+                                                    {payrollMiniappLink?.miniapp_error && (
+                                                        <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
+                                                            {payrollMiniappLink.miniapp_error}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                                <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        startIcon={isLoadingPayrollMiniappLink ? <CircularProgress size={14} /> : <SmartphoneIcon fontSize="small" />}
+                                                        disabled={isLoadingPayrollMiniappLink}
+                                                        onClick={handleOpenPayrollMiniappLink}
+                                                    >
+                                                        打开小程序
+                                                    </Button>
+                                                    <Button
+                                                        size="small"
+                                                        variant={copiedPayrollMiniappLink ? 'contained' : 'outlined'}
+                                                        startIcon={copiedPayrollMiniappLink ? <CheckCircleIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+                                                        disabled={isLoadingPayrollMiniappLink}
+                                                        onClick={handleCopyPayrollMiniappLink}
+                                                    >
+                                                        {copiedPayrollMiniappLink ? '已复制' : '复制链接'}
+                                                    </Button>
+                                                </Box>
+                                            </Box>
+                                        </Alert>
+                                    )}
                                     {renderCardContent(employeeData, false, billingDetails)}
                                 </Paper>
                             </Grid>

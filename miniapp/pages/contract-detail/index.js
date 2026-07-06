@@ -87,6 +87,8 @@ Page({
     attendancePreviewForms: [],
     pendingAttendanceForms: [],
     payrolls: [],
+    payrollPreviewItems: [],
+    showAllPayrolls: false,
     evaluations: [],
     markdownNodes: [],
     canCustomerSign: false,
@@ -165,6 +167,7 @@ Page({
         item.status === 'employee_confirmed' && item.customer_signature_token
       ));
       const payrolls = (contract.payrolls || []).map(payrollView);
+      const payrollPreviewItems = payrolls.slice(0, 3);
       const evaluations = (contract.evaluations || []).map((item) => ({
         ...item,
         rating_text: `${item.rating || '-'} 星`,
@@ -189,6 +192,8 @@ Page({
         attendancePreviewForms,
         pendingAttendanceForms,
         payrolls,
+        payrollPreviewItems,
+        showAllPayrolls: false,
         evaluations,
         canCustomerSign,
         canEmployeeSign,
@@ -298,6 +303,13 @@ Page({
   goPayrollDetail(event) {
     const payrollId = event.currentTarget.dataset.id;
     if (payrollId) wx.navigateTo({ url: `/pages/payroll-due/index?payrollId=${payrollId}` });
+  },
+
+  showAllPayrolls() {
+    this.setData({
+      payrollPreviewItems: this.data.payrolls || [],
+      showAllPayrolls: true
+    });
   },
 
   goExitSummary() {
