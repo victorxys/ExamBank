@@ -4,7 +4,6 @@ import { zhCN } from 'date-fns/locale';
 import { useToast } from '../ui/use-toast';
 import AttendanceFormModal from './AttendanceFormModal';
 import api from '../../api/axios';
-import { AttendanceDisplayLogic } from '../../utils/attendanceDisplayLogic';
 
 const AttendanceManagementPage = () => {
     const [selectedYear, setSelectedYear] = useState(() => {
@@ -58,12 +57,9 @@ const AttendanceManagementPage = () => {
         }
     };
 
-    // 处理考勤记录去重合并
+    // 同一员工同月可能存在多份不同合同的考勤表，这里保留后端返回的明细行。
     const processedEmployees = useMemo(() => {
-        // 使用去重逻辑处理员工记录
-        const deduplicatedEmployees = AttendanceDisplayLogic.deduplicateRecords(employees);
-
-        return deduplicatedEmployees;
+        return employees;
     }, [employees]);
 
     // Filter employees
@@ -147,8 +143,12 @@ const AttendanceManagementPage = () => {
     };
 
     const handleViewForm = (employee) => {
-        // Navigate to admin view route
-        window.location.href = `/attendance-admin/${employee.employee_access_token}`;
+        const params = new URLSearchParams();
+        if (selectedYear) params.set('year', selectedYear);
+        if (selectedMonth) params.set('month', selectedMonth);
+        if (employee.contract_id) params.set('contractId', employee.contract_id);
+        const query = params.toString();
+        window.location.href = `/attendance-admin/${employee.employee_access_token}${query ? `?${query}` : ''}`;
     };
 
     const handleDownload = async (employee) => {
