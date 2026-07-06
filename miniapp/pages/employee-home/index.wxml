@@ -59,7 +59,7 @@
         <view class="quick-entry-desc">提前下户或需要补填时，可从这里进入考勤表。</view>
       </view>
     </view>
-    <view class="quick-entry-arrow">›</view>
+    <image class="quick-entry-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
   </view>
 
   <view class="section-head contract-section-head">
@@ -78,7 +78,7 @@
       </view>
       <view class="contract-foot">
         <text>{{item.signing_status_text}}</text>
-        <text>›</text>
+        <image class="inline-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
       </view>
     </view>
   </block>
@@ -98,7 +98,7 @@
         <view class="action-desc">搜索并查看员工介绍、照片、证书和评价。</view>
       </view>
     </view>
-    <view class="tool-arrow">›</view>
+    <image class="tool-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
   </view>
 
   <view class="fallback-logout" bindtap="logoutFallback">身份异常？退出并重新登录</view>

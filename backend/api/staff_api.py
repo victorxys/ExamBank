@@ -9,6 +9,36 @@ import logging
 
 staff_api = Blueprint('staff_api', __name__, url_prefix='/api/staff')
 
+
+EDITABLE_EMPLOYEE_FIELDS = {
+    "name",
+    "phone_number",
+    "id_card_number",
+    "address",
+    "salary_card_holder_name",
+    "salary_card_bank_name",
+    "salary_card_number",
+    "is_active",
+}
+
+
+def _clean_optional_string(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.strip()
+    else:
+        value = str(value).strip()
+    return value or None
+
+
+def _first_present(data, keys):
+    for key in keys:
+        value = data.get(key)
+        if value is not None and value != "":
+            return value
+    return None
+
 @staff_api.route('/employees', methods=['GET'])
 def get_employees():
     """
@@ -222,6 +252,9 @@ def get_employee_details(employee_id):
         "phone_number": employee.phone_number,
         "id_card_number": employee.id_card_number,
         "address": employee.address,
+        "salary_card_holder_name": employee.salary_card_holder_name,
+        "salary_card_bank_name": employee.salary_card_bank_name,
+        "salary_card_number": employee.salary_card_number,
         "is_active": employee.is_active,
         "salary_history": processed_history,
         "entry_form_data": entry_form_data,
@@ -229,6 +262,38 @@ def get_employee_details(employee_id):
     }
 
     return jsonify(result)
+
+
+@staff_api.route('/employees/<uuid:employee_id>', methods=['PATCH'])
+def update_employee_details(employee_id):
+    """
+    更新员工基础资料和工资卡信息。
+    """
+    employee = ServicePersonnel.query.get_or_404(str(employee_id))
+    payload = request.get_json(silent=True) or {}
+
+    if not isinstance(payload, dict):
+        return jsonify({"error": "请求数据格式不正确"}), 400
+
+    if "name" in payload and not _clean_optional_string(payload.get("name")):
+        return jsonify({"error": "员工姓名不能为空"}), 400
+
+    try:
+        for field in EDITABLE_EMPLOYEE_FIELDS:
+            if field not in payload:
+                continue
+            if field == "is_active":
+                setattr(employee, field, bool(payload[field]))
+            else:
+                setattr(employee, field, _clean_optional_string(payload[field]))
+
+        db.session.add(employee)
+        db.session.commit()
+        return jsonify(employee.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"更新员工信息失败 {employee_id}: {str(e)}", exc_info=True)
+        return jsonify({"error": f"更新员工信息失败: {str(e)}"}), 500
 
 
 @staff_api.route('/employees/<uuid:employee_id>/contracts', methods=['GET'])
@@ -447,12 +512,46 @@ def create_staff_from_form(data_id):
             data.get("address") or 
             data.get("住址")
         )
+
+        salary_card_holder_name = _first_present(data, [
+            "问题3",
+            "工资卡持卡人",
+            "工资卡持卡人姓名",
+            "持卡人姓名",
+            "salary_card_holder_name",
+            "salary_card_holder",
+        ])
+        salary_card_bank_name = _first_present(data, [
+            "问题4",
+            "工资卡开户行",
+            "工资卡开户行名称",
+            "开户行",
+            "开户行名称",
+            "salary_card_bank_name",
+            "salary_card_bank",
+        ])
+        salary_card_number = _first_present(data, [
+            "问题5",
+            "工资卡卡号",
+            "工资卡银行卡号",
+            "银行卡号",
+            "salary_card_number",
+            "bank_card_number",
+        ])
         
         # 确保手机号是字符串格式（可能是数字）
         if phone_number and not isinstance(phone_number, str):
             phone_number = str(phone_number)
+        salary_card_holder_name = _clean_optional_string(salary_card_holder_name)
+        salary_card_bank_name = _clean_optional_string(salary_card_bank_name)
+        salary_card_number = _clean_optional_string(salary_card_number)
         
-        logging.info(f"[CREATE_STAFF] 提取的字段 - 姓名: {name}, 手机号: {phone_number}, 身份证: {id_card_number}, 地址: {address}")
+        logging.info(
+            "[CREATE_STAFF] 提取的字段 - "
+            f"姓名: {name}, 手机号: {phone_number}, 身份证: {id_card_number}, 地址: {address}, "
+            f"工资卡持卡人: {salary_card_holder_name}, 工资卡开户行: {salary_card_bank_name}, "
+            f"工资卡卡号: {salary_card_number}"
+        )
         
         # 4. 验证必填字段
         if not name:
@@ -481,6 +580,12 @@ def create_staff_from_form(data_id):
                 existing_employee.id_card_number = id_card_number
             if address:
                 existing_employee.address = address
+            if salary_card_holder_name:
+                existing_employee.salary_card_holder_name = salary_card_holder_name
+            if salary_card_bank_name:
+                existing_employee.salary_card_bank_name = salary_card_bank_name
+            if salary_card_number:
+                existing_employee.salary_card_number = salary_card_number
             
             db.session.commit()
             
@@ -496,6 +601,9 @@ def create_staff_from_form(data_id):
                 phone_number=phone_number,
                 id_card_number=id_card_number,
                 address=address,
+                salary_card_holder_name=salary_card_holder_name,
+                salary_card_bank_name=salary_card_bank_name,
+                salary_card_number=salary_card_number,
                 is_active=True
             )
             

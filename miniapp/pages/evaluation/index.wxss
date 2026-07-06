@@ -131,13 +131,16 @@
   border-radius: 16rpx;
   background: #f8fafc;
   color: #cbd5e1;
-  font-size: 44rpx;
-  line-height: 1;
 }
 
 .star.active {
   background: #fff7ed;
   color: #f59e0b;
+}
+
+.star-icon-img {
+  width: 46rpx;
+  height: 46rpx;
 }
 
 .tag-section {

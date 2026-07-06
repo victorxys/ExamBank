@@ -1,0 +1,53 @@
+<view class="page">
+  <view class="hero compact-hero">
+    <view class="hero-head">
+      <view class="logo-box"><image class="logo" src="https://images.mengyimengsao.com/miniprogram/logo.png" mode="aspectFit" /></view>
+      <view class="hero-copy">
+        <view class="hero-title">选择考勤表</view>
+        <view class="hero-desc">{{monthText}}有多份服务合同，请选择要填写的考勤。</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-title-row">
+    <view class="section-title no-margin">本月考勤</view>
+    <view class="count-text">{{forms.length}} 份</view>
+  </view>
+
+  <view wx:if="{{loaded && forms.length === 0}}" class="empty-card">
+    <view class="empty-title">暂无考勤表</view>
+    <view class="empty-desc">当前月份没有需要填写的考勤。</view>
+  </view>
+
+  <block wx:for="{{forms}}" wx:key="id">
+    <view class="attendance-card">
+      <view class="card-head">
+        <view class="card-main">
+          <view class="customer-name">客户：{{item.customer_name || '客户'}}</view>
+          <view class="date-range">服务期间：{{item.date_range}}</view>
+        </view>
+        <view class="status-pill {{item.status_class}}">{{item.status_text}}</view>
+      </view>
+
+      <view class="stats-row">
+        <view class="stat-box work">
+          <view class="stat-value">{{item.stats.work_days_text || '0'}}</view>
+          <view class="stat-label">出勤</view>
+        </view>
+        <view class="stat-box overtime">
+          <view class="stat-value">{{item.stats.overtime_text || '0'}}</view>
+          <view class="stat-label">加班</view>
+        </view>
+        <view class="stat-box leave">
+          <view class="stat-value">{{item.stats.leave_days_text || '0'}}</view>
+          <view class="stat-label">休假</view>
+        </view>
+      </view>
+
+      <button class="primary-btn" data-id="{{item.id}}" bindtap="goFill">
+        <image class="btn-icon" src="/assets/ui/icons/attendance_fill.svg" mode="aspectFit" />
+        <text>{{item.button_text}}</text>
+      </button>
+    </view>
+  </block>
+</view>

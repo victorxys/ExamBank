@@ -25,7 +25,7 @@ function ratingLabel(rating) {
 function stars(rating) {
   return [1, 2, 3, 4, 5].map((value) => ({
     value,
-    text: value <= rating ? '★' : '☆',
+    icon: value <= rating ? '/assets/ui/icons/star-filled.svg' : '/assets/ui/icons/star-line.svg',
     className: value <= rating ? 'star active' : 'star'
   }));
 }

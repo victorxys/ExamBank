@@ -229,10 +229,14 @@
 }
 
 .stat-icon {
-  width: 54rpx;
-  height: 54rpx;
+  width: 62rpx;
+  height: 62rpx;
   border-radius: 16rpx;
-  font-size: 22rpx;
+}
+
+.stat-icon-img {
+  width: 50rpx;
+  height: 50rpx;
 }
 
 .stat-main {
@@ -255,12 +259,11 @@
   white-space: nowrap;
 }
 
-.section-icon {
-  width: 18rpx;
-  height: 10rpx;
+.section-icon-img {
+  width: 34rpx;
+  height: 34rpx;
   margin-right: 10rpx;
-  border-radius: 999rpx;
-  background: #50cfc0;
+  flex: none;
 }
 
 .staff-contract-page .soft-section-title {
@@ -301,7 +304,11 @@
   width: 80rpx;
   height: 80rpx;
   border-radius: 22rpx;
-  font-size: 34rpx;
+}
+
+.contract-icon-img {
+  width: 48rpx;
+  height: 48rpx;
 }
 
 .contract-meta {

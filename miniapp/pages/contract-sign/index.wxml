@@ -115,7 +115,9 @@
     <view class="signature-box tap-signature-box" bindtap="openSignaturePad">
       <image wx:if="{{signaturePreview}}" class="signature-image signature-draft-image" src="{{signaturePreview}}" mode="aspectFit" />
       <view wx:else class="signature-placeholder">
-        <view class="signature-placeholder-icon">✎</view>
+        <view class="signature-placeholder-icon">
+          <image class="signature-placeholder-icon-img" src="/assets/ui/icons/signature-pen-line.svg" mode="aspectFit" />
+        </view>
         <view>点击进入横屏签名</view>
       </view>
     </view>

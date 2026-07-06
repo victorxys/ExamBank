@@ -63,7 +63,7 @@
         >
           <view wx:if="{{item.holidayLabelText}}" class="{{item.holidayLabelClass}}">{{item.holidayLabelText}}</view>
           <view class="day-num">{{item.day}}</view>
-          <view wx:if="{{item.disabled}}" class="day-disabled">×</view>
+          <image wx:if="{{item.disabled}}" class="day-disabled-img" src="/assets/ui/icons/disabled-cross.svg" mode="aspectFit" />
           <view wx:else class="day-label">{{item.typeLabel}}</view>
           <view wx:if="{{item.displayTime}}" class="day-time">{{item.displayTime}}</view>
         </view>

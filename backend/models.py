@@ -2517,6 +2517,9 @@ class ServicePersonnel(db.Model):
     )
     id_card_number = db.Column(db.String(100), nullable=True, unique=True, comment="身份证号, 可选但唯一") # 修改
     address = db.Column(db.Text, nullable=True, comment="员工住址") # 新增
+    salary_card_holder_name = db.Column(db.String(255), nullable=True, comment="工资卡持卡人姓名")
+    salary_card_bank_name = db.Column(db.String(255), nullable=True, comment="工资卡开户行")
+    salary_card_number = db.Column(db.String(100), nullable=True, comment="工资卡卡号")
     is_active = db.Column(db.Boolean, default=True, nullable=False, comment="是否在职")
     created_at = db.Column(
         db.DateTime(timezone=True), server_default=func.now(), comment="创建时间"
@@ -2550,6 +2553,9 @@ class ServicePersonnel(db.Model):
             "phone_number": self.phone_number,
             "id_card_number": self.id_card_number,
             "address": self.address,
+            "salary_card_holder_name": self.salary_card_holder_name,
+            "salary_card_bank_name": self.salary_card_bank_name,
+            "salary_card_number": self.salary_card_number,
             "is_active": self.is_active,
             "wechat_openid": self.wechat_openid,
         }
@@ -3626,6 +3632,17 @@ class EmployeePayroll(db.Model):
         index=True
     )
     total_paid_out = db.Column(db.Numeric(12, 2), nullable=False, server_default='0', comment='已支付总额')
+    customer_confirmed_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+        comment="客户在小程序确认应付劳务费的时间",
+    )
+    customer_confirmed_openid = db.Column(
+        db.String(128),
+        nullable=True,
+        comment="确认应付劳务费的小程序openid",
+    )
 
     # --- V2.0 关系建立 ---
     payout_records = db.relationship('PayoutRecord', back_populates='employee_payroll', cascade='all, delete-orphan', lazy='dynamic')

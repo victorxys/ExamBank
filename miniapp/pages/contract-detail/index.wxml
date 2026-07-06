@@ -3,7 +3,9 @@
   <view class="page-content">
   <view class="detail-hero">
     <image class="detail-hero-bg" src="https://images.mengyimengsao.com/miniprogram/hero-contract.jpg" mode="aspectFill" />
-    <view class="detail-hero-icon">合</view>
+    <view class="detail-hero-icon">
+      <image class="detail-hero-icon-img" src="/assets/ui/icons/contract-square.svg" mode="aspectFit" />
+    </view>
     <view class="detail-hero-copy">
       <view class="hero-title">{{contract.type_label || '合同详情'}}</view>
       <view class="hero-desc">
@@ -11,7 +13,10 @@
         <text class="hero-dot">·</text>
         <text>{{contract.status_text || '合同'}}</text>
       </view>
-      <view class="date-range">▣ {{contract.date_range}}</view>
+      <view class="date-range">
+        <image class="date-range-icon-img" src="/assets/ui/icons/calendar-line.svg" mode="aspectFit" />
+        <text>{{contract.date_range}}</text>
+      </view>
     </view>
   </view>
 
@@ -116,6 +121,17 @@
     </view>
   </view>
 
+  <view wx:if="{{role === 'customer' && payrolls.length}}" class="payroll-strip" bindtap="goPayrollDue">
+    <view class="payroll-strip-icon">
+      <image class="payroll-strip-icon-img" src="{{icons.payroll}}" mode="aspectFit" />
+    </view>
+    <view class="payroll-strip-main">
+      <view class="payroll-strip-title">应付劳务费</view>
+      <view class="payroll-strip-desc">查看本合同各月已产生的劳务费与确认状态</view>
+    </view>
+    <view class="payroll-strip-link">查看</view>
+  </view>
+
   <view wx:if="{{(role === 'customer' && hasCustomerActions) || (role === 'employee' && hasEmployeeActions)}}" class="card actions-card">
     <view class="section-title no-margin">待处理提示</view>
     <view wx:if="{{role === 'customer' && hasCustomerActions}}" class="notice-list">
@@ -163,6 +179,24 @@
       </view>
     </view>
     <view wx:if="{{role === 'customer' && contract.evaluation_count}}" class="hint-line">已有 {{contract.evaluation_count}} 条评价记录。</view>
+  </view>
+
+  <view wx:if="{{role === 'customer'}}" class="card">
+    <view class="section-title-row">
+      <view class="section-title no-margin">劳务费记录</view>
+    </view>
+    <view wx:if="{{payrolls.length === 0}}" class="empty-line">暂无已产生的劳务费</view>
+    <view wx:for="{{payrolls}}" wx:key="id" class="payroll-record-card" data-id="{{item.id}}" bindtap="goPayrollDetail">
+      <view class="payroll-record-main">
+        <view class="payroll-record-title">{{item.period_text}}应付劳务费</view>
+        <view class="payroll-record-desc">{{item.employee_name || '服务人员'}} · {{item.date_range}}</view>
+      </view>
+      <view class="payroll-record-side">
+        <view class="payroll-record-amount">¥{{item.amount_due_text}}</view>
+        <view class="record-status {{item.customer_status_class}}">{{item.customer_status_text}}</view>
+        <view class="payroll-payout-status">{{item.payout_status_text}}</view>
+      </view>
+    </view>
   </view>
 
   <view wx:if="{{role === 'customer'}}" class="card">

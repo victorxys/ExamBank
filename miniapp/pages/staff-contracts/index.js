@@ -35,14 +35,14 @@ function normalizeStats(stats = {}) {
   };
 }
 
-function contractIconText(contract = {}) {
+function contractIconSrc(contract = {}) {
   const map = {
-    nanny: '育',
-    maternity_nurse: '月',
-    nanny_trial: '试',
-    external_substitution: '外'
+    nanny: '/assets/ui/icons/contract-type.svg',
+    maternity_nurse: '/assets/ui/icons/contract-type.svg',
+    nanny_trial: '/assets/ui/icons/contract-type.svg',
+    external_substitution: '/assets/ui/icons/contract-type.svg'
   };
-  return map[contract.type] || '合';
+  return map[contract.type] || '/assets/ui/icons/contract-square.svg';
 }
 
 function contractIconTone(contract = {}) {
@@ -196,7 +196,7 @@ Page({
         const contract = contractView(item);
         return {
           ...contract,
-          icon_text: contractIconText(contract),
+          icon_src: contractIconSrc(contract),
           icon_tone: contractIconTone(contract),
           signing_badge_class: signingBadgeClass(contract),
           can_share_customer: canShareCustomer(contract),

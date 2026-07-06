@@ -1,5 +1,3 @@
-const api = require('../../utils/api');
-
 function staffUserFromSession() {
   return getApp().globalData.staffUser || wx.getStorageSync('miniapp_staff_user') || null;
 }
@@ -8,8 +6,8 @@ Page({
   data: {
     staffUser: null,
     icons: {
-      ayi: api.miniappIconUrl('ayi_search'),
-      contract: api.miniappIconUrl('contract_search')
+      ayi: '/assets/ui/icons/ayi_search.svg',
+      contract: '/assets/ui/icons/contract_search.svg'
     }
   },
 

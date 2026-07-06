@@ -4,7 +4,7 @@ import os
 import decimal
 from flask import current_app
 from sqlalchemy import func
-from backend.models import db, CustomerBill, FinancialAdjustment, AdjustmentType, CompanyBankAccount, PaymentRecord, EmployeePayroll, PayoutRecord
+from backend.models import db, CustomerBill, FinancialAdjustment, AdjustmentType, CompanyBankAccount, PaymentRecord, EmployeePayroll, PayoutRecord, ServicePersonnel
 
 # 使用 render_template_string 来渲染从文件读取的模板字符串
 from flask import render_template_string
@@ -85,6 +85,7 @@ class PaymentMessageGenerator:
         """为单个客户的多张账单生成公司和员工两部分的消息。"""
         company_fragments = []
         employee_fragments = []
+        employee_accounts = []
         grand_total_company = D('0.00')
         grand_total_employee = D('0.00')
 
@@ -99,6 +100,7 @@ class PaymentMessageGenerator:
             # 渲染员工部分
             if context['employee_line_items']:
                 employee_fragments.append(self._render_bill_fragment(context, 'employee'))
+                employee_accounts.append(context.get('employee_bank_account'))
                 grand_total_employee += context['employee_pending_amount']
 
         # 组装公司部分最终消息
@@ -113,7 +115,7 @@ class PaymentMessageGenerator:
         employee_summary = ""
         if employee_fragments:
             employee_summary = self._render_consolidated_wrapper(
-                customer_name, employee_fragments, grand_total_employee, None, 'employee'
+                customer_name, employee_fragments, grand_total_employee, None, 'employee', employee_accounts
             )
 
         return company_summary, employee_summary
@@ -237,17 +239,29 @@ class PaymentMessageGenerator:
             employee_total = payroll.total_due
         employee_pending = employee_total - employee_total_paid
 
-        # 7. 确定员工姓名
+        # 7. 确定员工姓名和工资卡信息
         employee_name = ""
+        employee_record = None
         if bill.is_substitute_bill and bill.source_substitute_record:
             sub_record = bill.source_substitute_record
-            employee_name = sub_record.substitute_user.username if sub_record.substitute_user else sub_record.substitute_personnel.name
+            if sub_record.substitute_user:
+                employee_name = sub_record.substitute_user.username
+            elif sub_record.substitute_personnel:
+                employee_record = sub_record.substitute_personnel
+                employee_name = employee_record.name
         elif bill.contract:
-            employee_name = bill.contract.service_personnel.name if bill.contract.service_personnel else "未知员工"
+            employee_record = bill.contract.service_personnel
+            employee_name = employee_record.name if employee_record else "未知员工"
+
+        if not employee_record and payroll:
+            employee_record = ServicePersonnel.query.get(payroll.employee_id)
+
+        employee_bank_account = self._build_employee_bank_account(employee_name, employee_record)
 
         return {
             "customer_name": bill.contract.customer_name,
             "employee_name": employee_name,
+            "employee_bank_account": employee_bank_account,
             "bill_date_range": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} ~ {bill.cycle_end_date.strftime('%Y-%m-%d')}",
             "company_line_items": company_line_items,
             "employee_line_items": employee_line_items,
@@ -257,6 +271,26 @@ class PaymentMessageGenerator:
             "total_paid": customer_total_paid,
             "employee_payouts": employee_payouts,
         }
+
+    def _build_employee_bank_account(self, employee_name: str, employee) -> dict:
+        """构建员工工资卡展示信息。"""
+        account = {
+            "employee_name": employee_name or "未知员工",
+            "holder_name": None,
+            "bank_name": None,
+            "account_number": None,
+            "is_complete": False,
+        }
+        if not employee:
+            return account
+
+        account["holder_name"] = getattr(employee, "salary_card_holder_name", None)
+        account["bank_name"] = getattr(employee, "salary_card_bank_name", None)
+        account["account_number"] = getattr(employee, "salary_card_number", None)
+        account["is_complete"] = bool(
+            account["holder_name"] and account["bank_name"] and account["account_number"]
+        )
+        return account
 
     def _get_adjustment_name(self, adj: FinancialAdjustment) -> str:
         """根据智能命名规则确定调整项的名称，并移除系统标记。"""
@@ -301,17 +335,34 @@ class PaymentMessageGenerator:
             
         return render_template_string(template_str, **render_context)
 
-    def _render_consolidated_wrapper(self, customer_name, fragments, total_due, account_info, part: str) -> str:
+    def _render_consolidated_wrapper(self, customer_name, fragments, total_due, account_info, part: str, employee_accounts=None) -> str:
         """渲染最终合并消息（公司或员工部分）。"""
         template_str = self._load_template(f'consolidated_wrapper_{part}.txt')
         
         # 对总金额进行四舍五入，保留到整数位
         rounded_total_due = total_due.quantize(D('1'), rounding=decimal.ROUND_HALF_UP)
 
+        unique_employee_accounts = []
+        seen_accounts = set()
+        for account in employee_accounts or []:
+            if not account:
+                continue
+            key = (
+                account.get("employee_name"),
+                account.get("holder_name"),
+                account.get("bank_name"),
+                account.get("account_number"),
+            )
+            if key in seen_accounts:
+                continue
+            seen_accounts.add(key)
+            unique_employee_accounts.append(account)
+
         context = {
             "customer_name": customer_name,
             "bill_fragments": fragments,
             "grand_total_amount": f"{rounded_total_due}",
-            "company_account": account_info
+            "company_account": account_info,
+            "employee_accounts": unique_employee_accounts,
         }
         return render_template_string(template_str, **context)

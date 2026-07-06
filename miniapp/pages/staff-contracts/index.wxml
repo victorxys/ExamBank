@@ -59,29 +59,37 @@
 
     <view class="stats-strip">
       <view class="stat-item {{statFilter === 'customer_pending' ? 'active' : ''}}" data-value="customer_pending" bindtap="selectStat">
-        <view class="soft-icon stat-icon">客</view>
+        <view class="soft-icon stat-icon">
+          <image class="stat-icon-img" src="/assets/ui/icons/customer-pending.svg" mode="aspectFit" />
+        </view>
         <view class="stat-main"><view class="stat-num">{{stats.customerPending}}</view><view class="stat-label">待客户签署</view></view>
       </view>
       <view class="stat-item {{statFilter === 'employee_pending' ? 'active' : ''}}" data-value="employee_pending" bindtap="selectStat">
-        <view class="soft-icon stat-icon orange">员</view>
+        <view class="soft-icon stat-icon orange">
+          <image class="stat-icon-img" src="/assets/ui/icons/employee-pending.svg" mode="aspectFit" />
+        </view>
         <view class="stat-main"><view class="stat-num">{{stats.employeePending}}</view><view class="stat-label">待员工签署</view></view>
       </view>
       <view class="stat-item {{statFilter === 'expiring' ? 'active' : ''}}" data-value="expiring" bindtap="selectStat">
-        <view class="soft-icon stat-icon purple">期</view>
+        <view class="soft-icon stat-icon purple">
+          <image class="stat-icon-img" src="/assets/ui/icons/expire-line.svg" mode="aspectFit" />
+        </view>
         <view class="stat-main"><view class="stat-num">{{stats.expiring}}</view><view class="stat-label">即将到期</view></view>
       </view>
     </view>
   </view>
 
   <view class="soft-section-head">
-    <view class="soft-section-title"><view class="section-icon"></view>合同列表</view>
+    <view class="soft-section-title"><image class="section-icon-img" src="/assets/ui/icons/staff-section-list.svg" mode="aspectFit" />合同列表</view>
     <view class="sort-label">创建时间<image class="sort-arrow-img" src="/assets/ui/icons/chevron-down.svg" mode="aspectFit" /></view>
   </view>
 
   <block wx:for="{{contracts}}" wx:key="id">
     <view class="contract-card soft-card">
       <view class="contract-top" bindtap="goDetail" data-id="{{item.id}}">
-        <view class="contract-icon soft-icon {{item.icon_tone}}">{{item.icon_text}}</view>
+        <view class="contract-icon soft-icon {{item.icon_tone}}">
+          <image class="contract-icon-img" src="{{item.icon_src}}" mode="aspectFit" />
+        </view>
         <view class="contract-meta">
           <view class="contract-title-row">
             <view class="contract-title">{{item.type_label || '服务合同'}}</view>

@@ -61,7 +61,7 @@ function assetUrl(path) {
 }
 
 function miniappIconUrl(key) {
-  return `${apiBaseUrl}/miniapp/icons/${encodeURIComponent(key)}.svg`;
+  return `/assets/ui/icons/${encodeURIComponent(key)}.svg`;
 }
 
 async function ensureOpenid(role = '') {
@@ -124,6 +124,16 @@ module.exports = {
   },
   employeeContractList(statusGroup = 'all') {
     return request({ url: `/miniapp/employee/contracts?status_group=${statusGroup}` });
+  },
+  customerPayrollCurrent(params = {}) {
+    const query = buildQuery(params);
+    return request({ url: `/miniapp/customer/payroll/current${query ? `?${query}` : ''}` });
+  },
+  customerContractPayrolls(contractId) {
+    return request({ url: `/miniapp/customer/contracts/${contractId}/payrolls` });
+  },
+  confirmCustomerPayroll(payrollId) {
+    return request({ url: `/miniapp/customer/payroll/${payrollId}/confirm`, method: 'POST' });
   },
   staffContractList(params = {}) {
     const query = buildQuery(params);

@@ -22,7 +22,7 @@
       </view>
       <view class="contract-foot">
         <text>{{item.signing_status_text}}</text>
-        <text>›</text>
+        <image class="inline-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
       </view>
     </view>
   </block>
@@ -39,7 +39,7 @@
       </view>
       <view class="contract-foot">
         <text>{{item.signing_status_text}}</text>
-        <text>›</text>
+        <image class="inline-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
       </view>
     </view>
   </block>
@@ -60,7 +60,7 @@
       </view>
       <view class="contract-foot">
         <text>{{item.signing_status_text}}</text>
-        <text>›</text>
+        <image class="inline-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
       </view>
     </view>
   </block>

@@ -85,10 +85,10 @@
   background: #14b8a6;
 }
 
-.tool-arrow {
-  color: #94a3b8;
-  font-size: 42rpx;
-  line-height: 72rpx;
+.tool-arrow-img {
+  width: 42rpx;
+  height: 72rpx;
+  flex: none;
 }
 
 .action-main {
@@ -221,11 +221,10 @@
   color: #0f766e;
 }
 
-.quick-entry-arrow {
-  flex-shrink: 0;
-  color: #0f766e;
-  font-size: 38rpx;
-  font-weight: 700;
+.quick-entry-arrow-img {
+  width: 38rpx;
+  height: 38rpx;
+  flex: none;
 }
 
 .contract-top {
@@ -250,4 +249,10 @@
   justify-content: space-between;
   font-size: 24rpx;
   color: #64748b;
+}
+
+.inline-arrow-img {
+  width: 36rpx;
+  height: 36rpx;
+  flex: none;
 }

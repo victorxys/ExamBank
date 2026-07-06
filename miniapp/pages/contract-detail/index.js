@@ -8,6 +8,26 @@ function evaluationText(evaluation) {
   return [tags, evaluation.comment].filter(Boolean).join(' · ') || '已提交评价';
 }
 
+function moneyText(value) {
+  const number = Number(value || 0);
+  if (Number.isNaN(number)) return value || '0.00';
+  return number.toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function payrollView(payroll = {}) {
+  return {
+    ...payroll,
+    amount_due_text: moneyText(payroll.amount_due),
+    period_text: `${payroll.year || ''}年${payroll.month || '-'}月`,
+    date_range: `${formatDate(payroll.cycle_start_date)} - ${formatDate(payroll.cycle_end_date)}`,
+    customer_status_class: payroll.customer_confirmed ? 'signed' : 'danger',
+    payout_status_text: payroll.status_text || '待支付'
+  };
+}
+
 function contractReadyForEvaluation(contract = {}) {
   return ['finished', 'completed', 'terminated', 'trial_succeeded'].includes(contract.status)
     && ['SIGNED', 'NOT_REQUIRED'].includes(contract.signing_status);
@@ -66,6 +86,7 @@ Page({
     attendanceForms: [],
     attendancePreviewForms: [],
     pendingAttendanceForms: [],
+    payrolls: [],
     evaluations: [],
     markdownNodes: [],
     canCustomerSign: false,
@@ -92,7 +113,10 @@ Page({
     loadedOnce: false,
     loadError: '',
     shareTitle: '服务合同',
-    sharePath: ''
+    sharePath: '',
+    icons: {
+      payroll: '/assets/ui/icons/payroll.svg'
+    }
   },
 
   onLoad(options) {
@@ -140,6 +164,7 @@ Page({
       const pendingAttendanceForms = attendanceForms.filter((item) => (
         item.status === 'employee_confirmed' && item.customer_signature_token
       ));
+      const payrolls = (contract.payrolls || []).map(payrollView);
       const evaluations = (contract.evaluations || []).map((item) => ({
         ...item,
         rating_text: `${item.rating || '-'} 星`,
@@ -163,6 +188,7 @@ Page({
         attendanceForms,
         attendancePreviewForms,
         pendingAttendanceForms,
+        payrolls,
         evaluations,
         canCustomerSign,
         canEmployeeSign,
@@ -262,6 +288,16 @@ Page({
   goAllAttendance() {
     if (!this.data.id) return;
     wx.navigateTo({ url: `/pages/contract-attendance/index?id=${this.data.id}&role=${this.data.role}` });
+  },
+
+  goPayrollDue() {
+    if (!this.data.id || this.data.role !== 'customer') return;
+    wx.navigateTo({ url: `/pages/payroll-due/index?contractId=${this.data.id}` });
+  },
+
+  goPayrollDetail(event) {
+    const payrollId = event.currentTarget.dataset.id;
+    if (payrollId) wx.navigateTo({ url: `/pages/payroll-due/index?payrollId=${payrollId}` });
   },
 
   goExitSummary() {

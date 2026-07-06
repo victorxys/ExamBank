@@ -1,9 +1,11 @@
 from datetime import date, datetime, timedelta
 import calendar
+from decimal import Decimal, InvalidOperation
 import os
 import re
 import time
 import uuid
+from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
@@ -20,6 +22,7 @@ from backend.models import (
     ContractSignature,
     Customer,
     CustomerWechatAccount,
+    EmployeePayroll,
     EmployeeWechatAccount,
     MiniappContractAccess,
     MiniappDebugAccess,
@@ -41,6 +44,7 @@ from backend.api.attendance_form_api import (
     is_continuous_service,
     ensure_confirmed_auto_overtime_for_response,
     ensure_attendance_form_onboarding_record,
+    remove_out_of_contract_onboarding_records,
     resolve_effective_attendance_window_for_contract,
     validate_required_onboarding_times,
 )
@@ -56,6 +60,7 @@ ACTIVE_CONTRACT_STATUSES = ("active", "pending", "trial_active")
 HISTORY_CONTRACT_STATUSES = ("finished", "completed", "terminated", "trial_succeeded")
 _HOLIDAY_CACHE = {}
 _HOLIDAY_CACHE_SECONDS = 24 * 60 * 60
+MINIAPP_ICON_DIR = Path(__file__).resolve().parents[2] / "miniapp" / "assets" / "ui" / "icons"
 FALLBACK_HOLIDAYS = {
     2025: {
         "01-01": {"holiday": True, "name": "元旦", "wage": 3},
@@ -107,6 +112,10 @@ MINIAPP_ICON_SVGS = {
     "evaluation": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.7 9l6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.9l6-.9L12 3.5Z"/><path d="M4 21h16"/></svg>""",
     "ayi_search": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"/><path d="M2 21a8 8 0 0 1 12.4-6.7"/><circle cx="18" cy="18" r="3"/><path d="m21 21-1.5-1.5"/></svg>""",
     "contract_search": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 22H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v6"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/></svg>""",
+    "payroll": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/><path d="M7 9h10"/><path d="M7 15h10"/></svg>""",
+    "payroll_work": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16"/><path d="M8 14h8"/></svg>""",
+    "payroll_overtime": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l4 2"/><path d="M19 12h2"/><path d="M12 3V1"/></svg>""",
+    "payroll_rest": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h11v5a5 5 0 0 1-5 5H9a4 4 0 0 1-4-4Z"/><path d="M16 9h2a3 3 0 0 1 0 6h-2"/><path d="M7 4v1"/><path d="M11 4v1"/><path d="M15 4v1"/></svg>""",
 }
 
 MYMS_AYI_SEARCH_PARAMS = {
@@ -128,7 +137,15 @@ MYMS_AYI_SEARCH_PARAMS = {
 
 @miniapp_bp.route("/icons/<string:icon_key>.svg", methods=["GET"])
 def miniapp_icon(icon_key):
-    svg = MINIAPP_ICON_SVGS.get(icon_key)
+    if not re.fullmatch(r"[a-z0-9_-]+", icon_key or ""):
+        return jsonify({"success": False, "error": "图标不存在"}), 404
+
+    icon_path = MINIAPP_ICON_DIR / f"{icon_key}.svg"
+    svg = None
+    if icon_path.is_file():
+        svg = icon_path.read_text(encoding="utf-8")
+    else:
+        svg = MINIAPP_ICON_SVGS.get(icon_key)
     if not svg:
         return jsonify({"success": False, "error": "图标不存在"}), 404
 
@@ -762,7 +779,7 @@ def _contract_summary(contract, include_customer_token=False, include_employee_t
     return data
 
 
-def _contract_detail(contract):
+def _contract_detail(contract, include_payrolls=False):
     data = _contract_summary(contract)
     customer_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type="customer").first()
     employee_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type="employee").first()
@@ -777,6 +794,7 @@ def _contract_detail(contract):
         .order_by(AttendanceForm.cycle_start_date.desc())
         .all()
     )
+    payrolls = _customer_payrolls_for_contracts([contract.id], contract_id=contract.id) if include_payrolls else []
     exit_summary = _latest_exit_summary(contract.id)
     data.update(
         {
@@ -789,6 +807,7 @@ def _contract_detail(contract):
             "evaluation_count": len(evaluations),
             "evaluations": [_evaluation_payload(evaluation) for evaluation in evaluations],
             "attendance_forms": [_attendance_summary(form) for form in attendance_forms],
+            "payrolls": [_payroll_payload(payroll) for payroll in payrolls],
             "has_exit_summary": bool(exit_summary),
             "exit_summary": _exit_summary_payload(exit_summary) if exit_summary else None,
         }
@@ -941,6 +960,193 @@ def _format_attendance_result_amount(days):
     return f"{value:.2f}".rstrip("0").rstrip(".")
 
 
+def _decimal_value(value, default="0"):
+    try:
+        if value is None or value == "":
+            return Decimal(default)
+        return Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return Decimal(default)
+
+
+def _format_decimal_string(value, places="0.01"):
+    amount = _decimal_value(value)
+    return str(amount.quantize(Decimal(places)))
+
+
+def _format_days_string(value):
+    amount = _decimal_value(value)
+    if abs(amount) < Decimal("0.001"):
+        return "0"
+    if amount == amount.to_integral_value():
+        return str(int(amount))
+    return f"{amount.quantize(Decimal('0.01'))}".rstrip("0").rstrip(".")
+
+
+def _payroll_status_text(payroll):
+    status = getattr(payroll, "payout_status", None)
+    value = status.value if hasattr(status, "value") else str(status or "")
+    labels = {
+        "unpaid": "待支付",
+        "partially_paid": "部分已付",
+        "paid": "已支付",
+    }
+    return labels.get(value, "待支付")
+
+
+def _payroll_customer_status_text(payroll):
+    return "已确认" if getattr(payroll, "customer_confirmed_at", None) else "待确认"
+
+
+def _find_payroll_attendance_form(payroll):
+    if not payroll:
+        return None
+    cycle_start = _date_part(payroll.cycle_start_date)
+    if not cycle_start:
+        return None
+    cycle_start_dt = _as_midnight(cycle_start)
+    next_cycle_start_dt = cycle_start_dt + timedelta(days=1)
+    return (
+        AttendanceForm.query.filter(
+            AttendanceForm.contract_id == payroll.contract_id,
+            AttendanceForm.cycle_start_date >= cycle_start_dt,
+            AttendanceForm.cycle_start_date < next_cycle_start_dt,
+        )
+        .order_by(AttendanceForm.created_at.desc())
+        .first()
+    )
+
+
+def _payroll_payload(payroll):
+    contract = payroll.contract if payroll else None
+    employee = contract.service_personnel if contract else None
+    details = payroll.calculation_details or {}
+    attendance_form = _find_payroll_attendance_form(payroll)
+    attendance_stats = _attendance_record_stats(attendance_form) if attendance_form else None
+
+    base_salary = _decimal_value(details.get("level") or (contract.employee_level if contract else 0))
+    salary_days = _decimal_value(details.get("salary_days") or 26)
+    work_days = _decimal_value(
+        (attendance_stats or {}).get("work_days")
+        if attendance_stats
+        else (details.get("base_work_days") or payroll.actual_work_days)
+    )
+    overtime_days = _decimal_value(
+        (attendance_stats or {}).get("overtime_days")
+        if attendance_stats
+        else details.get("overtime_days")
+    )
+    leave_days = _decimal_value((attendance_stats or {}).get("leave_days") if attendance_stats else 0)
+    calculated_amount = (base_salary / salary_days * (work_days + overtime_days)).quantize(Decimal("0.01")) if salary_days else Decimal("0")
+    payout_parts_available = any(
+        details.get(key) is not None
+        for key in (
+            "employee_base_payout",
+            "employee_overtime_payout",
+            "extension_fee",
+            "employee_increase",
+            "employee_decrease",
+            "employee_balance_transfer",
+        )
+    )
+    if payout_parts_available:
+        amount_due = (
+            _decimal_value(details.get("employee_base_payout"))
+            + _decimal_value(details.get("employee_overtime_payout"))
+            + _decimal_value(details.get("extension_fee"))
+            + _decimal_value(details.get("employee_increase"))
+            - _decimal_value(details.get("employee_decrease"))
+            - _decimal_value(details.get("employee_balance_transfer"))
+        ).quantize(Decimal("0.01"))
+    elif calculated_amount:
+        amount_due = calculated_amount
+    else:
+        amount_due = _decimal_value(details.get("final_payout_gross") or details.get("final_payout") or payroll.total_due)
+
+    holder_name = getattr(employee, "salary_card_holder_name", None) or getattr(employee, "name", "") or ""
+    return {
+        "id": str(payroll.id),
+        "contract_id": str(payroll.contract_id),
+        "year": payroll.year,
+        "month": payroll.month,
+        "title": f"{employee.name if employee else '服务人员'} {payroll.month}月工资单",
+        "status": getattr(payroll.payout_status, "value", str(payroll.payout_status or "")),
+        "status_text": _payroll_status_text(payroll),
+        "customer_confirmed": bool(getattr(payroll, "customer_confirmed_at", None)),
+        "customer_confirmed_at": _iso(getattr(payroll, "customer_confirmed_at", None)),
+        "customer_status_text": _payroll_customer_status_text(payroll),
+        "cycle_start_date": _iso(payroll.cycle_start_date),
+        "cycle_end_date": _iso(payroll.cycle_end_date),
+        "customer_name": contract.customer_name if contract else "",
+        "employee_name": employee.name if employee else "",
+        "amount_due": _format_decimal_string(amount_due),
+        "calculated_amount": _format_decimal_string(calculated_amount),
+        "base_salary": _format_decimal_string(base_salary),
+        "salary_days": _format_days_string(salary_days),
+        "work_days": _format_days_string(work_days),
+        "overtime_days": _format_days_string(overtime_days),
+        "leave_days": _format_days_string(leave_days),
+        "formula_text": "月劳务费 ÷ 计薪天数 ×（出勤 + 加班）",
+        "attendance_form_id": str(attendance_form.id) if attendance_form else None,
+        "attendance_signature_token": attendance_form.customer_signature_token if attendance_form else None,
+        "employee_bank": {
+            "holder_name": holder_name,
+            "bank_name": getattr(employee, "salary_card_bank_name", None) or "",
+            "account_number": getattr(employee, "salary_card_number", None) or "",
+        },
+    }
+
+
+def _latest_customer_payroll(contract_ids, contract_id=None, year=None, month=None, allow_fallback=True):
+    if not contract_ids:
+        return None
+    query = EmployeePayroll.query.options(
+        joinedload(EmployeePayroll.contract).joinedload(BaseContract.service_personnel),
+        joinedload(EmployeePayroll.contract).joinedload(BaseContract.customer),
+    ).filter(
+        EmployeePayroll.contract_id.in_(contract_ids),
+        EmployeePayroll.is_substitute_payroll.is_(False),
+    )
+    if contract_id:
+        query = query.filter(EmployeePayroll.contract_id == contract_id)
+    if year and month:
+        payroll = (
+            query.filter(EmployeePayroll.year == year, EmployeePayroll.month == month)
+            .order_by(EmployeePayroll.cycle_start_date.desc())
+            .first()
+        )
+        if payroll or not allow_fallback:
+            return payroll
+    return query.order_by(EmployeePayroll.cycle_start_date.desc()).first()
+
+
+def _customer_payroll_query(contract_ids, contract_id=None):
+    query = EmployeePayroll.query.options(
+        joinedload(EmployeePayroll.contract).joinedload(BaseContract.service_personnel),
+        joinedload(EmployeePayroll.contract).joinedload(BaseContract.customer),
+    ).filter(
+        EmployeePayroll.contract_id.in_(contract_ids),
+        EmployeePayroll.is_substitute_payroll.is_(False),
+    )
+    if contract_id:
+        query = query.filter(EmployeePayroll.contract_id == contract_id)
+    return query
+
+
+def _customer_payrolls_for_contracts(contract_ids, contract_id=None, only_unconfirmed=False):
+    if not contract_ids:
+        return []
+    query = _customer_payroll_query(contract_ids, contract_id=contract_id)
+    if only_unconfirmed:
+        query = query.filter(EmployeePayroll.customer_confirmed_at.is_(None))
+    return query.order_by(EmployeePayroll.cycle_start_date.desc()).all()
+
+
+def _payroll_ready_for_customer_confirmation(payroll):
+    form = _find_payroll_attendance_form(payroll)
+    return bool(form and form.status in ("customer_signed", "synced"))
+
+
 def _should_use_display_form_data_for_miniapp(payload):
     if not isinstance(payload, dict) or payload.get("display_form_data") is None:
         return False
@@ -1086,11 +1292,35 @@ def _attendance_record_stats(form):
     }
 
 
+def _contract_attendance_start(contract):
+    if not contract:
+        return None
+    actual_onboarding = getattr(contract, "actual_onboarding_date", None)
+    if actual_onboarding:
+        return _date_only(actual_onboarding)
+    return _date_only(contract.start_date)
+
+
+def _attendance_fill_window(form):
+    cycle_start = _date_only(form.cycle_start_date)
+    cycle_end = _date_only(form.cycle_end_date)
+    contract = form.contract
+    if not cycle_start or not cycle_end:
+        return cycle_start, cycle_end
+
+    start = _contract_attendance_start(contract) or cycle_start
+    end = get_attendance_contract_end_date(contract) or _date_only(contract.end_date) if contract else cycle_end
+    start = max(cycle_start, start)
+    end = min(cycle_end, end or cycle_end)
+    return start, end
+
+
 def _attendance_summary(form):
     contract = form.contract
     employee = contract.service_personnel if contract else None
     cycle_start = _date_only(form.cycle_start_date)
     cycle_end = _date_only(form.cycle_end_date)
+    attendance_start, attendance_end = _attendance_fill_window(form)
     payload = None
     normalized_payload = {}
     if cycle_start and cycle_end:
@@ -1117,6 +1347,8 @@ def _attendance_summary(form):
         "month": form.cycle_start_date.month if form.cycle_start_date else None,
         "cycle_start_date": _iso(form.cycle_start_date),
         "cycle_end_date": _iso(form.cycle_end_date),
+        "attendance_start_date": _iso(attendance_start),
+        "attendance_end_date": _iso(attendance_end),
         "form_data": form_data,
         "raw_form_data": normalized_payload.get("raw_form_data"),
         "display_form_data": normalized_payload.get("display_form_data"),
@@ -1774,6 +2006,11 @@ def customer_overview():
         and contract.service_personnel_id
         and _is_contract_ready_for_customer_evaluation(contract)
     ]
+    pending_payrolls = [
+        payroll
+        for payroll in _customer_payrolls_for_contracts(contract_ids, only_unconfirmed=True)
+        if _payroll_ready_for_customer_confirmation(payroll)
+    ]
 
     if account:
         account.last_login_at = _now()
@@ -1795,6 +2032,7 @@ def customer_overview():
                 "contracts": [_contract_summary(c, include_customer_token=True) for c in pending_contracts],
                 "attendance_forms": [_attendance_summary(f) for f in pending_attendance],
                 "evaluations": [_contract_summary(c) for c in pending_evaluations],
+                "payrolls": [_payroll_payload(payroll) for payroll in pending_payrolls],
             },
             "recent_contracts": [_contract_summary(c) for c in contracts[:1]],
             "active_contracts": [_contract_summary(c) for c in active_contracts],
@@ -1830,7 +2068,7 @@ def customer_contract_detail(contract_id):
     db.session.commit()
     if not contract:
         return jsonify({"success": False, "error": "合同不存在或无权访问"}), 404
-    data = _contract_detail(contract)
+    data = _contract_detail(contract, include_payrolls=True)
     data["customer_signing_token"] = contract.customer_signing_token
     return jsonify({"success": True, "contract": data})
 
@@ -1856,6 +2094,97 @@ def customer_attendance_forms():
     forms = query.order_by(AttendanceForm.cycle_start_date.desc()).all()
     db.session.commit()
     return jsonify({"success": True, "attendance_forms": [_attendance_summary(f) for f in forms]})
+
+
+@miniapp_bp.route("/customer/payroll/current", methods=["GET"])
+def customer_current_payroll():
+    openid = _get_openid_from_request()
+    if not openid:
+        return jsonify({"success": False, "error": "请先完成微信登录"}), 401
+
+    account = _get_account(openid)
+    contracts = _contracts_for_customer_openid(openid, account.customer_id if account else None)
+    contract_ids = [contract.id for contract in contracts]
+    if not contract_ids:
+        return jsonify({"success": True, "payroll": None})
+
+    payroll_id_param = request.args.get("payroll_id") or request.args.get("payrollId")
+    if payroll_id_param:
+        try:
+            payroll_id = uuid.UUID(str(payroll_id_param))
+        except ValueError:
+            return jsonify({"success": False, "error": "工资单ID格式不正确"}), 400
+        payroll = _customer_payroll_query(contract_ids).filter(EmployeePayroll.id == payroll_id).first()
+        if not payroll:
+            return jsonify({"success": False, "error": "工资单不存在或无权访问"}), 404
+        db.session.commit()
+        return jsonify({"success": True, "payroll": _payroll_payload(payroll)})
+
+    contract_id_param = request.args.get("contract_id") or request.args.get("contractId")
+    contract_id = None
+    if contract_id_param:
+        try:
+            contract_id = uuid.UUID(str(contract_id_param))
+        except ValueError:
+            return jsonify({"success": False, "error": "合同ID格式不正确"}), 400
+        if contract_id not in contract_ids:
+            return jsonify({"success": False, "error": "工资单不存在或无权访问"}), 404
+
+    today = date.today()
+    requested_year = request.args.get("year", type=int)
+    requested_month = request.args.get("month", type=int)
+    year = requested_year or today.year
+    month = requested_month or today.month
+    if month < 1 or month > 12:
+        return jsonify({"success": False, "error": "月份参数不正确"}), 400
+
+    payroll = _latest_customer_payroll(
+        contract_ids,
+        contract_id=contract_id,
+        year=year,
+        month=month,
+        allow_fallback=not (requested_year or requested_month),
+    )
+    db.session.commit()
+    return jsonify({"success": True, "payroll": _payroll_payload(payroll) if payroll else None})
+
+
+@miniapp_bp.route("/customer/contracts/<uuid:contract_id>/payrolls", methods=["GET"])
+def customer_contract_payrolls(contract_id):
+    openid = _get_openid_from_request()
+    if not openid:
+        return jsonify({"success": False, "error": "请先完成微信登录"}), 401
+
+    account = _get_account(openid)
+    contract = _contract_visible_to_customer_openid(contract_id, openid, account.customer_id if account else None)
+    if not contract:
+        return jsonify({"success": False, "error": "合同不存在或无权访问"}), 404
+
+    payrolls = _customer_payrolls_for_contracts([contract.id], contract_id=contract.id)
+    db.session.commit()
+    return jsonify({"success": True, "payrolls": [_payroll_payload(payroll) for payroll in payrolls]})
+
+
+@miniapp_bp.route("/customer/payroll/<uuid:payroll_id>/confirm", methods=["POST"])
+def customer_confirm_payroll(payroll_id):
+    openid = _get_openid_from_request()
+    if not openid:
+        return jsonify({"success": False, "error": "请先完成微信登录"}), 401
+
+    account = _get_account(openid)
+    contracts = _contracts_for_customer_openid(openid, account.customer_id if account else None)
+    contract_ids = [contract.id for contract in contracts]
+    payroll = _customer_payroll_query(contract_ids).filter(EmployeePayroll.id == payroll_id).first() if contract_ids else None
+    if not payroll:
+        return jsonify({"success": False, "error": "工资单不存在或无权访问"}), 404
+    if not _payroll_ready_for_customer_confirmation(payroll):
+        return jsonify({"success": False, "error": "考勤尚未完成签署，暂不能确认应付劳务费"}), 400
+
+    if not payroll.customer_confirmed_at:
+        payroll.customer_confirmed_at = _now()
+        payroll.customer_confirmed_openid = openid
+    db.session.commit()
+    return jsonify({"success": True, "payroll": _payroll_payload(payroll)})
 
 
 @miniapp_bp.route("/customer/contracts/<uuid:contract_id>/evaluation", methods=["GET", "POST"])
@@ -2058,7 +2387,7 @@ def staff_contract_detail(contract_id):
     if not contract:
         return jsonify({"success": False, "error": "合同不存在"}), 404
 
-    data = _contract_detail(contract)
+    data = _contract_detail(contract, include_payrolls=True)
     data["customer_signing_token"] = contract.customer_signing_token
     data["employee_signing_token"] = contract.employee_signing_token
     return jsonify({"success": True, "contract": data})
@@ -2247,6 +2576,9 @@ def employee_attendance_detail(form_id):
         cycle_end,
         form.contract,
     )
+    effective_end_for_form = get_attendance_contract_end_date(form.contract) or effective_end
+    if remove_out_of_contract_onboarding_records(form, form.contract, effective_start, effective_end_for_form):
+        db.session.commit()
     result = form_to_dict(form, effective_start, effective_end)
     return jsonify({"success": True, "attendance_form": _prepare_miniapp_attendance_payload(result)})
 
@@ -2324,8 +2656,16 @@ def employee_attendance_update(form_id):
         contract = BaseContract.query.get(form.contract_id)
         cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
         cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
-        _, effective_start, _ = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
-        if ensure_attendance_form_onboarding_record(form, contract, effective_start):
+        effective_start, effective_end = resolve_effective_attendance_window_for_contract(
+            form.employee_id,
+            cycle_start,
+            cycle_end,
+            contract,
+        )
+        effective_end_for_form = get_attendance_contract_end_date(contract) or effective_end
+        if remove_out_of_contract_onboarding_records(form, contract, effective_start, effective_end_for_form):
+            flag_modified(form, "form_data")
+        if ensure_attendance_form_onboarding_record(form, contract, effective_start, effective_end_for_form):
             flag_modified(form, "form_data")
 
         normalized_form_data, normalized = normalize_auto_overtime_form_data(
@@ -2357,6 +2697,9 @@ def employee_attendance_update(form_id):
                 current_form_data,
                 cycle_start,
                 cycle_end,
+                contract,
+                effective_start,
+                effective_end_for_form,
             )
         )
 
@@ -2382,7 +2725,12 @@ def employee_attendance_update(form_id):
     db.session.commit()
     cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
     cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
-    _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
+    effective_start, effective_end = resolve_effective_attendance_window_for_contract(
+        form.employee_id,
+        cycle_start,
+        cycle_end,
+        form.contract,
+    )
     result = form_to_dict(form, effective_start, effective_end)
     result["actual_year"] = cycle_start.year
     result["actual_month"] = cycle_start.month

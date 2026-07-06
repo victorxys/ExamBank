@@ -1,0 +1,134 @@
+<view class="payroll-page">
+  <block wx:if="{{payroll}}">
+    <view class="payroll-hero">
+      <image class="hero-bg" src="https://images.mengyimengsao.com/miniprogram/miniapp-hero.png" mode="aspectFill" />
+      <view class="hero-copy">
+        <view class="hero-title">{{payroll.title}}</view>
+        <view class="hero-date">
+          <image class="inline-calendar-img" src="/assets/ui/icons/calendar-white.svg" mode="aspectFit" />
+          <text>{{payroll.cycle_range_text}}</text>
+        </view>
+        <view class="hero-customer">客户：{{payroll.customer_name || '-'}}</view>
+      </view>
+      <view class="hero-status {{payroll.customer_confirmed ? 'confirmed' : ''}}">{{payroll.customer_status_text || '待确认'}}</view>
+    </view>
+
+    <view class="summary-card">
+      <view class="summary-label">本月应付劳务费</view>
+      <view class="amount-row">
+        <text class="currency">¥</text>
+        <text class="amount">{{payroll.amount_due_text}}</text>
+      </view>
+      <view class="auto-line">
+        <image class="check-dot-img" src="/assets/ui/icons/check-circle-line.svg" mode="aspectFit" />
+        <text>已根据签署考勤自动计算</text>
+      </view>
+      <view class="summary-divider"></view>
+      <view class="stats-row">
+        <view class="stat-item work">
+          <view class="stat-icon">
+            <image class="stat-icon-img" src="/assets/ui/icons/payroll_work.svg" mode="aspectFit" />
+          </view>
+          <view>
+            <view class="stat-value">{{payroll.work_days_text}}<text>天</text></view>
+            <view class="stat-label">出勤</view>
+          </view>
+        </view>
+        <view class="stat-sep"></view>
+        <view class="stat-item overtime">
+          <view class="stat-icon">
+            <image class="stat-icon-img" src="/assets/ui/icons/payroll_overtime.svg" mode="aspectFit" />
+          </view>
+          <view>
+            <view class="stat-value">{{payroll.overtime_days_text}}<text>天</text></view>
+            <view class="stat-label">加班</view>
+          </view>
+        </view>
+        <view class="stat-sep"></view>
+        <view class="stat-item leave">
+          <view class="stat-icon">
+            <image class="stat-icon-img" src="/assets/ui/icons/payroll_rest.svg" mode="aspectFit" />
+          </view>
+          <view>
+            <view class="stat-value">{{payroll.leave_days_text}}<text>天</text></view>
+            <view class="stat-label">休息</view>
+          </view>
+        </view>
+      </view>
+      <view class="attendance-link" bindtap="goAttendance">
+        <image class="attendance-link-icon-img" src="/assets/ui/icons/calendar-line.svg" mode="aspectFit" />
+        <text>查看考勤表</text>
+        <image class="attendance-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
+      </view>
+    </view>
+
+    <view class="calc-card">
+      <view class="card-title-row">
+        <view class="card-title">费用计算</view>
+        <image class="info-dot-img" src="/assets/ui/icons/info-circle.svg" mode="aspectFit" />
+      </view>
+      <view class="formula-box">
+        <view class="formula-grid">
+          <view class="formula-cell">
+            <view class="formula-label">月劳务费</view>
+            <view class="formula-value">{{payroll.base_salary_text}}</view>
+          </view>
+          <view class="operator">÷</view>
+          <view class="formula-cell">
+            <view class="formula-label">计薪天数</view>
+            <view class="formula-value">{{payroll.salary_days_text}}</view>
+          </view>
+          <view class="operator">×</view>
+          <view class="formula-cell wide">
+            <view class="formula-label">出勤天数　　加班天数</view>
+            <view class="formula-value">( {{payroll.work_days_text}} <text class="plus">+</text> {{payroll.overtime_days_text}} )</view>
+          </view>
+        </view>
+        <view class="formula-divider"></view>
+        <view class="result-row">
+          <view>计算结果</view>
+          <view class="result-amount">= ¥ {{payroll.calculated_amount_text}}</view>
+        </view>
+      </view>
+      <view class="formula-note">计算方式：{{payroll.formula_text}}</view>
+    </view>
+
+    <view class="bank-card">
+      <view class="card-title">收款信息</view>
+      <view class="bank-panel">
+        <view class="bank-row">
+          <view class="bank-icon person">
+            <image class="bank-icon-img" src="/assets/ui/icons/user-round.svg" mode="aspectFit" />
+          </view>
+          <view class="bank-label">员工姓名</view>
+          <view class="bank-value">{{payroll.employee_bank.holder_name || payroll.employee_name || '-'}}</view>
+          <view class="copy-btn" data-field="holder_name" bindtap="copyBankField">复制</view>
+        </view>
+        <view class="bank-row">
+          <view class="bank-icon bank-account-icon">
+            <image class="bank-icon-img bank-card-icon-img" src="/assets/ui/icons/payroll_bank_card.svg" mode="aspectFit" />
+          </view>
+          <view class="bank-label">银行账号</view>
+          <view class="bank-value account">{{payroll.employee_bank.account_number || '-'}}</view>
+          <view class="copy-btn" data-field="account_number" bindtap="copyBankField">复制</view>
+        </view>
+        <view wx:if="{{payroll.employee_bank.bank_name}}" class="bank-name">{{payroll.employee_bank.bank_name}}</view>
+      </view>
+      <view class="warn-line">
+        <image class="warn-icon-img" src="/assets/ui/icons/warning-circle-line.svg" mode="aspectFit" />
+        <text>付款前请核对姓名与银行卡号一致</text>
+      </view>
+    </view>
+  </block>
+
+  <view wx:elif="{{loaded}}" class="empty-state">
+    <view class="empty-title">{{loadError ? '无法查看工资单' : '暂无应付劳务费'}}</view>
+    <view class="empty-desc">{{loadError || '当前合同本月还没有生成工资单。考勤签署并结算后，会在这里显示应付金额和收款信息。'}}</view>
+  </view>
+
+  <view class="bottom-safe"></view>
+  <view wx:if="{{payroll}}" class="bottom-bar">
+    <view class="confirm-tip">{{payroll.customer_confirmed ? '您已确认本月应付劳务费' : '确认金额与收款信息无误后继续'}}</view>
+    <button class="confirm-btn {{payroll.customer_confirmed ? 'confirmed' : ''}}" bindtap="confirmPayroll">{{payroll.customer_confirmed ? '已确认应付劳务费' : '确认应付劳务费'}}</button>
+  </view>
+</view>
