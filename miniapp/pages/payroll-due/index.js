@@ -10,6 +10,15 @@ function moneyText(value) {
   });
 }
 
+function roundedMoneyWithCentsText(value) {
+  const number = Number(value || 0);
+  if (Number.isNaN(number)) return value || '0.00';
+  return Math.round(number).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
 function compactMoneyText(value) {
   const number = Number(value || 0);
   if (Number.isNaN(number)) return value || '0';
@@ -18,6 +27,12 @@ function compactMoneyText(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
+}
+
+function roundedMoneyText(value) {
+  const number = Number(value || 0);
+  if (Number.isNaN(number)) return value || '0';
+  return roundedMoneyWithCentsText(number);
 }
 
 function daysText(value) {
@@ -32,10 +47,14 @@ function buildView(payroll = {}) {
     ...(payroll.employee_bank || {}),
     holder_name: (payroll.employee_bank || {}).holder_name || payroll.employee_name || ''
   };
+  const estimated = Boolean(payroll.estimated);
   return {
     ...payroll,
-    amount_due_text: moneyText(payroll.amount_due),
+    estimated,
+    customer_status_text: estimated ? '预估金额' : payroll.customer_status_text,
+    amount_due_text: estimated ? roundedMoneyWithCentsText(payroll.amount_due) : moneyText(payroll.amount_due),
     calculated_amount_text: moneyText(payroll.calculated_amount || payroll.amount_due),
+    rounded_calculated_amount_text: roundedMoneyText(payroll.calculated_amount || payroll.amount_due),
     base_salary_text: compactMoneyText(payroll.base_salary),
     salary_days_text: payroll.salary_days || '26',
     work_days_text: payroll.work_days || '0',
@@ -45,6 +64,7 @@ function buildView(payroll = {}) {
     overtime_days_label: daysText(payroll.overtime_days),
     leave_days_label: daysText(payroll.leave_days),
     cycle_range_text: `${cycleStart} - ${cycleEnd}`,
+    attendance_link_text: payroll.attendance_signature_token ? '查看考勤表' : '暂无考勤表',
     employee_bank: employeeBank
   };
 }

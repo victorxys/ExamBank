@@ -48,9 +48,13 @@ Page({
     const customer = result.customer || null;
     const employee = result.employee || null;
     const staffUser = result.staff_user || null;
-    const defaultRole = result.default_role || (result.has_customer_access ? 'customer' : '');
+    const debugRole = result.debug_mode && result.debug_access ? result.debug_access.role : '';
+    const defaultRole = debugRole || result.default_role || (result.has_customer_access ? 'customer' : '');
     const role = result.requires_role_select ? '' : defaultRole;
-    getApp().setSession(openid, customer, employee, role, staffUser);
+    const sessionCustomer = debugRole && debugRole !== 'customer' ? null : customer;
+    const sessionEmployee = debugRole && debugRole !== 'employee' ? null : employee;
+    const sessionStaffUser = debugRole ? null : staffUser;
+    getApp().setSession(openid, sessionCustomer, sessionEmployee, role, sessionStaffUser);
 
     if (result.requires_role_select) {
       wx.showToast({ title: '请选择进入身份', icon: 'none' });
