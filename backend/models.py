@@ -3643,6 +3643,13 @@ class EmployeePayroll(db.Model):
         nullable=True,
         comment="确认应付劳务费的小程序openid",
     )
+    customer_share_token = db.Column(
+        db.String(36),
+        unique=True,
+        nullable=True,
+        index=True,
+        comment="客户查看并确认应付劳务费的小程序分享令牌",
+    )
 
     # --- V2.0 关系建立 ---
     payout_records = db.relationship('PayoutRecord', back_populates='employee_payroll', cascade='all, delete-orphan', lazy='dynamic')

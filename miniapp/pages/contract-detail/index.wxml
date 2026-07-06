@@ -184,9 +184,10 @@
   <view wx:if="{{role === 'customer'}}" class="card">
     <view class="section-title-row">
       <view class="section-title no-margin">劳务费记录</view>
+      <view wx:if="{{payrolls.length > 3 && !showAllPayrolls}}" class="text-entry-link" bindtap="showAllPayrolls">更多劳务费</view>
     </view>
     <view wx:if="{{payrolls.length === 0}}" class="empty-line">暂无已产生的劳务费</view>
-    <view wx:for="{{payrolls}}" wx:key="id" class="payroll-record-card" data-id="{{item.id}}" bindtap="goPayrollDetail">
+    <view wx:for="{{payrollPreviewItems}}" wx:key="id" class="payroll-record-card" data-id="{{item.id}}" bindtap="goPayrollDetail">
       <view class="payroll-record-main">
         <view class="payroll-record-title">{{item.period_text}}应付劳务费</view>
         <view class="payroll-record-desc">{{item.employee_name || '服务人员'}} · {{item.date_range}}</view>
@@ -196,6 +197,9 @@
         <view class="record-status {{item.customer_status_class}}">{{item.customer_status_text}}</view>
         <view class="payroll-payout-status">{{item.payout_status_text}}</view>
       </view>
+    </view>
+    <view wx:if="{{payrolls.length > 3 && !showAllPayrolls}}" class="more-payroll-footer" bindtap="showAllPayrolls">
+      查看全部 {{payrolls.length}} 条劳务费记录
     </view>
   </view>
 

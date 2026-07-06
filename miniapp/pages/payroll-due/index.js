@@ -53,6 +53,7 @@ Page({
   data: {
     payrollId: '',
     contractId: '',
+    shareToken: '',
     year: '',
     month: '',
     payroll: null,
@@ -64,6 +65,7 @@ Page({
     this.setData({
       payrollId: options.payrollId || options.payroll_id || '',
       contractId: options.contractId || options.contract_id || '',
+      shareToken: options.shareToken || options.share_token || '',
       year: options.year || '',
       month: options.month || ''
     });
@@ -77,9 +79,11 @@ Page({
   async loadPayroll() {
     wx.showLoading({ title: '加载中' });
     try {
+      await api.ensureOpenid();
       const result = await api.customerPayrollCurrent({
         payroll_id: this.data.payrollId,
         contract_id: this.data.contractId,
+        share_token: this.data.shareToken,
         year: this.data.year,
         month: this.data.month
       });
@@ -125,6 +129,10 @@ Page({
 
   confirmPayroll() {
     if (!this.data.payroll) return;
+    if (this.data.payroll.readonly) {
+      wx.showToast({ title: '运营查看模式，不能代客户确认', icon: 'none' });
+      return;
+    }
     if (this.data.payroll.customer_confirmed) {
       wx.showToast({ title: '已确认', icon: 'success' });
       return;
@@ -151,5 +159,17 @@ Page({
         }
       }
     });
+  },
+
+  onShareAppMessage() {
+    const payroll = this.data.payroll || {};
+    const shareToken = payroll.customer_share_token || this.data.shareToken;
+    const path = shareToken
+      ? `/pages/payroll-due/index?shareToken=${shareToken}`
+      : `/pages/payroll-due/index?payrollId=${payroll.id || this.data.payrollId}`;
+    return {
+      title: `${payroll.customer_name || '客户'}${payroll.year || ''}年${payroll.month || ''}月应付劳务费`,
+      path
+    };
   }
 });

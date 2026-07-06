@@ -998,6 +998,20 @@ def _payroll_customer_status_text(payroll):
     return "已确认" if getattr(payroll, "customer_confirmed_at", None) else "待确认"
 
 
+def _ensure_payroll_customer_share_token(payroll):
+    if not payroll:
+        return ""
+    if getattr(payroll, "customer_share_token", None):
+        return payroll.customer_share_token
+
+    while True:
+        token = str(uuid.uuid4())
+        exists = EmployeePayroll.query.filter_by(customer_share_token=token).first()
+        if not exists:
+            payroll.customer_share_token = token
+            return token
+
+
 def _find_payroll_attendance_form(payroll):
     if not payroll:
         return None
@@ -1064,6 +1078,7 @@ def _payroll_payload(payroll):
         amount_due = _decimal_value(details.get("final_payout_gross") or details.get("final_payout") or payroll.total_due)
 
     holder_name = getattr(employee, "salary_card_holder_name", None) or getattr(employee, "name", "") or ""
+    share_token = _ensure_payroll_customer_share_token(payroll)
     return {
         "id": str(payroll.id),
         "contract_id": str(payroll.contract_id),
@@ -1075,6 +1090,7 @@ def _payroll_payload(payroll):
         "customer_confirmed": bool(getattr(payroll, "customer_confirmed_at", None)),
         "customer_confirmed_at": _iso(getattr(payroll, "customer_confirmed_at", None)),
         "customer_status_text": _payroll_customer_status_text(payroll),
+        "customer_share_token": share_token,
         "cycle_start_date": _iso(payroll.cycle_start_date),
         "cycle_end_date": _iso(payroll.cycle_end_date),
         "customer_name": contract.customer_name if contract else "",
@@ -2126,6 +2142,32 @@ def customer_current_payroll():
     if not openid:
         return jsonify({"success": False, "error": "请先完成微信登录"}), 401
 
+    share_token = (request.args.get("share_token") or request.args.get("shareToken") or "").strip()
+    if share_token:
+        payroll = EmployeePayroll.query.options(
+            joinedload(EmployeePayroll.contract).joinedload(BaseContract.service_personnel),
+            joinedload(EmployeePayroll.contract).joinedload(BaseContract.customer),
+        ).filter(
+            EmployeePayroll.customer_share_token == share_token,
+            EmployeePayroll.is_substitute_payroll.is_(False),
+        ).first()
+        if not payroll:
+            return jsonify({"success": False, "error": "工资单链接无效或已失效"}), 404
+
+        staff_account = _get_staff_account(openid)
+        if not staff_account and payroll.contract:
+            _grant_contract_access(payroll.contract, openid, "payroll_share", source_token=share_token)
+            db.session.commit()
+        elif staff_account:
+            staff_account.last_login_at = _now()
+            db.session.commit()
+
+        payload = _payroll_payload(payroll)
+        payload["share_token"] = share_token
+        payload["readonly"] = bool(staff_account)
+        payload["viewer_role"] = "staff" if staff_account else "customer"
+        return jsonify({"success": True, "payroll": payload})
+
     account = _get_account(openid)
     contracts = _contracts_for_customer_openid(openid, account.customer_id if account else None)
     contract_ids = [contract.id for contract in contracts]
@@ -2194,6 +2236,8 @@ def customer_confirm_payroll(payroll_id):
     openid = _get_openid_from_request()
     if not openid:
         return jsonify({"success": False, "error": "请先完成微信登录"}), 401
+    if _get_staff_account(openid):
+        return jsonify({"success": False, "error": "后台人员只能查看客户工资单，请分享给客户本人确认"}), 403
 
     account = _get_account(openid)
     contracts = _contracts_for_customer_openid(openid, account.customer_id if account else None)

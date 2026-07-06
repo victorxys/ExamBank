@@ -3,7 +3,7 @@
 from flask import Blueprint, jsonify, current_app, request, send_from_directory, url_for
 from flask_jwt_extended import jwt_required
 from sqlalchemy import or_, case, and_, not_, func, distinct, cast, String
-from sqlalchemy.orm import with_polymorphic, attributes
+from sqlalchemy.orm import with_polymorphic, attributes, joinedload
 from flask_jwt_extended import get_jwt_identity
 from dateutil.parser import parse as date_parse
 import re
@@ -17,6 +17,9 @@ from collections import defaultdict
 from pypinyin import pinyin, Style, lazy_pinyin
 import os
 import uuid
+import time
+import urllib.parse
+import requests
 from werkzeug.utils import secure_filename
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
@@ -73,11 +76,100 @@ from backend.services.contract_operation_log_service import (
     diff_snapshots,
     snapshot_contract,
 )
+from backend.utils.miniapp_config import get_miniapp_credentials, miniapp_credential_status
 
 
 D = decimal.Decimal
 
 billing_bp = Blueprint("billing_api", __name__, url_prefix="/api/billing")
+_MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE = {
+    "appid": "",
+    "access_token": "",
+    "expires_at": 0,
+}
+
+
+def _ensure_payroll_customer_share_token(payroll):
+    if not payroll:
+        return ""
+    if getattr(payroll, "customer_share_token", None):
+        return payroll.customer_share_token
+    while True:
+        token = str(uuid.uuid4())
+        exists = EmployeePayroll.query.filter_by(customer_share_token=token).first()
+        if not exists:
+            payroll.customer_share_token = token
+            return token
+
+
+def _miniapp_payroll_access_token(config=None):
+    now = time.time()
+    appid, secret = get_miniapp_credentials((config or {}).get("appid"))
+    if (
+        _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["appid"] == appid
+        and _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["access_token"]
+        and _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["expires_at"] > now + 60
+    ):
+        return _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["access_token"]
+
+    if not appid or not secret:
+        missing = []
+        if not appid:
+            missing.append("WECHAT_MINIAPP_APPID")
+        if not secret:
+            missing.append("WECHAT_MINIAPP_SECRET")
+        raise RuntimeError(f"未配置 {'/'.join(missing)}")
+
+    response = requests.get(
+        "https://api.weixin.qq.com/cgi-bin/token",
+        params={
+            "grant_type": "client_credential",
+            "appid": appid,
+            "secret": secret,
+        },
+        timeout=(3, 8),
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("errcode"):
+        raise RuntimeError(payload.get("errmsg") or "获取小程序 access_token 失败")
+    access_token = payload.get("access_token")
+    if not access_token:
+        raise RuntimeError("微信未返回小程序 access_token")
+
+    _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["appid"] = appid
+    _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["access_token"] = access_token
+    _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["expires_at"] = now + int(payload.get("expires_in") or 7200)
+    return access_token
+
+
+def _generate_payroll_miniapp_url_link(share_token, config):
+    access_token = _miniapp_payroll_access_token(config)
+    path = "pages/payroll-due/index"
+    query = urllib.parse.urlencode({"shareToken": share_token, "source": "billing"})
+    expire_days = max(1, min(int((config or {}).get("expire_days") or 30), 30))
+    expire_time = int(time.time()) + expire_days * 24 * 60 * 60
+    payload = {
+        "path": path,
+        "query": query,
+        "is_expire": True,
+        "expire_type": 0,
+        "expire_time": expire_time,
+        "env_version": (config or {}).get("env_version") or "release",
+    }
+    response = requests.post(
+        f"https://api.weixin.qq.com/wxa/generate_urllink?access_token={access_token}",
+        json=payload,
+        timeout=(3, 8),
+    )
+    response.raise_for_status()
+    data = response.json()
+    if data.get("errcode"):
+        raise RuntimeError(data.get("errmsg") or "生成小程序链接失败")
+    url_link = data.get("url_link")
+    if not url_link:
+        raise RuntimeError("微信未返回小程序 URL Link")
+    return url_link, f"{path}?{query}"
 
 
 def _attendance_total_overtime_days(attendance_record):
@@ -4178,6 +4270,53 @@ def add_payout_record(payroll_id):
         db.session.rollback()
         current_app.logger.error(f"添加工资发放记录失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
+
+
+@billing_bp.route("/payrolls/<string:payroll_id>/miniapp-link", methods=["GET"])
+@admin_required
+def get_payroll_miniapp_link(payroll_id):
+    payroll = EmployeePayroll.query.options(
+        joinedload(EmployeePayroll.contract).joinedload(BaseContract.service_personnel),
+        joinedload(EmployeePayroll.contract).joinedload(BaseContract.customer),
+    ).filter(EmployeePayroll.id == payroll_id).first()
+    if not payroll:
+        return jsonify({"error": "工资单未找到"}), 404
+    if payroll.is_substitute_payroll:
+        return jsonify({"error": "替班工资单暂不支持生成客户小程序确认链接"}), 400
+
+    from backend.api.setting_api import get_or_create_miniapp_signing_config
+
+    config = get_or_create_miniapp_signing_config().value or {}
+    share_token = _ensure_payroll_customer_share_token(payroll)
+    miniapp_path = f"pages/payroll-due/index?{urllib.parse.urlencode({'shareToken': share_token, 'source': 'billing'})}"
+    result = {
+        "success": True,
+        "payroll_id": str(payroll.id),
+        "contract_id": str(payroll.contract_id),
+        "share_token": share_token,
+        "miniapp_path": miniapp_path,
+        "miniapp_url": "",
+        "miniapp_error": "",
+        "enabled": bool(config.get("enabled")),
+        "env_version": config.get("env_version") or "release",
+        "diagnostics": miniapp_credential_status(config.get("appid")),
+        "title": f"{payroll.contract.customer_name if payroll.contract else '客户'} {payroll.year}年{payroll.month}月应付劳务费",
+    }
+
+    try:
+        if not config.get("enabled"):
+            result["miniapp_error"] = "小程序 URL Link 未启用，请在小程序签署配置中开启。"
+        else:
+            miniapp_url, generated_path = _generate_payroll_miniapp_url_link(share_token, config)
+            result["miniapp_url"] = miniapp_url
+            result["miniapp_path"] = generated_path or miniapp_path
+    except Exception as exc:
+        current_app.logger.warning("生成工资单小程序 URL Link 失败 payroll_id=%s error=%s", payroll_id, exc)
+        result["miniapp_error"] = str(exc)
+
+    db.session.commit()
+    return jsonify(result)
+
 
 @billing_bp.route("/payments/<uuid:payment_id>", methods=["DELETE", "OPTIONS"])
 @admin_required
