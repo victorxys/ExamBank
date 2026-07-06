@@ -187,9 +187,9 @@
       <view wx:if="{{payrolls.length > 3 && !showAllPayrolls}}" class="text-entry-link" bindtap="showAllPayrolls">更多劳务费</view>
     </view>
     <view wx:if="{{payrolls.length === 0}}" class="empty-line">暂无已产生的劳务费</view>
-    <view wx:for="{{payrollPreviewItems}}" wx:key="id" class="payroll-record-card" data-id="{{item.id}}" bindtap="goPayrollDetail">
+    <view wx:for="{{payrollPreviewItems}}" wx:key="id" class="payroll-record-card" data-id="{{item.id}}" data-contract-id="{{item.contract_id}}" data-year="{{item.year}}" data-month="{{item.month}}" bindtap="goPayrollDetail">
       <view class="payroll-record-main">
-        <view class="payroll-record-title">{{item.period_text}}应付劳务费</view>
+        <view class="payroll-record-title">{{item.period_text}}{{item.title_suffix}}</view>
         <view class="payroll-record-desc">{{item.employee_name || '服务人员'}} · {{item.date_range}}</view>
       </view>
       <view class="payroll-record-side">

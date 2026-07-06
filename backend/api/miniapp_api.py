@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
+from dateutil.relativedelta import relativedelta
 from flask import Blueprint, Response, current_app, jsonify, request
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
@@ -36,6 +37,7 @@ from backend.models import (
     db,
 )
 from backend.api.attendance_form_api import (
+    _reconcile_signed_attendance_form_status,
     filter_contracts_for_cycle,
     find_consecutive_contracts,
     form_to_dict,
@@ -821,7 +823,7 @@ def _contract_detail(contract, include_payrolls=False):
         .order_by(AttendanceForm.cycle_start_date.desc())
         .all()
     )
-    payrolls = _customer_payrolls_for_contracts([contract.id], contract_id=contract.id) if include_payrolls else []
+    payrolls = _customer_payrolls_for_contract_detail(contract) if include_payrolls else []
     exit_summary = _latest_exit_summary(contract.id)
     data.update(
         {
@@ -834,7 +836,7 @@ def _contract_detail(contract, include_payrolls=False):
             "evaluation_count": len(evaluations),
             "evaluations": [_evaluation_payload(evaluation) for evaluation in evaluations],
             "attendance_forms": [_attendance_summary(form) for form in attendance_forms],
-            "payrolls": [_payroll_payload(payroll) for payroll in payrolls],
+            "payrolls": [_customer_payroll_display_payload(payroll) for payroll in payrolls],
             "has_exit_summary": bool(exit_summary),
             "exit_summary": _exit_summary_payload(exit_summary) if exit_summary else None,
         }
@@ -1039,30 +1041,137 @@ def _ensure_payroll_customer_share_token(payroll):
             return token
 
 
-def _find_payroll_attendance_form(payroll):
+def _same_service_contract(left, right):
+    if not left or not right:
+        return False
+    if str(left.id) == str(right.id):
+        return True
+    if left.family_id and right.family_id:
+        return left.family_id == right.family_id
+    left_customer_name = (left.customer_name or "").strip()
+    right_customer_name = (right.customer_name or "").strip()
+    if left_customer_name and right_customer_name:
+        return left_customer_name == right_customer_name
+    if left.customer_id and right.customer_id:
+        return str(left.customer_id) == str(right.customer_id)
+    return False
+
+
+def _attendance_forms_overlap(left, right):
+    left_start = _date_part(left.cycle_start_date)
+    left_end = _date_part(left.cycle_end_date)
+    right_start = _date_part(right.cycle_start_date)
+    right_end = _date_part(right.cycle_end_date)
+    if not left_start or not left_end or not right_start or not right_end:
+        return False
+    return left_start <= right_end and right_start <= left_end
+
+
+def _has_signed_related_attendance_form(form, candidate_forms):
+    if not form or not form.contract:
+        return False
+    for candidate in candidate_forms:
+        if str(candidate.id) == str(form.id):
+            continue
+        if str(candidate.employee_id) != str(form.employee_id):
+            continue
+        if candidate.status not in ("customer_signed", "synced"):
+            continue
+        if not _attendance_forms_overlap(form, candidate):
+            continue
+        if _same_service_contract(form.contract, candidate.contract):
+            return True
+    return False
+
+
+def _related_contract_ids_for_contract(contract):
+    if not contract or not contract.service_personnel_id:
+        return [contract.id] if contract else []
+
+    filters = []
+    if contract.family_id:
+        filters.append(BaseContract.family_id == contract.family_id)
+    if contract.customer_id:
+        filters.append(BaseContract.customer_id == contract.customer_id)
+    if contract.customer_name:
+        filters.append(BaseContract.customer_name == contract.customer_name)
+    if not filters:
+        return [contract.id]
+
+    contracts = BaseContract.query.filter(
+        BaseContract.service_personnel_id == contract.service_personnel_id,
+        or_(*filters),
+    ).all()
+    ids = {item.id for item in contracts if _same_service_contract(contract, item)}
+    ids.add(contract.id)
+    return list(ids)
+
+
+def _find_payroll_attendance_form(payroll, contract_id=None, year=None, month=None):
     if not payroll:
         return None
-    cycle_start = _date_part(payroll.cycle_start_date)
+    contract = payroll.contract or db.session.get(BaseContract, payroll.contract_id)
+    if contract_id:
+        scoped_contract = db.session.get(BaseContract, contract_id)
+        if scoped_contract and _same_service_contract(contract, scoped_contract):
+            contract = scoped_contract
+    if not contract or not contract.service_personnel_id:
+        return None
+    cycle_start = date(year, month, 1) if year and month else _date_part(payroll.cycle_start_date)
     if not cycle_start:
         return None
     cycle_start_dt = _as_midnight(cycle_start)
-    next_cycle_start_dt = cycle_start_dt + timedelta(days=1)
-    return (
-        AttendanceForm.query.filter(
-            AttendanceForm.contract_id == payroll.contract_id,
-            AttendanceForm.cycle_start_date >= cycle_start_dt,
+    next_cycle_start_dt = cycle_start_dt + relativedelta(months=1)
+    candidate_forms = (
+        AttendanceForm.query.options(joinedload(AttendanceForm.contract))
+        .filter(
+            AttendanceForm.employee_id == contract.service_personnel_id,
             AttendanceForm.cycle_start_date < next_cycle_start_dt,
+            AttendanceForm.cycle_end_date >= cycle_start_dt,
         )
-        .order_by(AttendanceForm.created_at.desc())
-        .first()
+        .order_by(
+            db.case((AttendanceForm.status.in_(("customer_signed", "synced")), 0), else_=1),
+            AttendanceForm.customer_signed_at.desc().nullslast(),
+            AttendanceForm.updated_at.desc().nullslast(),
+            AttendanceForm.created_at.desc().nullslast(),
+        )
+        .all()
     )
+    matching_forms = [form for form in candidate_forms if _same_service_contract(contract, form.contract)]
+    signed_forms = [form for form in matching_forms if form.status in ("customer_signed", "synced")]
+    exact_signed_form = next((form for form in signed_forms if str(form.contract_id) == str(contract.id)), None)
+    if exact_signed_form:
+        return exact_signed_form
+    covering_signed_form = next(
+        (
+            form for form in signed_forms
+            if _date_part(form.cycle_start_date) <= cycle_start <= _date_part(form.cycle_end_date)
+        ),
+        None,
+    )
+    if covering_signed_form:
+        return covering_signed_form
+    if signed_forms:
+        return signed_forms[0]
+
+    exact_form = next((form for form in matching_forms if str(form.contract_id) == str(contract.id)), None)
+    if exact_form:
+        return exact_form
+    covering_form = next(
+        (
+            form for form in matching_forms
+            if _date_part(form.cycle_start_date) <= cycle_start <= _date_part(form.cycle_end_date)
+        ),
+        None,
+    )
+    return covering_form or (matching_forms[0] if matching_forms else None)
 
 
-def _payroll_payload(payroll):
+def _payroll_payload(payroll, contract_id=None, year=None, month=None):
     contract = payroll.contract if payroll else None
     employee = contract.service_personnel if contract else None
     details = payroll.calculation_details or {}
-    attendance_form = _find_payroll_attendance_form(payroll)
+    attendance_form = _find_payroll_attendance_form(payroll, contract_id=contract_id, year=year, month=month)
     attendance_stats = _attendance_record_stats(attendance_form) if attendance_form else None
 
     base_salary = _decimal_value(details.get("level") or (contract.employee_level if contract else 0))
@@ -1132,6 +1241,9 @@ def _payroll_payload(payroll):
         "formula_text": "月劳务费 ÷ 计薪天数 ×（出勤 + 加班）",
         "attendance_form_id": str(attendance_form.id) if attendance_form else None,
         "attendance_signature_token": attendance_form.customer_signature_token if attendance_form else None,
+        "attendance_contract_id": str(attendance_form.contract_id) if attendance_form else None,
+        "attendance_year": attendance_form.cycle_start_date.year if attendance_form and attendance_form.cycle_start_date else None,
+        "attendance_month": attendance_form.cycle_start_date.month if attendance_form and attendance_form.cycle_start_date else None,
         "employee_bank": {
             "holder_name": holder_name,
             "bank_name": getattr(employee, "salary_card_bank_name", None) or "",
@@ -1198,6 +1310,29 @@ def _estimated_payroll_payload(contract, year, month):
     }
 
 
+def _customer_payroll_display_payload(payroll, contract_id=None, year=None, month=None):
+    display_year = year or payroll.year
+    display_month = month or payroll.month
+    if _payroll_ready_for_customer_confirmation(payroll, contract_id=contract_id, year=display_year, month=display_month):
+        return _payroll_payload(payroll, contract_id=contract_id, year=display_year, month=display_month)
+
+    estimate_contract = db.session.get(BaseContract, contract_id) if contract_id else payroll.contract
+    if estimate_contract and payroll.contract and not _same_service_contract(payroll.contract, estimate_contract):
+        estimate_contract = payroll.contract
+    payload = _estimated_payroll_payload(estimate_contract, display_year, display_month)
+    if not payload:
+        return _payroll_payload(payroll, contract_id=contract_id, year=display_year, month=display_month)
+
+    payload["id"] = str(payroll.id)
+    payload["customer_confirmed"] = bool(getattr(payroll, "customer_confirmed_at", None))
+    payload["customer_confirmed_at"] = _iso(getattr(payroll, "customer_confirmed_at", None))
+    payload["customer_status_text"] = _payroll_customer_status_text(payroll)
+    payload["customer_share_token"] = _ensure_payroll_customer_share_token(payroll)
+    payload["payout_status"] = getattr(payroll.payout_status, "value", str(payroll.payout_status or ""))
+    payload["payout_status_text"] = _payroll_status_text(payroll)
+    return payload
+
+
 def _latest_customer_payroll(contract_ids, contract_id=None, year=None, month=None, allow_fallback=True):
     if not contract_ids:
         return None
@@ -1234,17 +1369,51 @@ def _customer_payroll_query(contract_ids, contract_id=None):
     return query
 
 
+def _customer_payroll_contract_scope(contract_ids, contract_id=None):
+    if not contract_id:
+        return contract_ids
+    contract = db.session.get(BaseContract, contract_id)
+    if not contract:
+        return contract_ids
+    scope_ids = set(contract_ids or [])
+    related_ids = set(_related_contract_ids_for_contract(contract))
+    scoped_ids = scope_ids.intersection(related_ids) if scope_ids else related_ids
+    return list(scoped_ids or {contract_id})
+
+
 def _customer_payrolls_for_contracts(contract_ids, contract_id=None, only_unconfirmed=False):
     if not contract_ids:
         return []
-    query = _customer_payroll_query(contract_ids, contract_id=contract_id)
+    scoped_contract_ids = _customer_payroll_contract_scope(contract_ids, contract_id=contract_id)
+    query = _customer_payroll_query(scoped_contract_ids)
     if only_unconfirmed:
         query = query.filter(EmployeePayroll.customer_confirmed_at.is_(None))
     return query.order_by(EmployeePayroll.cycle_start_date.desc()).all()
 
 
-def _payroll_ready_for_customer_confirmation(payroll):
-    form = _find_payroll_attendance_form(payroll)
+def _customer_payrolls_for_contract_detail(contract):
+    if not contract:
+        return []
+    contract_ids = _related_contract_ids_for_contract(contract)
+    current_month_start = date.today().replace(day=1)
+    next_month_start = current_month_start + relativedelta(months=1)
+    return (
+        _customer_payroll_query(contract_ids)
+        .filter(EmployeePayroll.cycle_start_date < next_month_start)
+        .order_by(EmployeePayroll.cycle_start_date.desc())
+        .all()
+    )
+
+
+def _related_contract_ids_for_contracts(contracts):
+    ids = set()
+    for contract in contracts or []:
+        ids.update(_related_contract_ids_for_contract(contract))
+    return list(ids)
+
+
+def _payroll_ready_for_customer_confirmation(payroll, contract_id=None, year=None, month=None):
+    form = _find_payroll_attendance_form(payroll, contract_id=contract_id, year=year, month=month)
     return bool(form and form.status in ("customer_signed", "synced"))
 
 
@@ -1362,6 +1531,8 @@ def _attendance_preview(form, payload=None):
 
 def _attendance_record_stats(form):
     record = form.attendance_record
+    if not record:
+        record = AttendanceRecord.query.filter_by(attendance_form_id=form.id).first()
     if not record:
         record = AttendanceRecord.query.filter_by(
             contract_id=form.contract_id,
@@ -2104,17 +2275,25 @@ def customer_overview():
     ]
     pending_attendance = []
     if contract_ids:
-        pending_attendance = (
+        attendance_contract_ids = _related_contract_ids_for_contracts(contracts)
+        attendance_candidates = (
             AttendanceForm.query.options(joinedload(AttendanceForm.contract).joinedload(BaseContract.service_personnel))
             .filter(
-                AttendanceForm.contract_id.in_(contract_ids),
-                AttendanceForm.status == "employee_confirmed",
-                AttendanceForm.customer_signature_token.isnot(None),
+                AttendanceForm.contract_id.in_(attendance_contract_ids),
+                AttendanceForm.status.in_(("employee_confirmed", "customer_signed", "synced")),
             )
             .order_by(AttendanceForm.cycle_start_date.desc())
             .all()
         )
-        pending_attendance = [form for form in pending_attendance if _cycle_on_or_after_cutoff(form.cycle_start_date)]
+        pending_attendance = [
+            form for form in attendance_candidates
+            if not _reconcile_signed_attendance_form_status(form)
+            and form.status == "employee_confirmed"
+            and form.contract_id in contract_ids
+            and form.customer_signature_token
+            and _cycle_on_or_after_cutoff(form.cycle_start_date)
+            and not _has_signed_related_attendance_form(form, attendance_candidates)
+        ]
     evaluated_contract_ids = set()
     if openid and contract_ids:
         evaluated_contract_ids = {
@@ -2157,7 +2336,7 @@ def customer_overview():
                 "contracts": [_contract_summary(c, include_customer_token=True) for c in pending_contracts],
                 "attendance_forms": [_attendance_summary(f) for f in pending_attendance],
                 "evaluations": [_contract_summary(c) for c in pending_evaluations],
-                "payrolls": [_payroll_payload(payroll) for payroll in pending_payrolls],
+                "payrolls": [_customer_payroll_display_payload(payroll) for payroll in pending_payrolls],
             },
             "recent_contracts": [_contract_summary(c) for c in contracts[:1]],
             "active_contracts": [_contract_summary(c) for c in active_contracts],
@@ -2229,6 +2408,21 @@ def customer_current_payroll():
 
     share_token = (request.args.get("share_token") or request.args.get("shareToken") or "").strip()
     payroll_id_param = request.args.get("payroll_id") or request.args.get("payrollId")
+    context_contract_id = None
+    context_contract_id_param = request.args.get("contract_id") or request.args.get("contractId")
+    if context_contract_id_param:
+        try:
+            context_contract_id = uuid.UUID(str(context_contract_id_param))
+        except ValueError:
+            return jsonify({"success": False, "error": "合同ID格式不正确"}), 400
+    context_year = request.args.get("year", type=int)
+    context_month = request.args.get("month", type=int)
+    if context_month and (context_month < 1 or context_month > 12):
+        return jsonify({"success": False, "error": "月份参数不正确"}), 400
+    context_contract = db.session.get(BaseContract, context_contract_id) if context_contract_id else None
+    if context_contract_id and not context_contract:
+        return jsonify({"success": False, "error": "合同不存在或无权访问"}), 404
+
     if share_token:
         payroll = EmployeePayroll.query.options(
             joinedload(EmployeePayroll.contract).joinedload(BaseContract.service_personnel),
@@ -2261,13 +2455,15 @@ def customer_current_payroll():
             staff_account.last_login_at = _now()
             db.session.commit()
 
-        payload = (
-            _payroll_payload(payroll)
-            if _payroll_ready_for_customer_confirmation(payroll)
-            else _estimated_payroll_payload(payroll.contract, payroll.year, payroll.month)
+        if context_contract and payroll.contract and not _same_service_contract(payroll.contract, context_contract):
+            return jsonify({"success": False, "error": "工资单链接参数不匹配，请重新打开最新链接"}), 400
+
+        payload = _customer_payroll_display_payload(
+            payroll,
+            contract_id=context_contract_id,
+            year=context_year,
+            month=context_month,
         )
-        if not payload:
-            payload = _payroll_payload(payroll)
         payload["share_token"] = share_token
         payload["readonly"] = bool(staff_account)
         payload["viewer_role"] = "staff" if staff_account else "customer"
@@ -2289,16 +2485,19 @@ def customer_current_payroll():
         payroll = _customer_payroll_query(contract_ids).filter(EmployeePayroll.id == payroll_id).first()
         if not payroll:
             return jsonify({"success": False, "error": "工资单不存在或无权访问"}), 404
-        payload = (
-            _payroll_payload(payroll)
-            if _payroll_ready_for_customer_confirmation(payroll)
-            else _estimated_payroll_payload(payroll.contract, payroll.year, payroll.month)
+        context_contract_id_for_payroll = context_contract_id if context_contract_id in contract_ids else None
+        payload = _customer_payroll_display_payload(
+            payroll,
+            contract_id=context_contract_id_for_payroll,
+            year=context_year,
+            month=context_month,
         )
         db.session.commit()
         return jsonify({"success": True, "payroll": payload})
 
-    contract_id_param = request.args.get("contract_id") or request.args.get("contractId")
+    contract_id_param = context_contract_id_param
     contract_id = None
+    scoped_contract_ids = contract_ids
     if contract_id_param:
         try:
             contract_id = uuid.UUID(str(contract_id_param))
@@ -2306,6 +2505,7 @@ def customer_current_payroll():
             return jsonify({"success": False, "error": "合同ID格式不正确"}), 400
         if contract_id not in contract_ids:
             return jsonify({"success": False, "error": "工资单不存在或无权访问"}), 404
+        scoped_contract_ids = _customer_payroll_contract_scope(contract_ids, contract_id=contract_id)
 
     today = date.today()
     requested_year = request.args.get("year", type=int)
@@ -2316,20 +2516,17 @@ def customer_current_payroll():
         return jsonify({"success": False, "error": "月份参数不正确"}), 400
 
     payroll = _latest_customer_payroll(
-        contract_ids,
-        contract_id=contract_id,
+        scoped_contract_ids,
         year=year,
         month=month,
         allow_fallback=not (requested_year or requested_month),
     )
-    if payroll and _payroll_ready_for_customer_confirmation(payroll):
-        payload = _payroll_payload(payroll)
+    if payroll:
+        payload = _customer_payroll_display_payload(payroll)
     else:
         estimate_contract = None
-        candidate_contracts = [contract for contract in contracts if not contract_id or contract.id == contract_id]
+        candidate_contracts = [contract for contract in contracts if contract.id in scoped_contract_ids]
         candidate_contracts = [contract for contract in candidate_contracts if _is_active_contract(contract)]
-        if payroll and payroll.contract and (not contract_id or payroll.contract_id == contract_id):
-            candidate_contracts = [payroll.contract]
         if candidate_contracts:
             estimate_contract = sorted(candidate_contracts, key=lambda item: item.start_date or datetime.min, reverse=True)[0]
         payload = _estimated_payroll_payload(estimate_contract, year, month) if estimate_contract else None
@@ -2350,7 +2547,7 @@ def customer_contract_payrolls(contract_id):
 
     payrolls = _customer_payrolls_for_contracts([contract.id], contract_id=contract.id)
     db.session.commit()
-    return jsonify({"success": True, "payrolls": [_payroll_payload(payroll) for payroll in payrolls]})
+    return jsonify({"success": True, "payrolls": [_customer_payroll_display_payload(payroll) for payroll in payrolls]})
 
 
 @miniapp_bp.route("/customer/payroll/<uuid:payroll_id>/confirm", methods=["POST"])
