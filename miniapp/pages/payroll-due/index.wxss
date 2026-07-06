@@ -96,6 +96,11 @@ page {
   color: #047857;
 }
 
+.hero-status.estimated {
+  border-color: #fdba74;
+  color: #c2410c;
+}
+
 .readonly-tip {
   margin: 18rpx 0 0;
   padding: 18rpx 22rpx;
@@ -105,6 +110,11 @@ page {
   font-size: 24rpx;
   line-height: 36rpx;
   font-weight: 700;
+}
+
+.estimate-tip {
+  background: #fff7ed;
+  color: #b45309;
 }
 
 .share-payroll-btn {

@@ -308,6 +308,14 @@ def _date_part(value):
     return value.date() if isinstance(value, datetime) else value
 
 
+MINIAPP_TODO_CUTOFF_DATE = date(2026, 6, 1)
+
+
+def _cycle_on_or_after_cutoff(value):
+    cycle_date = _date_part(value)
+    return bool(cycle_date and cycle_date >= MINIAPP_TODO_CUTOFF_DATE)
+
+
 def _contract_effective_status(contract):
     raw_status = contract.status
     today = date.today()
@@ -465,34 +473,51 @@ def _get_account(openid=None):
     openid = _normalize_openid(openid) or _get_openid_from_request()
     if not openid:
         return None
+    debug_access = _get_active_debug_access(openid)
+    if debug_access:
+        if debug_access.role != "customer":
+            return None
+        customer = Customer.query.get(debug_access.target_id)
+        if not customer:
+            return None
+        return _DebugCustomerAccount(debug_access, customer)
+
     account = CustomerWechatAccount.query.filter_by(mini_openid=openid).first()
     if account:
         return account
-
-    debug_access = _get_active_debug_access(openid, "customer")
-    if not debug_access:
-        return None
-    customer = Customer.query.get(debug_access.target_id)
-    if not customer:
-        return None
-    return _DebugCustomerAccount(debug_access, customer)
+    return None
 
 
 def _get_employee_account(openid=None):
     openid = _normalize_openid(openid) or _get_openid_from_request()
     if not openid:
         return None
+    debug_access = _get_active_debug_access(openid)
+    if debug_access:
+        if debug_access.role != "employee":
+            return None
+        employee = ServicePersonnel.query.get(debug_access.target_id)
+        if not employee:
+            return None
+        return _DebugEmployeeAccount(debug_access, employee)
+
     account = EmployeeWechatAccount.query.filter_by(mini_openid=openid).first()
     if account:
         return account
+    return None
 
-    debug_access = _get_active_debug_access(openid, "employee")
+
+def _debug_access_payload(debug_access):
     if not debug_access:
         return None
-    employee = ServicePersonnel.query.get(debug_access.target_id)
-    if not employee:
-        return None
-    return _DebugEmployeeAccount(debug_access, employee)
+    return {
+        "id": str(debug_access.id),
+        "role": debug_access.role,
+        "target_type": debug_access.target_type,
+        "target_id": str(debug_access.target_id),
+        "expires_at": _iso(debug_access.expires_at),
+        "reason": debug_access.reason or "",
+    }
 
 
 def _is_staff_user(user):
@@ -516,6 +541,8 @@ def _staff_user_payload(user):
 def _get_staff_account(openid=None):
     openid = _normalize_openid(openid) or _get_openid_from_request()
     if not openid:
+        return None
+    if _get_active_debug_access(openid):
         return None
     account = UserWechatAccount.query.filter_by(mini_openid=openid).first()
     if account and _is_staff_user(account.user):
@@ -1113,6 +1140,64 @@ def _payroll_payload(payroll):
     }
 
 
+def _estimated_payroll_payload(contract, year, month):
+    if not contract or not contract.service_personnel_id:
+        return None
+
+    cycle_start = date(year, month, 1)
+    cycle_end = date(year, month, calendar.monthrange(year, month)[1])
+    contract_start = _date_part(contract.start_date)
+    contract_end = _date_part(contract.termination_date) or _date_part(contract.end_date)
+    effective_start = max(cycle_start, contract_start) if contract_start else cycle_start
+    effective_end = min(cycle_end, contract_end) if contract_end else cycle_end
+    if effective_end < effective_start:
+        return None
+
+    estimated_work_days = Decimal("26")
+    estimated_overtime_days = max(Decimal("0"), Decimal((effective_end - effective_start).days + 1) - estimated_work_days)
+    estimated_leave_days = Decimal("0")
+    base_salary = _decimal_value(contract.employee_level)
+    salary_days = Decimal("26")
+    calculated_amount = (base_salary / salary_days * (estimated_work_days + estimated_overtime_days)).quantize(Decimal("0.01")) if salary_days else Decimal("0")
+    employee = contract.service_personnel
+    holder_name = getattr(employee, "salary_card_holder_name", None) or getattr(employee, "name", "") or ""
+
+    return {
+        "id": "",
+        "contract_id": str(contract.id),
+        "year": year,
+        "month": month,
+        "title": f"{employee.name if employee else '服务人员'} {month}月预估工资单",
+        "status": "estimated",
+        "status_text": "预估",
+        "customer_confirmed": False,
+        "customer_confirmed_at": None,
+        "customer_status_text": "预估",
+        "customer_share_token": "",
+        "cycle_start_date": _iso(_as_midnight(cycle_start)),
+        "cycle_end_date": _iso(_as_midnight(cycle_end)),
+        "customer_name": contract.customer_name or "",
+        "employee_name": employee.name if employee else "",
+        "amount_due": _format_decimal_string(calculated_amount),
+        "calculated_amount": _format_decimal_string(calculated_amount),
+        "base_salary": _format_decimal_string(base_salary),
+        "salary_days": _format_days_string(salary_days),
+        "work_days": _format_days_string(estimated_work_days),
+        "overtime_days": _format_days_string(estimated_overtime_days),
+        "leave_days": _format_days_string(estimated_leave_days),
+        "formula_text": "预估方式：月劳务费 ÷ 计薪天数 ×（出勤 + 加班）",
+        "attendance_form_id": None,
+        "attendance_signature_token": None,
+        "estimated": True,
+        "estimate_note": "本月考勤尚未确认，当前金额为预估劳务费。",
+        "employee_bank": {
+            "holder_name": holder_name,
+            "bank_name": getattr(employee, "salary_card_bank_name", None) or "",
+            "account_number": getattr(employee, "salary_card_number", None) or "",
+        },
+    }
+
+
 def _latest_customer_payroll(contract_ids, contract_id=None, year=None, month=None, allow_fallback=True):
     if not contract_ids:
         return None
@@ -1431,6 +1516,9 @@ def _get_contract_accesses(openid=None):
     openid = _normalize_openid(openid) or _get_openid_from_request()
     if not openid:
         return []
+    debug_access = _get_active_debug_access(openid)
+    if debug_access and debug_access.role != "customer":
+        return []
     return MiniappContractAccess.query.filter_by(mini_openid=openid).all()
 
 
@@ -1729,10 +1817,11 @@ def miniapp_login():
             return jsonify({"success": False, "error": "缺少微信登录 code"}), 400
 
         openid = session.get("openid")
+        active_debug_access = _get_active_debug_access(openid)
         account = _get_account(openid)
         employee_account = _get_employee_account(openid)
         staff_account = _get_staff_account(openid)
-        contract_accesses = _get_contract_accesses(openid)
+        contract_accesses = [] if active_debug_access else _get_contract_accesses(openid)
         has_contract_access = bool(contract_accesses)
         roles = []
         if account or has_contract_access:
@@ -1764,28 +1853,22 @@ def miniapp_login():
         if account or employee_account or staff_account or contract_accesses:
             db.session.commit()
 
-        debug_accesses = [
-            getattr(item, "debug_access", None)
-            for item in (account, employee_account)
-            if getattr(item, "debug_access", None)
-        ]
+        debug_access = active_debug_access or next(
+            (
+                getattr(item, "debug_access", None)
+                for item in (account, employee_account)
+                if getattr(item, "debug_access", None)
+            ),
+            None,
+        )
 
         return jsonify(
             {
                 "success": True,
                 "openid": openid,
                 "unionid": session.get("unionid"),
-                "debug_mode": bool(debug_accesses),
-                "debug_access": {
-                    "id": str(debug_accesses[0].id),
-                    "role": debug_accesses[0].role,
-                    "target_type": debug_accesses[0].target_type,
-                    "target_id": str(debug_accesses[0].target_id),
-                    "expires_at": _iso(debug_accesses[0].expires_at),
-                    "reason": debug_accesses[0].reason or "",
-                }
-                if debug_accesses
-                else None,
+                "debug_mode": bool(debug_access),
+                "debug_access": _debug_access_payload(debug_access),
                 "bound": bool(account),
                 "employee_bound": bool(employee_account),
                 "staff_bound": bool(staff_account),
@@ -2031,6 +2114,7 @@ def customer_overview():
             .order_by(AttendanceForm.cycle_start_date.desc())
             .all()
         )
+        pending_attendance = [form for form in pending_attendance if _cycle_on_or_after_cutoff(form.cycle_start_date)]
     evaluated_contract_ids = set()
     if openid and contract_ids:
         evaluated_contract_ids = {
@@ -2049,7 +2133,8 @@ def customer_overview():
     pending_payrolls = [
         payroll
         for payroll in _customer_payrolls_for_contracts(contract_ids, only_unconfirmed=True)
-        if _payroll_ready_for_customer_confirmation(payroll)
+        if _cycle_on_or_after_cutoff(payroll.cycle_start_date)
+        and _payroll_ready_for_customer_confirmation(payroll)
     ]
 
     if account:
@@ -2176,7 +2261,13 @@ def customer_current_payroll():
             staff_account.last_login_at = _now()
             db.session.commit()
 
-        payload = _payroll_payload(payroll)
+        payload = (
+            _payroll_payload(payroll)
+            if _payroll_ready_for_customer_confirmation(payroll)
+            else _estimated_payroll_payload(payroll.contract, payroll.year, payroll.month)
+        )
+        if not payload:
+            payload = _payroll_payload(payroll)
         payload["share_token"] = share_token
         payload["readonly"] = bool(staff_account)
         payload["viewer_role"] = "staff" if staff_account else "customer"
@@ -2198,8 +2289,13 @@ def customer_current_payroll():
         payroll = _customer_payroll_query(contract_ids).filter(EmployeePayroll.id == payroll_id).first()
         if not payroll:
             return jsonify({"success": False, "error": "工资单不存在或无权访问"}), 404
+        payload = (
+            _payroll_payload(payroll)
+            if _payroll_ready_for_customer_confirmation(payroll)
+            else _estimated_payroll_payload(payroll.contract, payroll.year, payroll.month)
+        )
         db.session.commit()
-        return jsonify({"success": True, "payroll": _payroll_payload(payroll)})
+        return jsonify({"success": True, "payroll": payload})
 
     contract_id_param = request.args.get("contract_id") or request.args.get("contractId")
     contract_id = None
@@ -2226,8 +2322,19 @@ def customer_current_payroll():
         month=month,
         allow_fallback=not (requested_year or requested_month),
     )
+    if payroll and _payroll_ready_for_customer_confirmation(payroll):
+        payload = _payroll_payload(payroll)
+    else:
+        estimate_contract = None
+        candidate_contracts = [contract for contract in contracts if not contract_id or contract.id == contract_id]
+        candidate_contracts = [contract for contract in candidate_contracts if _is_active_contract(contract)]
+        if payroll and payroll.contract and (not contract_id or payroll.contract_id == contract_id):
+            candidate_contracts = [payroll.contract]
+        if candidate_contracts:
+            estimate_contract = sorted(candidate_contracts, key=lambda item: item.start_date or datetime.min, reverse=True)[0]
+        payload = _estimated_payroll_payload(estimate_contract, year, month) if estimate_contract else None
     db.session.commit()
-    return jsonify({"success": True, "payroll": _payroll_payload(payroll) if payroll else None})
+    return jsonify({"success": True, "payroll": payload})
 
 
 @miniapp_bp.route("/customer/contracts/<uuid:contract_id>/payrolls", methods=["GET"])
@@ -2520,7 +2627,12 @@ def employee_overview():
             "employee": _employee_payload(employee),
             "todos": {
                 "contracts": [_contract_summary(contract, include_employee_token=True) for contract in pending_contracts],
-                "attendance_forms": [_attendance_summary(form) for form in attendance_forms if form.status in ("draft", "employee_confirmed")],
+                "attendance_forms": [
+                    _attendance_summary(form)
+                    for form in attendance_forms
+                    if form.status in ("draft", "employee_confirmed")
+                    and _cycle_on_or_after_cutoff(form.cycle_start_date)
+                ],
             },
             "recent_contracts": [_contract_summary(contract) for contract in contracts[:1]],
             "active_contracts": [_contract_summary(contract) for contract in active_contracts],
