@@ -17,14 +17,27 @@ function moneyText(value) {
   });
 }
 
+function roundedMoneyWithCentsText(value) {
+  const number = Number(value || 0);
+  if (Number.isNaN(number)) return value || '0.00';
+  return Math.round(number).toLocaleString('zh-CN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
 function payrollView(payroll = {}) {
+  const estimated = Boolean(payroll.estimated);
   return {
     ...payroll,
-    amount_due_text: moneyText(payroll.amount_due),
+    amount_due_text: estimated ? roundedMoneyWithCentsText(payroll.amount_due) : moneyText(payroll.amount_due),
+    estimated,
     period_text: `${payroll.year || ''}年${payroll.month || '-'}月`,
+    title_suffix: estimated ? '预估劳务费' : '应付劳务费',
     date_range: `${formatDate(payroll.cycle_start_date)} - ${formatDate(payroll.cycle_end_date)}`,
-    customer_status_class: payroll.customer_confirmed ? 'signed' : 'danger',
-    payout_status_text: payroll.status_text || '待支付'
+    customer_status_class: payroll.customer_confirmed ? 'signed' : (estimated ? 'estimated' : 'danger'),
+    customer_status_text: estimated ? '预估金额' : payroll.customer_status_text,
+    payout_status_text: estimated ? '待确认考勤' : (payroll.status_text || '待支付')
   };
 }
 
@@ -297,12 +310,29 @@ Page({
 
   goPayrollDue() {
     if (!this.data.id || this.data.role !== 'customer') return;
-    wx.navigateTo({ url: `/pages/payroll-due/index?contractId=${this.data.id}` });
+    const latestPayroll = (this.data.payrolls || [])[0] || {};
+    if (latestPayroll.id) {
+      wx.navigateTo({ url: `/pages/payroll-due/index?payrollId=${latestPayroll.id}` });
+      return;
+    }
+    const now = new Date();
+    wx.navigateTo({
+      url: `/pages/payroll-due/index?contractId=${this.data.id}&year=${now.getFullYear()}&month=${now.getMonth() + 1}`
+    });
   },
 
   goPayrollDetail(event) {
     const payrollId = event.currentTarget.dataset.id;
-    if (payrollId) wx.navigateTo({ url: `/pages/payroll-due/index?payrollId=${payrollId}` });
+    if (payrollId) {
+      wx.navigateTo({ url: `/pages/payroll-due/index?payrollId=${payrollId}` });
+      return;
+    }
+    const contractId = event.currentTarget.dataset.contractId || this.data.id;
+    const year = event.currentTarget.dataset.year;
+    const month = event.currentTarget.dataset.month;
+    if (contractId && year && month) {
+      wx.navigateTo({ url: `/pages/payroll-due/index?contractId=${contractId}&year=${year}&month=${month}` });
+    }
   },
 
   showAllPayrolls() {

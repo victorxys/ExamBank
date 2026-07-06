@@ -125,12 +125,17 @@ Page({
   },
 
   goAttendance() {
-    const token = this.data.payroll && this.data.payroll.attendance_signature_token;
+    const payroll = this.data.payroll || {};
+    const token = payroll.attendance_signature_token;
     if (!token) {
       wx.showToast({ title: '暂无可查看的考勤表', icon: 'none' });
       return;
     }
-    wx.navigateTo({ url: `/pages/attendance-sign/index?token=${token}` });
+    const params = [`token=${encodeURIComponent(token)}`];
+    if (payroll.attendance_year) params.push(`year=${encodeURIComponent(payroll.attendance_year)}`);
+    if (payroll.attendance_month) params.push(`month=${encodeURIComponent(payroll.attendance_month)}`);
+    if (payroll.attendance_contract_id) params.push(`contractId=${encodeURIComponent(payroll.attendance_contract_id)}`);
+    wx.navigateTo({ url: `/pages/attendance-sign/index?${params.join('&')}` });
   },
 
   copyBankField(event) {

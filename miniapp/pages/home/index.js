@@ -236,7 +236,10 @@ Page({
       wx.navigateTo({ url: `/pages/payroll-due/index?payrollId=${payrollId}` });
       return;
     }
-    if (id) wx.navigateTo({ url: `/pages/payroll-due/index?contractId=${id}` });
+    if (id) {
+      const now = new Date();
+      wx.navigateTo({ url: `/pages/payroll-due/index?contractId=${id}&year=${now.getFullYear()}&month=${now.getMonth() + 1}` });
+    }
   },
 
   goEvaluation(event) {

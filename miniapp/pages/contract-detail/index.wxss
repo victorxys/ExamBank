@@ -667,6 +667,11 @@
   color: #047857;
 }
 
+.record-status.estimated {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
 .record-status.pending {
   background: #eef7f4;
   color: #0f9f8f;
