@@ -23,6 +23,30 @@ _MINIAPP_ACCESS_TOKEN_CACHE = {
 }
 
 
+def _attendance_form_for_cycle_query(employee_id, contract_id, cycle_start):
+    cycle_start_date = cycle_start.date() if isinstance(cycle_start, datetime) else cycle_start
+    cycle_start_dt = datetime.combine(cycle_start_date, datetime.min.time())
+    next_cycle_start_dt = cycle_start_dt + relativedelta(months=1)
+    return AttendanceForm.query.filter(
+        AttendanceForm.employee_id == employee_id,
+        AttendanceForm.contract_id == contract_id,
+        AttendanceForm.cycle_start_date >= cycle_start_dt,
+        AttendanceForm.cycle_start_date < next_cycle_start_dt,
+    )
+
+
+def _reconcile_signed_attendance_form_status(form):
+    if (
+        form
+        and form.status not in ("customer_signed", "synced")
+        and (form.customer_signed_at or form.signature_data)
+    ):
+        form.status = "customer_signed"
+        db.session.add(form)
+        return True
+    return False
+
+
 def _miniapp_access_token():
     now = time.time()
     appid, secret = get_miniapp_credentials()
@@ -895,6 +919,7 @@ def get_attendance_form_by_token(employee_token):
                 
                 # 如果没有年月参数，直接返回这个考勤表
                 if not year or not month:
+                    status_reconciled = _reconcile_signed_attendance_form_status(existing_form)
                     ensure_confirmed_auto_overtime_for_response(existing_form)
                     contract = existing_form.contract
                     cycle_start = existing_form.cycle_start_date
@@ -917,7 +942,8 @@ def get_attendance_form_by_token(employee_token):
                     if effective_end is None and result.get('contract_info'):
                         result['contract_info']['status'] = 'active'
                         result['contract_info']['is_monthly_auto_renew'] = True
-                        
+                    if status_reconciled:
+                        db.session.commit()
                     return jsonify(result)
         except ValueError:
             pass
@@ -1079,13 +1105,18 @@ def get_attendance_form_by_token(employee_token):
             return jsonify({"error": "未找到该员工的合同"}), 404
         
         # 5. 检查是否已经存在该员工该合同该周期的表单
-        existing_form = AttendanceForm.query.filter_by(
-            employee_id=employee.id,
-            contract_id=contract.id,
-            cycle_start_date=cycle_start
-        ).first()
+        existing_form = (
+            _attendance_form_for_cycle_query(employee.id, contract.id, cycle_start)
+            .order_by(
+                db.case((AttendanceForm.status.in_(("customer_signed", "synced")), 0), else_=1),
+                AttendanceForm.updated_at.desc().nullslast(),
+                AttendanceForm.created_at.desc().nullslast(),
+            )
+            .first()
+        )
         
         if existing_form:
+            status_reconciled = _reconcile_signed_attendance_form_status(existing_form)
             reconciled = reconcile_attendance_form_with_contract_end(existing_form)
             effective_end_for_form = get_attendance_contract_end_date(contract) or effective_end
             cleaned_onboarding = remove_out_of_contract_onboarding_records(
@@ -1171,7 +1202,7 @@ def get_attendance_form_by_token(employee_token):
                         current_app.logger.info(f"已存在的考勤表补充下户记录: {contract_end_date}")
             
             # 如果有更新，保存到数据库
-            if form_data_updated:
+            if form_data_updated or status_reconciled:
                 existing_form.form_data = form_data
                 flag_modified(existing_form, "form_data")
                 db.session.commit()
@@ -2023,7 +2054,12 @@ def get_monthly_attendance_list():
                 AttendanceForm.contract_id.in_(contract_ids),
                 AttendanceForm.cycle_start_date <= month_end,
                 AttendanceForm.cycle_end_date >= month_start
-            ).order_by(AttendanceForm.created_at.desc()).first()
+            ).order_by(
+                db.case((AttendanceForm.status.in_(("customer_signed", "synced")), 0), else_=1),
+                AttendanceForm.customer_signed_at.desc().nullslast(),
+                AttendanceForm.updated_at.desc().nullslast(),
+                AttendanceForm.created_at.desc().nullslast(),
+            ).first()
             
             # Determine status and tokens
             if not form:
@@ -2034,7 +2070,9 @@ def get_monthly_attendance_list():
                 # Use primary contract's employee ID as fallback token
                 employee_access_token = employee.id 
             else:
-                if form.customer_signed_at:
+                if _reconcile_signed_attendance_form_status(form):
+                    db.session.commit()
+                if form.status in ['customer_signed', 'synced'] or form.customer_signed_at:
                     form_status = "customer_signed"
                 elif form.status in ['confirmed', 'employee_confirmed']:
                     form_status = "confirmed"
@@ -2063,24 +2101,33 @@ def get_monthly_attendance_list():
                             break
             
             # Generate access link - use fixed employee URL without year/month parameters
-            access_link = f"{frontend_base_url}/attendance/{employee.id}"
+            item_contract = form.contract if form and form.contract else primary_contract
+            item_contract_id = str(item_contract.id)
+            access_link = (
+                f"{frontend_base_url}/attendance/{employee.id}"
+                f"?year={year}&month={month}&contractId={item_contract_id}"
+            )
             
             item = {
                 "employee_id": str(employee.id),
                 "employee_name": employee.name,
                 "employee_name_pinyin": employee.name_pinyin or "",
-                "customer_name": primary_contract.customer_name,
-                "customer_name_pinyin": primary_contract.customer_name_pinyin or "",
+                "customer_name": item_contract.customer_name,
+                "customer_name_pinyin": item_contract.customer_name_pinyin or "",
                 # Show merged date range
-                "contract_start_date": min_start_date.isoformat() if min_start_date else None,
-                "contract_end_date": max_end_date.isoformat() if max_end_date else None,
+                "contract_start_date": item_contract.start_date.isoformat() if item_contract.start_date else None,
+                "contract_end_date": (
+                    (item_contract.termination_date or item_contract.end_date).isoformat()
+                    if (item_contract.termination_date or item_contract.end_date)
+                    else None
+                ),
                 "form_status": form_status,
                 "has_data": has_data,  # 是否有实际考勤数据
                 "employee_access_token": str(employee_access_token),
                 "access_link": access_link,
                 "form_id": form_id,
                 "customer_signed_at": customer_signed_at,
-                "contract_id": str(primary_contract.id)
+                "contract_id": item_contract_id
             }
             
             result_items.append(item)
@@ -2485,11 +2532,15 @@ def get_employee_attendance_forms(employee_token):
             )
             
             # 查找该员工在该月份该合同的考勤表
-            existing_form = AttendanceForm.query.filter(
-                AttendanceForm.employee_id == employee_id,
-                AttendanceForm.cycle_start_date == cycle_start,
-                AttendanceForm.contract_id == primary_contract.id
-            ).first()
+            existing_form = (
+                _attendance_form_for_cycle_query(employee_id, primary_contract.id, cycle_start)
+                .order_by(
+                    db.case((AttendanceForm.status.in_(("customer_signed", "synced")), 0), else_=1),
+                    AttendanceForm.updated_at.desc().nullslast(),
+                    AttendanceForm.created_at.desc().nullslast(),
+                )
+                .first()
+            )
             
             if not existing_form:
                 # 创建新的考勤表 - access_token 使用纯员工ID（固定，不包含年月）
