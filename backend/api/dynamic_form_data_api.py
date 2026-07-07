@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, current_app
 from backend.extensions import db
 from backend.models import DynamicFormData, DynamicForm, ServicePersonnel, BaseContract
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.attributes import flag_modified
 from flask_jwt_extended import jwt_required, get_current_user
 import json
 import uuid
@@ -10,7 +11,10 @@ import re
 import os
 import time
 from io import BytesIO
+from urllib.parse import unquote, urlparse
 from backend.services.exam_service import _calculate_exam_score
+from PIL import Image, ImageOps
+import requests
 
 # R2 配置
 import boto3
@@ -37,6 +41,201 @@ def _get_r2_client():
         config=Config(signature_version='s3v4')
     )
     return client, R2_BUCKET_NAME
+
+
+def _public_domain():
+    return os.environ.get("PUBLIC_DOMAIN", "https://img.mengyimengsao.com").rstrip("/")
+
+
+def _strip_cdn_cgi_path(path):
+    """
+    Cloudflare image transform URLs insert /cdn-cgi/image/<params>/ before the
+    object key. Strip all transform prefixes so the R2 key can be read.
+    """
+    while path.startswith("/cdn-cgi/image/"):
+        parts = path.split("/", 4)
+        if len(parts) < 5:
+            break
+        path = "/" + parts[4]
+    return path
+
+
+def _normalize_image_url(url):
+    if not isinstance(url, str):
+        return url
+
+    try:
+        parsed = urlparse(url)
+        if parsed.netloc and "img.mengyimengsao.com" in parsed.netloc:
+            path = _strip_cdn_cgi_path(parsed.path)
+            return f"https://img.mengyimengsao.com{path}"
+    except Exception:
+        return url
+
+    return url
+
+
+def _r2_key_from_url(url):
+    if not isinstance(url, str) or not url:
+        return None
+
+    normalized = _normalize_image_url(url)
+    parsed = urlparse(normalized)
+    public_host = urlparse(_public_domain()).netloc
+
+    if parsed.netloc and parsed.netloc not in {public_host, "img.mengyimengsao.com"}:
+        return None
+
+    path = _strip_cdn_cgi_path(parsed.path)
+    key = unquote(path.lstrip("/"))
+    return key or None
+
+
+def _extract_image_url(value):
+    if isinstance(value, str):
+        return value
+
+    if isinstance(value, dict):
+        content = value.get("content")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, dict):
+            nested_content = content.get("content")
+            if isinstance(nested_content, str):
+                return nested_content
+
+        for key in ("url", "file_url"):
+            if isinstance(value.get(key), str):
+                return value[key]
+
+    return None
+
+
+def _replace_image_url(value, old_url, new_url, image_index=None):
+    old_normalized = _normalize_image_url(old_url)
+
+    def item_matches(item):
+        item_url = _extract_image_url(item)
+        return item_url and _normalize_image_url(item_url) == old_normalized
+
+    def replace_item(item):
+        if isinstance(item, str):
+            return new_url
+
+        if isinstance(item, dict):
+            updated = dict(item)
+            content = updated.get("content")
+            if isinstance(content, str):
+                updated["content"] = new_url
+                return updated
+            if isinstance(content, dict):
+                updated_content = dict(content)
+                updated_content["content"] = new_url
+                updated["content"] = updated_content
+                return updated
+            if isinstance(updated.get("url"), str):
+                updated["url"] = new_url
+                return updated
+            if isinstance(updated.get("file_url"), str):
+                updated["file_url"] = new_url
+                return updated
+
+        return new_url
+
+    if isinstance(value, list):
+        updated = list(value)
+        if isinstance(image_index, int) and 0 <= image_index < len(updated):
+            if item_matches(updated[image_index]):
+                updated[image_index] = replace_item(updated[image_index])
+                return updated, True
+
+        for index, item in enumerate(updated):
+            if item_matches(item):
+                updated[index] = replace_item(item)
+                return updated, True
+
+        return value, False
+
+    if isinstance(value, str) and "," in value:
+        parts = [part.strip() for part in value.split(",")]
+        if isinstance(image_index, int) and 0 <= image_index < len(parts):
+            if _normalize_image_url(parts[image_index]) == old_normalized:
+                parts[image_index] = new_url
+                return ",".join(parts), True
+
+        for index, part in enumerate(parts):
+            if _normalize_image_url(part) == old_normalized:
+                parts[index] = new_url
+                return ",".join(parts), True
+
+        return value, False
+
+    if item_matches(value):
+        return replace_item(value), True
+
+    return value, False
+
+
+def _read_image_bytes(s3, bucket_name, image_url):
+    key = _r2_key_from_url(image_url)
+    if key:
+        response = s3.get_object(Bucket=bucket_name, Key=key)
+        return response["Body"].read(), key
+
+    response = requests.get(_normalize_image_url(image_url), timeout=20)
+    response.raise_for_status()
+    return response.content, None
+
+
+def _rotated_key(original_key, data_id, field_name, image_format):
+    extension = (image_format or "jpeg").lower()
+    if extension == "jpeg":
+        extension = "jpg"
+
+    timestamp = int(time.time() * 1000)
+    if original_key:
+        base, _ = os.path.splitext(original_key)
+        return f"{base}_rotated_{timestamp}.{extension}"
+
+    safe_field_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", field_name)[:80] or "image"
+    return f"rotated-form-images/{data_id}/{safe_field_name}_{timestamp}.{extension}"
+
+
+def _rotate_image_and_upload(image_url, form_data_id, field_name, degrees):
+    s3, bucket_name = _get_r2_client()
+    if not s3:
+        raise RuntimeError("R2 client is not configured")
+
+    image_bytes, original_key = _read_image_bytes(s3, bucket_name, image_url)
+
+    with Image.open(BytesIO(image_bytes)) as image:
+        image_format = (image.format or "JPEG").upper()
+        image = ImageOps.exif_transpose(image)
+        if image_format == "JPG":
+            image_format = "JPEG"
+
+        rotated = image.rotate(-degrees, expand=True)
+        if image_format == "JPEG" and rotated.mode in ("RGBA", "LA", "P"):
+            rotated = rotated.convert("RGB")
+
+        output = BytesIO()
+        save_kwargs = {"format": image_format}
+        if image_format == "JPEG":
+            save_kwargs.update({"quality": 95, "optimize": True})
+        rotated.save(output, **save_kwargs)
+        output.seek(0)
+
+    content_type = "image/jpeg" if image_format == "JPEG" else f"image/{image_format.lower()}"
+    new_key = _rotated_key(original_key, form_data_id, field_name, image_format)
+
+    s3.put_object(
+        Bucket=bucket_name,
+        Key=new_key,
+        Body=output.getvalue(),
+        ContentType=content_type,
+    )
+
+    return f"{_public_domain()}/{new_key}"
 
 
 def _upload_signature_to_r2(base64_data, form_token, field_name, data_id):
@@ -475,6 +674,89 @@ def update_form_data(data_id):
         db.session.rollback()
         current_app.logger.error(f"Error updating form data: {e}", exc_info=True)
         return jsonify({'message': 'Error updating form data', 'error': str(e)}), 500
+
+
+@dynamic_form_data_bp.route('/<uuid:data_id>/rotate-image', methods=['POST'])
+@jwt_required()
+def rotate_form_data_image(data_id):
+    """
+    旋转动态表单中的单张图片并自动保存回表单数据。
+    """
+    current_user = get_current_user()
+    if not current_user:
+        return jsonify({'message': 'Unauthorized'}), 401
+
+    payload = request.get_json() or {}
+    field_name = payload.get('field_name')
+    image_url = payload.get('image_url')
+    image_index = payload.get('image_index')
+
+    try:
+        degrees = int(payload.get('degrees', 90)) % 360
+    except (TypeError, ValueError):
+        return jsonify({'message': 'degrees must be a number'}), 400
+
+    if degrees == 0:
+        return jsonify({'message': 'degrees must not be 0'}), 400
+
+    if not field_name or not isinstance(field_name, str):
+        return jsonify({'message': 'field_name is required'}), 400
+
+    if not image_url or not isinstance(image_url, str):
+        return jsonify({'message': 'image_url is required'}), 400
+
+    if image_index is not None:
+        try:
+            image_index = int(image_index)
+        except (TypeError, ValueError):
+            return jsonify({'message': 'image_index must be a number'}), 400
+
+    form_data = DynamicFormData.query.options(
+        joinedload(DynamicFormData.dynamic_form)
+    ).get(data_id)
+
+    if not form_data:
+        return jsonify({'message': 'Form data not found'}), 404
+
+    data = dict(form_data.data or {})
+    if field_name not in data:
+        return jsonify({'message': 'Field not found in form data'}), 404
+
+    try:
+        new_image_url = _rotate_image_and_upload(
+            image_url,
+            str(data_id),
+            field_name,
+            degrees,
+        )
+
+        updated_value, replaced = _replace_image_url(
+            data.get(field_name),
+            image_url,
+            new_image_url,
+            image_index,
+        )
+
+        if not replaced:
+            return jsonify({'message': 'Image not found in field data'}), 404
+
+        data[field_name] = updated_value
+        form_data.data = data
+        form_data.updated_at = db.func.now()
+        flag_modified(form_data, 'data')
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Image rotated successfully',
+            'image_url': new_image_url,
+            'data': data,
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error rotating form data image: {e}", exc_info=True)
+        return jsonify({'message': 'Error rotating image', 'error': str(e)}), 500
+
 
 @dynamic_form_data_bp.route('/<uuid:data_id>', methods=['DELETE'])
 @jwt_required()

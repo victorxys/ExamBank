@@ -1,8 +1,10 @@
 import pytest
 import json
 import uuid
+from io import BytesIO
 from backend.models import DynamicForm, DynamicFormData, ServicePersonnel, User
 from flask_jwt_extended import create_access_token
+from PIL import Image
 
 def test_get_form_data_with_association(client, db_session):
     """
@@ -275,3 +277,99 @@ def test_update_form_data_updates_service_personnel_and_links(client, db_session
     # Verify no new ServicePersonnel records were created
     all_personnel = db_session.query(ServicePersonnel).filter_by(phone_number=initial_personnel.phone_number).all()
     assert len(all_personnel) == 1
+
+
+def test_rotate_form_data_image_replaces_file_object_url(client, db_session, monkeypatch):
+    """
+    Tests POST /api/form-data/<uuid:data_id>/rotate-image for SurveyJS file object arrays.
+    """
+    test_user = db_session.query(User).filter_by(phone_number='15810903753').one()
+    assert test_user is not None
+
+    dynamic_form = DynamicForm(
+        name="Employee Photo Form",
+        form_token=f"employee_photo_form_{uuid.uuid4()}",
+        surveyjs_schema={
+            "pages": [{
+                "elements": [{
+                    "type": "file",
+                    "name": "field_4",
+                    "title": "身份证照片",
+                }]
+            }]
+        }
+    )
+    db_session.add(dynamic_form)
+    db_session.flush()
+
+    original_url = "https://img.mengyimengsao.com/uploads/test-id-card/front.jpg"
+    form_data = DynamicFormData(
+        form_id=dynamic_form.id,
+        user_id=test_user.id,
+        data={
+            "field_4": [
+                {"name": "front.jpg", "type": "image/jpeg", "content": original_url},
+                {"name": "back.jpg", "type": "image/jpeg", "content": "https://img.mengyimengsao.com/uploads/test-id-card/back.jpg"},
+            ]
+        },
+    )
+    db_session.add(form_data)
+    db_session.flush()
+
+    source_image = BytesIO()
+    Image.new("RGB", (8, 4), color="white").save(source_image, format="JPEG")
+    source_image_bytes = source_image.getvalue()
+
+    class FakeBody:
+        def read(self):
+            return source_image_bytes
+
+    class FakeS3:
+        def __init__(self):
+            self.put_calls = []
+
+        def get_object(self, Bucket, Key):
+            assert Bucket == "test-bucket"
+            assert Key == "uploads/test-id-card/front.jpg"
+            return {"Body": FakeBody()}
+
+        def put_object(self, **kwargs):
+            self.put_calls.append(kwargs)
+
+    fake_s3 = FakeS3()
+    monkeypatch.setattr(
+        "backend.api.dynamic_form_data_api._get_r2_client",
+        lambda: (fake_s3, "test-bucket")
+    )
+    monkeypatch.setattr(
+        "backend.api.dynamic_form_data_api._public_domain",
+        lambda: "https://img.mengyimengsao.com"
+    )
+
+    access_token = create_access_token(identity=str(test_user.id))
+    response = client.post(
+        f"/api/form-data/{form_data.id}/rotate-image",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({
+            "field_name": "field_4",
+            "image_url": original_url,
+            "image_index": 0,
+            "degrees": 90,
+        }),
+    )
+
+    assert response.status_code == 200
+    response_json = response.get_json()
+    assert response_json["image_url"].startswith("https://img.mengyimengsao.com/uploads/test-id-card/front_rotated_")
+    assert len(fake_s3.put_calls) == 1
+    assert fake_s3.put_calls[0]["ContentType"] == "image/jpeg"
+
+    db_session.refresh(form_data)
+    rotated_value = form_data.data["field_4"][0]
+    assert rotated_value["name"] == "front.jpg"
+    assert rotated_value["type"] == "image/jpeg"
+    assert rotated_value["content"] == response_json["image_url"]
+    assert form_data.data["field_4"][1]["content"] == "https://img.mengyimengsao.com/uploads/test-id-card/back.jpg"
