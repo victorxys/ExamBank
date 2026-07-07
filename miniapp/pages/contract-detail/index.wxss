@@ -1,18 +1,19 @@
 .contract-detail-page {
-  padding: 28rpx 24rpx 58rpx;
+  padding: 0 24rpx 58rpx;
 }
 
 .detail-hero {
   position: relative;
-  min-height: 190rpx;
-  padding: 30rpx;
-  border: 1rpx solid rgba(174, 226, 219, 0.85);
-  border-radius: 24rpx;
+  min-height: 300rpx;
+  margin: 0 -24rpx;
+  padding: 60rpx 48rpx 36rpx;
+  border: 0;
+  border-radius: 0;
   display: flex;
   align-items: center;
   gap: 26rpx;
   overflow: hidden;
-  box-shadow: 0 18rpx 44rpx rgba(43, 118, 109, 0.08);
+  box-shadow: none;
   box-sizing: border-box;
 }
 

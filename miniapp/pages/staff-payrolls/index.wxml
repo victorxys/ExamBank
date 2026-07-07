@@ -1,0 +1,126 @@
+<view class="design-page staff-payroll-page">
+  <image class="page-bg" src="https://images.mengyimengsao.com/miniprogram/page-bg.jpg" mode="aspectFill" />
+  <view class="page-content">
+    <view class="billing-hero">
+      <image class="billing-hero-img" src="https://images.mengyimengsao.com/miniprogram/hero-billing-new.jpg" mode="aspectFill" />
+      <view class="billing-hero-copy">
+        <view class="billing-hero-title">账单管理</view>
+        <view class="billing-hero-desc">查看账单明细，处理结算与分享客户账单。</view>
+        <view class="billing-hero-accent"></view>
+      </view>
+    </view>
+
+    <view class="filter-card soft-card">
+      <view class="search-line">
+        <view class="input-wrap">
+          <image class="search-symbol-img" src="/assets/ui/icons/search.svg" mode="aspectFit" />
+          <input
+            class="search-input"
+            value="{{keyword}}"
+            placeholder="搜索客户/员工"
+            confirm-type="search"
+            bindinput="onKeywordInput"
+            bindconfirm="onSearchConfirm"
+          />
+          <view wx:if="{{keyword}}" class="clear-btn" bindtap="clearKeyword">
+            <image class="clear-icon-img" src="/assets/ui/icons/clear.svg" mode="aspectFit" />
+          </view>
+        </view>
+        <button class="search-btn" bindtap="onSearchConfirm">搜索</button>
+      </view>
+
+      <view class="filter-grid">
+        <picker mode="selector" range="{{typeOptions}}" range-key="label" value="{{typeIndex}}" bindchange="onTypeChange">
+          <view class="select-field {{typeIndex > 0 ? 'active' : ''}}">
+            <text>{{typeOptions[typeIndex].label}}</text>
+            <image class="select-arrow" src="/assets/ui/icons/chevron-down.svg" mode="aspectFit" />
+          </view>
+        </picker>
+        <picker mode="selector" range="{{statusOptions}}" range-key="label" value="{{statusIndex}}" bindchange="onStatusChange">
+          <view class="select-field {{statusIndex > 0 ? 'active' : ''}}">
+            <text>{{statusOptions[statusIndex].label}}</text>
+            <image class="select-arrow" src="/assets/ui/icons/chevron-down.svg" mode="aspectFit" />
+          </view>
+        </picker>
+        
+        <picker mode="date" fields="month" value="{{billingMonth}}" bindchange="onMonthChange">
+          <view class="select-field month-field">
+            <view>
+              <view class="month-label">账单月份</view>
+              <view class="month-value">{{billingMonth}}</view>
+            </view>
+            <image class="calendar-icon" src="/assets/ui/icons/calendar-line.svg" mode="aspectFit" />
+          </view>
+        </picker>
+        <view class="select-field reset-field" bindtap="resetFilters">
+          <image class="reset-icon" src="/assets/ui/icons/reset.svg" mode="aspectFit" />
+          <text>重置筛选</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="soft-section-head payroll-section-head">
+      <view class="soft-section-title">
+        <image class="section-icon-img" src="/assets/ui/icons/salary-line.svg" mode="aspectFit" />
+        账单列表
+      </view>
+      <view class="soft-section-meta">{{total}} 条</view>
+    </view>
+
+    <block wx:for="{{payrolls}}" wx:key="id">
+      <view class="payroll-row soft-card" data-id="{{item.id}}" bindtap="goDetail">
+        <view class="row-top">
+          <view class="party-main">
+            <view class="customer-name">{{item.customer_name || '-'}}</view>
+            <view class="employee-line">服务人员：{{item.employee_name || '-'}}</view>
+          </view>
+          <view class="row-badges">
+            <view class="type-pill">{{item.type_label || '服务合同'}}</view>
+            <view class="status-pill {{item.status_badge_class}}">{{item.status_text || item.status || '-'}}</view>
+          </view>
+        </view>
+
+        <view class="date-grid">
+          <view class="info-block">
+            <view class="info-label">合同周期</view>
+            <view class="info-value">{{item.contract_range_text}}</view>
+          </view>
+          <view class="info-block">
+            <view class="info-label">劳务时间段</view>
+            <view class="info-value">{{item.service_range_text}}</view>
+          </view>
+          <view class="info-block">
+            <view class="info-label">月服务费/级别</view>
+            <view class="info-value level-value">{{item.employee_level_text}}</view>
+          </view>
+        </view>
+
+        <view class="amount-grid">
+          <view class="amount-item">
+            <view class="amount-label">客户应付</view>
+            <view class="amount-value customer-due">¥ {{item.customer_total_due_text}}</view>
+          </view>
+          <view class="amount-item">
+            <view class="amount-label">员工应收</view>
+            <view class="amount-value employee-due">¥ {{item.employee_total_due_text}}</view>
+          </view>
+          <view class="amount-item">
+            <view class="amount-label">盈余</view>
+            <view class="amount-value margin-text {{item.gross_margin_positive ? '' : 'negative'}}">¥ {{item.gross_margin_text}}</view>
+          </view>
+        </view>
+
+        
+        <image class="row-arrow" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
+      </view>
+    </block>
+
+    <view wx:if="{{loaded && payrolls.length === 0}}" class="empty soft-card">
+      <view class="empty-title">暂无匹配账单</view>
+      <view class="empty-desc">换一个月份、姓名或筛选条件试试。</view>
+    </view>
+
+    <view wx:if="{{loading && payrolls.length > 0}}" class="loading-more">加载中...</view>
+    <view wx:if="{{loaded && !hasMore && payrolls.length > 0}}" class="loading-more">共 {{total}} 条数据</view>
+  </view>
+</view>

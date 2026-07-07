@@ -37,6 +37,10 @@ Page({
     wx.navigateTo({ url: '/pages/staff-contracts/index' });
   },
 
+  goPayrolls() {
+    wx.navigateTo({ url: '/pages/staff-payrolls/index' });
+  },
+
   logoutFallback() {
     wx.showModal({
       title: '退出当前身份',

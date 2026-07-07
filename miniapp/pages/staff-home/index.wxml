@@ -32,6 +32,17 @@
         </view>
         <image class="entry-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
       </view>
+
+      <view class="entry-card soft-card" bindtap="goPayrolls">
+        <view class="entry-icon">
+          <image class="entry-icon-img" src="/assets/ui/icons/billing-entry.svg" mode="aspectFit" />
+        </view>
+        <view class="entry-main">
+          <view class="entry-title">账单管理</view>
+          <view class="entry-desc">查看账单明细与收支情况</view>
+        </view>
+        <image class="entry-arrow-img" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
+      </view>
     </view>
 
     <view class="fallback-logout" bindtap="logoutFallback">身份异常？退出并重新登录</view>

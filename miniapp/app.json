@@ -7,6 +7,7 @@
     "pages/employee-home/index",
     "pages/staff-home/index",
     "pages/staff-contracts/index",
+    "pages/staff-payrolls/index",
     "pages/contracts/index",
     "pages/contract-detail/index",
     "pages/payroll-due/index",

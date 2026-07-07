@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "账单管理",
+  "navigationBarBackgroundColor": "#ffffff",
+  "navigationBarTextStyle": "black",
+  "enablePullDownRefresh": true
+}
