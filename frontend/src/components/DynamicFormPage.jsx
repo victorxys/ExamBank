@@ -43,6 +43,7 @@ import {
     Home as HomeIcon,
     NavigateNext as NavigateNextIcon,
     Delete as DeleteIcon,
+    RotateRight as RotateRightIcon,
 } from '@mui/icons-material';
 import { formatAddress } from '../utils/formatUtils';
 import { createDateTimeRenderer, createSignaturePadFixer } from '../utils/surveyjs-custom-widgets.jsx';
@@ -204,6 +205,59 @@ const getLightboxUrl = (originalUrl) => {
 const getOriginalUrl = (originalUrl) => {
     // 确保返回的是干净的原始URL
     return extractOriginalUrl(originalUrl);
+};
+
+const replaceFileQuestionImageUrl = (value, imageIndex, oldUrl, newUrl) => {
+    const normalizedOldUrl = extractOriginalUrl(oldUrl);
+    const replaceItem = (item) => {
+        if (typeof item === 'string') {
+            return newUrl;
+        }
+        if (item && typeof item === 'object') {
+            if (typeof item.content === 'string') {
+                return { ...item, content: newUrl };
+            }
+            if (item.content && typeof item.content === 'object' && typeof item.content.content === 'string') {
+                return {
+                    ...item,
+                    content: {
+                        ...item.content,
+                        content: newUrl,
+                    },
+                };
+            }
+        }
+        return item;
+    };
+    const itemUrl = (item) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object') {
+            if (typeof item.content === 'string') return item.content;
+            if (item.content && typeof item.content === 'object') return item.content.content;
+        }
+        return '';
+    };
+    const matches = (item) => extractOriginalUrl(itemUrl(item)) === normalizedOldUrl;
+
+    if (Array.isArray(value)) {
+        const updated = [...value];
+        if (Number.isInteger(imageIndex) && imageIndex >= 0 && imageIndex < updated.length && matches(updated[imageIndex])) {
+            updated[imageIndex] = replaceItem(updated[imageIndex]);
+            return updated;
+        }
+
+        const matchIndex = updated.findIndex(matches);
+        if (matchIndex >= 0) {
+            updated[matchIndex] = replaceItem(updated[matchIndex]);
+        }
+        return updated;
+    }
+
+    if (matches(value)) {
+        return replaceItem(value);
+    }
+
+    return value;
 };
 
 // 兼容性别名
@@ -536,22 +590,30 @@ const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
 };
 
 // 三阶段图片轮播组件
-const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate }) => {
+const OptimizedFileCarousel = ({ questionValue, fieldName, onImageClick, onPreloadUpdate, onRotateImage }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [imageErrors, setImageErrors] = useState({});
     const [thumbnailsLoaded, setThumbnailsLoaded] = useState({}); // 第一阶段：缩略图加载状态
     const [lightboxPreloaded, setLightboxPreloaded] = useState({}); // 第二阶段：大图预加载状态
     const [allThumbnailsComplete, setAllThumbnailsComplete] = useState(false);
+    const [displayFiles, setDisplayFiles] = useState(() => Array.isArray(questionValue) ? questionValue : []);
+    const [rotatingPreview, setRotatingPreview] = useState(false);
 
     const updateDisplay = (index) => {
         setCurrentIndex(index);
     };
 
+    useEffect(() => {
+        const nextFiles = Array.isArray(questionValue) ? questionValue : [];
+        setDisplayFiles(nextFiles);
+        setCurrentIndex((prev) => Math.min(prev, Math.max(nextFiles.length - 1, 0)));
+    }, [questionValue]);
+
     // 简化的初始化 - 重置状态
     useEffect(() => {
-        if (!questionValue || questionValue.length === 0) return;
+        if (!displayFiles || displayFiles.length === 0) return;
 
-        // console.log(`🚀 初始化图片轮播组件: ${questionValue.length} 张图片`);
+        // console.log(`🚀 初始化图片轮播组件: ${displayFiles.length} 张图片`);
 
         // 重置状态
         setThumbnailsLoaded({});
@@ -559,7 +621,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
         setImageErrors({});
 
         // 打印图片URL用于调试
-        questionValue.forEach((imageFile, index) => {
+        displayFiles.forEach((imageFile, index) => {
             const originalUrl = imageFile?.content;
             // console.log(`🔍 原始图片 ${index + 1}:`, originalUrl);
 
@@ -575,16 +637,16 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
             const lightboxUrl = getLightboxUrl(originalUrl);
             // console.log(`🔍 大图URL ${index + 1}:`, lightboxUrl);
         });
-    }, [questionValue]);
+    }, [displayFiles]);
 
     // 第二阶段：缩略图全部加载完成后，将大图添加到全局预加载队列
     useEffect(() => {
-        if (!allThumbnailsComplete || !questionValue || questionValue.length === 0) return;
+        if (!allThumbnailsComplete || !displayFiles || displayFiles.length === 0) return;
 
-        // console.log(`🎉 缩略图加载完成，将 ${questionValue.length} 张大图添加到预加载队列...`);
+        // console.log(`🎉 缩略图加载完成，将 ${displayFiles.length} 张大图添加到预加载队列...`);
 
         // 将大图URL添加到全局队列
-        questionValue.forEach((file, i) => {
+        displayFiles.forEach((file, i) => {
             const originalUrl = file?.content;
             if (originalUrl) {
                 addToLightboxPreloadQueue(originalUrl);
@@ -598,11 +660,11 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
 
         // 标记为已预加载（实际预加载在全局队列中进行）
         const allPreloaded = {};
-        questionValue.forEach((_, index) => {
+        displayFiles.forEach((_, index) => {
             allPreloaded[index] = true;
         });
         setLightboxPreloaded(allPreloaded);
-    }, [allThumbnailsComplete, questionValue]);
+    }, [allThumbnailsComplete, displayFiles]);
 
     // 第三阶段：下载原图函数
     const downloadOriginalImage = async (imageUrl, index) => {
@@ -655,11 +717,51 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
         }
     };
 
-    if (!Array.isArray(questionValue) || questionValue.length === 0) {
+    const handleRotatePreviewImage = async (event) => {
+        event.stopPropagation();
+
+        if (!currentFile?.content || !onRotateImage) {
+            return;
+        }
+
+        try {
+            setRotatingPreview(true);
+            const newImageUrl = await onRotateImage({
+                fieldName,
+                imageIndex: currentIndex,
+                originalUrl: currentFile.content,
+            });
+
+            if (!newImageUrl) {
+                return;
+            }
+
+            setDisplayFiles((prev) => replaceFileQuestionImageUrl(
+                prev,
+                currentIndex,
+                currentFile.content,
+                newImageUrl,
+            ));
+            setImageErrors((prev) => {
+                const nextErrors = { ...prev };
+                delete nextErrors[currentIndex];
+                return nextErrors;
+            });
+            setThumbnailsLoaded((prev) => {
+                const nextLoaded = { ...prev };
+                delete nextLoaded[currentIndex];
+                return nextLoaded;
+            });
+        } finally {
+            setRotatingPreview(false);
+        }
+    };
+
+    if (!Array.isArray(displayFiles) || displayFiles.length === 0) {
         return null;
     }
 
-    const currentFile = questionValue[currentIndex];
+    const currentFile = displayFiles[currentIndex];
 
     return (
         <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, mt: 1 }}>
@@ -685,7 +787,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                 }}
                 onClick={() => {
                     if (onImageClick) {
-                        onImageClick(currentIndex, lightboxPreloaded);
+                        onImageClick(currentIndex, lightboxPreloaded, displayFiles);
                     }
                 }}
             >
@@ -735,7 +837,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                         justifyContent: 'center',
                     }}>
                         {/* 预加载所有图片，但只显示当前的 */}
-                        {questionValue.map((imageFile, index) => {
+                        {displayFiles.map((imageFile, index) => {
                             const originalUrl = imageFile?.content;
                             const thumbnailUrl = getThumbnailUrl(originalUrl);
 
@@ -780,8 +882,8 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                                             const newLoaded = { ...prev, [index]: true };
                                             const loadedCount = Object.keys(newLoaded).length;
 
-                                            if (loadedCount === questionValue.length) {
-                                                // console.log(`🎉 所有 ${questionValue.length} 张缩略图加载完成！`);
+                                            if (loadedCount === displayFiles.length) {
+                                                // console.log(`🎉 所有 ${displayFiles.length} 张缩略图加载完成！`);
                                                 // console.log(`📊 统一缓存大小: ${unifiedImageCache.size}`);
                                                 // console.log(`📊 缓存Keys:`, Array.from(unifiedImageCache.keys()));
                                                 setAllThumbnailsComplete(true);
@@ -825,26 +927,55 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                         }
                     }}
                 >
-                    {/* 下载按钮 */}
-                    <IconButton
-                        size="small"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (currentFile?.content) {
-                                downloadOriginalImage(currentFile.content, currentIndex);
-                            }
-                        }}
+                    <Box
                         sx={{
-                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                            color: 'white',
+                            display: 'flex',
+                            gap: 0.75,
                             pointerEvents: 'auto',
-                            '&:hover': {
-                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            }
                         }}
                     >
-                        <DownloadIcon sx={{ fontSize: '16px' }} />
-                    </IconButton>
+                        {/* 下载按钮 */}
+                        <IconButton
+                            size="small"
+                            title="下载原图"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (currentFile?.content) {
+                                    downloadOriginalImage(currentFile.content, currentIndex);
+                                }
+                            }}
+                            sx={{
+                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                color: 'white',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                }
+                            }}
+                        >
+                            <DownloadIcon sx={{ fontSize: '16px' }} />
+                        </IconButton>
+
+                        {/* 旋转保存按钮 */}
+                        <IconButton
+                            size="small"
+                            title="顺时针旋转90度并保存"
+                            disabled={rotatingPreview}
+                            onClick={handleRotatePreviewImage}
+                            sx={{
+                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                color: 'white',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                },
+                                '&.Mui-disabled': {
+                                    color: 'rgba(255,255,255,0.65)',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+                                },
+                            }}
+                        >
+                            {rotatingPreview ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <RotateRightIcon sx={{ fontSize: '16px' }} />}
+                        </IconButton>
+                    </Box>
 
                     {/* 点击提示 */}
                     <Box
@@ -877,7 +1008,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                 >
                     {/* 左箭头 */}
                     <Box sx={{ position: 'absolute', left: 0 }}>
-                        {questionValue.length > 1 && (
+                        {displayFiles.length > 1 && (
                             <IconButton
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -922,8 +1053,8 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                                 fontSize: '14px'
                             }}
                         >
-                            {questionValue.length > 1
-                                ? `${currentIndex + 1} / ${questionValue.length}`
+                            {displayFiles.length > 1
+                                ? `${currentIndex + 1} / ${displayFiles.length}`
                                 : '1 张图片'
                             }
                         </Typography>
@@ -931,13 +1062,13 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
 
                     {/* 右箭头 */}
                     <Box sx={{ position: 'absolute', right: 0 }}>
-                        {questionValue.length > 1 && (
+                        {displayFiles.length > 1 && (
                             <IconButton
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (currentIndex < questionValue.length - 1) updateDisplay(currentIndex + 1);
+                                    if (currentIndex < displayFiles.length - 1) updateDisplay(currentIndex + 1);
                                 }}
-                                disabled={currentIndex === questionValue.length - 1}
+                                disabled={currentIndex === displayFiles.length - 1}
                                 size="small"
                                 sx={{
                                     backgroundColor: '#f3f4f6',
@@ -956,11 +1087,11 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                 </Box>
 
                 {/* 简化的加载进度指示器 */}
-                {Object.keys(thumbnailsLoaded).length < questionValue.length && (
+                {Object.keys(thumbnailsLoaded).length < displayFiles.length && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <CircularProgress size={16} />
                         <Typography variant="caption" color="text.secondary">
-                            图片加载中 {Object.keys(thumbnailsLoaded).length}/{questionValue.length}
+                            图片加载中 {Object.keys(thumbnailsLoaded).length}/{displayFiles.length}
                         </Typography>
                     </Box>
                 )}
@@ -1113,6 +1244,7 @@ const DynamicFormPage = () => {
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxImages, setLightboxImages] = useState([]);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [rotatingImage, setRotatingImage] = useState(false);
 
     // Delete dialog state
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -1417,7 +1549,12 @@ const DynamicFormPage = () => {
                                             img.alt = `图片${imgIndex + 1}`;
                                             img.style.cssText = 'width: 50px; height: 50px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #e5e7eb;';
                                             img.onclick = () => {
-                                                const allImages = imageUrls.map(u => ({ lightboxUrl: getLightboxUrl(u), originalUrl: u }));
+                                                const allImages = imageUrls.map((u, idx) => ({
+                                                    lightboxUrl: getLightboxUrl(u),
+                                                    originalUrl: u,
+                                                    fieldName: null,
+                                                    imageIndex: idx,
+                                                }));
                                                 setLightboxImages(allImages);
                                                 setCurrentImageIndex(imgIndex);
                                                 setLightboxOpen(true);
@@ -2147,6 +2284,7 @@ const DynamicFormPage = () => {
                                     root.render(
                                         <OptimizedFileCarousel
                                             questionValue={questionValue}
+                                            fieldName={questionName}
                                             onPreloadUpdate={(loaded, total) => {
                                                 setGlobalPreloadStatus(prev => ({
                                                     ...prev,
@@ -2154,12 +2292,13 @@ const DynamicFormPage = () => {
                                                     totalImages: Math.max(prev.totalImages, total)
                                                 }));
                                             }}
-                                            onImageClick={(index, lightboxPreloadedStatus) => {
+                                            onRotateImage={rotateAndSaveFormImage}
+                                            onImageClick={(index, lightboxPreloadedStatus, currentFiles = questionValue) => {
                                                 // console.log(`📸 打开 Lightbox: 图片 ${index + 1}`);
                                                 // console.log(`📊 lightboxCache 大小: ${lightboxCache.size}`);
 
                                                 // 生成所有图片的大图URL（优先使用缓存的URL）
-                                                const lightboxData = questionValue.map((file, idx) => {
+                                                const lightboxData = currentFiles.map((file, idx) => {
                                                     const originalUrl = file?.content;
                                                     const cached = lightboxCache.get(originalUrl);
 
@@ -2172,6 +2311,8 @@ const DynamicFormPage = () => {
                                                     return {
                                                         lightboxUrl,
                                                         originalUrl,
+                                                        fieldName: questionName,
+                                                        imageIndex: idx,
                                                         index: idx,
                                                         isCached,
                                                         dimensions: cached ? `${cached.width}x${cached.height}` : 'N/A'
@@ -2180,7 +2321,7 @@ const DynamicFormPage = () => {
 
                                                 // 统计缓存状态
                                                 const cachedCount = lightboxData.filter(item => item.isCached).length;
-                                                console.log(`📈 大图缓存进度: ${cachedCount}/${questionValue.length}`);
+                                                console.log(`📈 大图缓存进度: ${cachedCount}/${currentFiles.length}`);
 
                                                 setLightboxImages(lightboxData);
                                                 setCurrentImageIndex(index);
@@ -2970,6 +3111,93 @@ const DynamicFormPage = () => {
         setDeleteDialogOpen(false);
     };
 
+    const rotateAndSaveFormImage = async ({ fieldName, imageIndex, originalUrl }) => {
+        const cleanOriginalUrl = getOriginalUrl(originalUrl);
+
+        if (!dataId || !fieldName || !cleanOriginalUrl || !cleanOriginalUrl.startsWith('http')) {
+            setAlert({
+                open: true,
+                message: '这张图片无法旋转保存，请确认它是已上传的网络图片。',
+                severity: 'warning'
+            });
+            return null;
+        }
+
+        try {
+            const response = await api.post(`/form-data/${dataId}/rotate-image`, {
+                field_name: fieldName,
+                image_url: cleanOriginalUrl,
+                image_index: imageIndex,
+                degrees: 90,
+            });
+
+            const newImageUrl = response.data.image_url;
+
+            lightboxCache.delete(originalUrl);
+            lightboxCache.delete(cleanOriginalUrl);
+            unifiedImageCache.delete(getThumbnailUrl(originalUrl));
+            unifiedImageCache.delete(getThumbnailUrl(cleanOriginalUrl));
+
+            const question = surveyModel?.getQuestionByName(fieldName);
+            if (question) {
+                question.value = replaceFileQuestionImageUrl(
+                    question.value,
+                    imageIndex,
+                    cleanOriginalUrl,
+                    newImageUrl,
+                );
+            }
+
+            setAlert({
+                open: true,
+                message: '图片已旋转并保存。',
+                severity: 'success'
+            });
+
+            return newImageUrl;
+        } catch (err) {
+            console.error('旋转图片失败:', err);
+            setAlert({
+                open: true,
+                message: `旋转失败: ${err.response?.data?.message || err.message}`,
+                severity: 'error'
+            });
+            return null;
+        }
+    };
+
+    const handleRotateCurrentImage = async () => {
+        const currentImage = lightboxImages[currentImageIndex];
+        const originalImageUrl = currentImage?.originalUrl;
+
+        try {
+            setRotatingImage(true);
+            const newImageUrl = await rotateAndSaveFormImage({
+                fieldName: currentImage?.fieldName,
+                imageIndex: currentImage?.imageIndex,
+                originalUrl: originalImageUrl,
+            });
+
+            if (!newImageUrl) {
+                return;
+            }
+
+            const newLightboxUrl = getLightboxUrl(newImageUrl);
+            setLightboxImages((prev) => prev.map((item, index) => index === currentImageIndex
+                ? {
+                    ...item,
+                    originalUrl: newImageUrl,
+                    lightboxUrl: newLightboxUrl,
+                    isCached: false,
+                    dimensions: 'N/A',
+                }
+                : item
+            ));
+        } finally {
+            setRotatingImage(false);
+        }
+    };
+
     // 监听 currentMode 变化,在模式切换后重新渲染文件问题
     useEffect(() => {
         if (!surveyModel || !dataId) return; // 只在查看已有数据时才需要切换模式
@@ -3618,6 +3846,30 @@ const DynamicFormPage = () => {
                         }}
                     >
                         <DownloadIcon />
+                    </IconButton>
+
+                    {/* Rotate Button */}
+                    <IconButton
+                        onClick={handleRotateCurrentImage}
+                        disabled={rotatingImage}
+                        title="顺时针旋转90度并保存"
+                        sx={{
+                            position: 'fixed',
+                            top: 20,
+                            right: 120,
+                            color: 'white',
+                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                            zIndex: 1301,
+                            '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            },
+                            '&.Mui-disabled': {
+                                color: 'rgba(255,255,255,0.6)',
+                                backgroundColor: 'rgba(0, 0, 0, 0.35)',
+                            },
+                        }}
+                    >
+                        {rotatingImage ? <CircularProgress size={22} sx={{ color: 'white' }} /> : <RotateRightIcon />}
                     </IconButton>
 
                     {/* Close Button */}

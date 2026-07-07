@@ -27,12 +27,28 @@ import {
     Download as DownloadIcon,
     Home as HomeIcon,
     NavigateNext as NavigateNextIcon,
+    RotateRight as RotateRightIcon,
 } from '@mui/icons-material';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { MaterialReactTable } from 'material-react-table';
 import PageHeader from './PageHeader';
 import { format } from 'date-fns';
+
+const getImageUrl = (item) => {
+    if (typeof item === 'string') return item;
+    if (item && typeof item === 'object') {
+        if (typeof item.content === 'string') return item.content;
+        if (item.content && typeof item.content === 'object' && typeof item.content.content === 'string') {
+            return item.content.content;
+        }
+        if (typeof item.url === 'string') return item.url;
+        if (typeof item.file_url === 'string') return item.file_url;
+    }
+    return '';
+};
+
+const getLightboxUrl = (item) => getImageUrl(item) || item?.url || '';
 
 // 优化的图片组件，支持多种格式和错误处理
 const OptimizedThumbnail = ({ src, alt, onClick, index, totalImages }) => {
@@ -120,6 +136,8 @@ const FormDataListPage = () => {
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [lightboxImages, setLightboxImages] = useState([]);
+    const [rotatingImage, setRotatingImage] = useState(false);
+    const [lightboxMessage, setLightboxMessage] = useState(null);
 
     // Column visibility state with localStorage persistence
     const [columnVisibility, setColumnVisibility] = useState(() => {
@@ -191,7 +209,7 @@ const FormDataListPage = () => {
                                 <span>{truncatedTitle}</span>
                             </Tooltip>
                         ),
-                        Cell: ({ cell }) => {
+                        Cell: ({ cell, row }) => {
                             const value = cell.getValue();
                             if (!value) return null;
 
@@ -215,7 +233,13 @@ const FormDataListPage = () => {
                                             }}
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                setLightboxImages([value]);
+                                                setLightboxMessage(null);
+                                                setLightboxImages([{
+                                                    url: value,
+                                                    dataId: row.original.id,
+                                                    fieldName: element.name,
+                                                    imageIndex: null,
+                                                }]);
                                                 setCurrentImageIndex(0);
                                                 setLightboxOpen(true);
                                             }}
@@ -226,32 +250,40 @@ const FormDataListPage = () => {
                             }
 
                             // Handle array of image URLs (for file/image types)
-                            const urls = Array.isArray(value) ? value : [value];
-                            const imageUrls = urls.filter(url =>
-                                typeof url === 'string' &&
-                                (url.startsWith('http') || url.startsWith('/'))
+                            const rawItems = Array.isArray(value) ? value : [value];
+                            const imageItems = rawItems
+                                .map((item, rawIndex) => ({
+                                    url: getImageUrl(item),
+                                    dataId: row.original.id,
+                                    fieldName: element.name,
+                                    imageIndex: rawIndex,
+                                }))
+                                .filter(item =>
+                                    typeof item.url === 'string' &&
+                                    (item.url.startsWith('http') || item.url.startsWith('/'))
                             );
 
-                            if (imageUrls.length === 0) return null;
+                            if (imageItems.length === 0) return null;
 
                             return (
                                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                                    {imageUrls.slice(0, 3).map((url, idx) => (
+                                    {imageItems.slice(0, 3).map((item, idx) => (
                                         <OptimizedThumbnail
                                             key={idx}
-                                            src={url}
+                                            src={item.url}
                                             alt={`${element.name}-${idx}`}
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                setLightboxImages(imageUrls);
+                                                setLightboxMessage(null);
+                                                setLightboxImages(imageItems);
                                                 setCurrentImageIndex(idx);
                                                 setLightboxOpen(true);
                                             }}
                                             index={idx}
-                                            totalImages={imageUrls.length}
+                                            totalImages={imageItems.length}
                                         />
                                     ))}
-                                    {imageUrls.length > 3 && (
+                                    {imageItems.length > 3 && (
                                         <Box
                                             sx={{
                                                 width: '40px',
@@ -266,7 +298,7 @@ const FormDataListPage = () => {
                                                 color: '#6c757d',
                                             }}
                                         >
-                                            +{imageUrls.length - 3}
+                                            +{imageItems.length - 3}
                                         </Box>
                                     )}
                                 </Box>
@@ -344,6 +376,50 @@ const FormDataListPage = () => {
         return [...baseColumns, ...schemaColumns];
 
     }, [formSchema, formToken]);
+
+    const handleRotateCurrentImage = async () => {
+        const currentImage = lightboxImages[currentImageIndex];
+        const imageUrl = getLightboxUrl(currentImage);
+
+        if (!currentImage?.dataId || !currentImage?.fieldName || !imageUrl || !imageUrl.startsWith('http')) {
+            setLightboxMessage({ severity: 'warning', text: '这张图片无法旋转保存，请确认它是已上传的网络图片。' });
+            return;
+        }
+
+        try {
+            setRotatingImage(true);
+            setLightboxMessage(null);
+            const response = await api.post(`/form-data/${currentImage.dataId}/rotate-image`, {
+                field_name: currentImage.fieldName,
+                image_url: imageUrl,
+                image_index: currentImage.imageIndex,
+                degrees: 90,
+            });
+
+            const newImageUrl = response.data.image_url;
+
+            setLightboxImages((prev) => prev.map((item, index) => index === currentImageIndex
+                ? { ...item, url: newImageUrl }
+                : item
+            ));
+            setFormDataEntries((prev) => prev.map((entry) => {
+                if (entry.id !== currentImage.dataId) return entry;
+                return {
+                    ...entry,
+                    data: response.data.data || {
+                        ...entry.data,
+                        [currentImage.fieldName]: newImageUrl,
+                    },
+                };
+            }));
+            setLightboxMessage({ severity: 'success', text: '图片已旋转并保存。' });
+        } catch (err) {
+            console.error('旋转图片失败:', err);
+            setLightboxMessage({ severity: 'error', text: err.response?.data?.message || err.message || '旋转图片失败' });
+        } finally {
+            setRotatingImage(false);
+        }
+    };
 
     if (loading) {
         return <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Container>;
@@ -628,7 +704,10 @@ const FormDataListPage = () => {
             {/* Image Lightbox Modal */}
             <Modal
                 open={lightboxOpen}
-                onClose={() => setLightboxOpen(false)}
+                onClose={() => {
+                    setLightboxOpen(false);
+                    setLightboxMessage(null);
+                }}
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -657,7 +736,7 @@ const FormDataListPage = () => {
                     {/* Download Button */}
                     <IconButton
                         onClick={async () => {
-                            const imageUrl = lightboxImages[currentImageIndex];
+                            const imageUrl = getLightboxUrl(lightboxImages[currentImageIndex]);
                             const filename = imageUrl.split('/').pop()?.split('?')[0] || `image-${currentImageIndex + 1}.jpg`;
 
                             try {
@@ -724,9 +803,38 @@ const FormDataListPage = () => {
                         <DownloadIcon />
                     </IconButton>
 
+                    {/* Rotate Button */}
+                    <Tooltip title="顺时针旋转90度并保存" arrow>
+                        <span>
+                            <IconButton
+                                onClick={handleRotateCurrentImage}
+                                disabled={rotatingImage}
+                                sx={{
+                                    position: 'absolute',
+                                    top: -50,
+                                    right: 100,
+                                    color: 'white',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                    },
+                                    '&.Mui-disabled': {
+                                        color: 'rgba(255,255,255,0.6)',
+                                        backgroundColor: 'rgba(0, 0, 0, 0.35)',
+                                    },
+                                }}
+                            >
+                                {rotatingImage ? <CircularProgress size={22} sx={{ color: 'white' }} /> : <RotateRightIcon />}
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+
                     {/* Close Button */}
                     <IconButton
-                        onClick={() => setLightboxOpen(false)}
+                        onClick={() => {
+                            setLightboxOpen(false);
+                            setLightboxMessage(null);
+                        }}
                         sx={{
                             position: 'absolute',
                             top: -50,
@@ -763,7 +871,7 @@ const FormDataListPage = () => {
 
                     {/* Image - Optimized Lightbox */}
                     <LazyLoadImage
-                        src={lightboxImages[currentImageIndex]}
+                        src={getLightboxUrl(lightboxImages[currentImageIndex])}
                         alt={`Image ${currentImageIndex + 1}`}
                         placeholderSrc="/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI4MDAiIGhlaWdodD0iNjAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0zMDAgMzAwIEg1MDAgTDQwMCAyNTBWNTAwWiIgc3Ryb2tlPSIjRERFRTJGIiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8Y2lyY2xlIGN4PSI0NTAiIGN5PSIyNTAiIHI9IjgiIGZpbGw9IiNEREVFMkYiLz4KPC9zdmc+Cg=="
                         effect="blur"
@@ -822,6 +930,23 @@ const FormDataListPage = () => {
                         >
                             {currentImageIndex + 1} / {lightboxImages.length}
                         </Box>
+                    )}
+
+                    {lightboxMessage && (
+                        <Alert
+                            severity={lightboxMessage.severity}
+                            sx={{
+                                position: 'absolute',
+                                bottom: -92,
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                minWidth: 260,
+                                maxWidth: '80vw',
+                                boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+                            }}
+                        >
+                            {lightboxMessage.text}
+                        </Alert>
                     )}
                 </Box>
             </Modal>
