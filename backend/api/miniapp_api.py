@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import requests
 from dateutil.relativedelta import relativedelta
 from flask import Blueprint, Response, current_app, jsonify, request
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 from werkzeug.security import check_password_hash
@@ -22,6 +22,7 @@ from backend.models import (
     BaseContract,
     ContractSignature,
     Customer,
+    CustomerBill,
     CustomerWechatAccount,
     EmployeePayroll,
     EmployeeWechatAccount,
@@ -30,6 +31,8 @@ from backend.models import (
     MiniappContractEvaluation,
     MiniappContractExitSummary,
     NannyContract,
+    PaymentStatus,
+    PayoutStatus,
     ServicePersonnel,
     SigningStatus,
     User,
@@ -355,6 +358,23 @@ def _is_employee_active_contract(contract):
 
 def _is_history_contract(contract):
     return _contract_effective_status(contract) in HISTORY_CONTRACT_STATUSES
+
+
+def _contract_status_text(contract):
+    if not contract:
+        return ""
+    if bool(getattr(contract, "is_monthly_auto_renew", False)) and _contract_effective_status(contract) == "active":
+        return "自动月签"
+    labels = {
+        "active": "正在履约",
+        "pending": "待上户",
+        "trial_active": "试工中",
+        "finished": "已完成",
+        "completed": "已完成",
+        "terminated": "已终止",
+        "trial_succeeded": "试工成功",
+    }
+    return labels.get(_contract_effective_status(contract), contract.status or "")
 
 
 def _is_contract_ready_for_customer_evaluation(contract):
@@ -2704,6 +2724,98 @@ def _staff_contract_stats(query):
     }
 
 
+def _payment_status_value(status):
+    return status.value if hasattr(status, "value") else str(status or "")
+
+
+def _customer_payment_status_text(status):
+    labels = {
+        PaymentStatus.PAID.value: "已支付",
+        PaymentStatus.UNPAID.value: "未支付",
+        PaymentStatus.PARTIALLY_PAID.value: "部分支付",
+        PaymentStatus.OVERPAID.value: "超额支付",
+    }
+    return labels.get(_payment_status_value(status), "未生成")
+
+
+def _employee_payout_status_text(status):
+    labels = {
+        PayoutStatus.PAID.value: "已发放",
+        PayoutStatus.UNPAID.value: "未发放",
+        PayoutStatus.PARTIALLY_PAID.value: "部分发放",
+    }
+    return labels.get(_payment_status_value(status), "未发放")
+
+
+def _staff_payroll_bill_map(payrolls):
+    keys = {(item.contract_id, item.year, item.month) for item in payrolls}
+    if not keys:
+        return {}
+    filters = [
+        and_(
+            CustomerBill.contract_id == contract_id,
+            CustomerBill.year == year,
+            CustomerBill.month == month,
+        )
+        for contract_id, year, month in keys
+    ]
+    bills = (
+        CustomerBill.query.filter(
+            or_(*filters),
+            CustomerBill.is_substitute_bill.is_(False),
+        )
+        .order_by(CustomerBill.cycle_start_date.desc())
+        .all()
+    )
+    return {
+        (bill.contract_id, bill.year, bill.month): bill
+        for bill in bills
+    }
+
+
+def _staff_payroll_card(payroll, bill=None):
+    contract = payroll.contract
+    employee = contract.service_personnel if contract else None
+    customer_due = _decimal_value(bill.total_due if bill else 0)
+    customer_paid = _decimal_value(bill.total_paid if bill else 0)
+    employee_due = _decimal_value(payroll.total_due)
+    employee_paid = _decimal_value(payroll.total_paid_out)
+    gross_margin = (customer_due - employee_due).quantize(Decimal("0.01"))
+    customer_share_token = _ensure_payroll_customer_share_token(payroll)
+    return {
+        "id": str(payroll.id),
+        "payroll_id": str(payroll.id),
+        "bill_id": str(bill.id) if bill else "",
+        "contract_id": str(payroll.contract_id),
+        "year": payroll.year,
+        "month": payroll.month,
+        "billing_month": f"{payroll.year}-{str(payroll.month).zfill(2)}",
+        "customer_name": contract.customer_name if contract else "",
+        "employee_name": employee.name if employee else "",
+        "type": contract.type if contract else "",
+        "type_label": _contract_type_label(contract) if contract else "服务合同",
+        "status": _contract_effective_status(contract) if contract else "",
+        "status_text": _contract_status_text(contract) if contract else "",
+        "contract_start_date": _iso(contract.start_date) if contract else None,
+        "contract_end_date": _iso(contract.end_date) if contract else None,
+        "termination_date": _iso(contract.termination_date) if contract else None,
+        "cycle_start_date": _iso(payroll.cycle_start_date),
+        "cycle_end_date": _iso(payroll.cycle_end_date),
+        "employee_level": str(contract.employee_level or "") if contract else "",
+        "customer_total_due": _format_decimal_string(customer_due),
+        "customer_total_paid": _format_decimal_string(customer_paid),
+        "customer_payment_status": _payment_status_value(bill.payment_status if bill else ""),
+        "customer_payment_status_text": _customer_payment_status_text(bill.payment_status if bill else ""),
+        "employee_total_due": _format_decimal_string(employee_due),
+        "employee_total_paid": _format_decimal_string(employee_paid),
+        "employee_payout_status": _payment_status_value(payroll.payout_status),
+        "employee_payout_status_text": _employee_payout_status_text(payroll.payout_status),
+        "gross_margin": _format_decimal_string(gross_margin),
+        "customer_confirmed": bool(getattr(payroll, "customer_confirmed_at", None)),
+        "customer_share_token": customer_share_token,
+    }
+
+
 @miniapp_bp.route("/staff/contracts", methods=["GET"])
 def staff_contracts():
     _, error = _ensure_staff_access("仅后台运营或管理员可查看合同")
@@ -2759,6 +2871,106 @@ def staff_contracts():
             "pages": paginated.pages,
             "per_page": paginated.per_page,
             "stats": stats,
+        }
+    )
+
+
+@miniapp_bp.route("/staff/payrolls", methods=["GET"])
+def staff_payrolls():
+    _, error = _ensure_staff_access("仅后台运营或管理员可查看账单")
+    if error:
+        return error
+
+    search = (request.args.get("search") or "").strip()
+    contract_type = (request.args.get("type") or "").strip()
+    contract_status = (request.args.get("status") or "").strip()
+    payment_status = (request.args.get("payment_status") or "").strip()
+    payout_status = (request.args.get("payout_status") or "").strip()
+    year = request.args.get("year", type=int)
+    month = request.args.get("month", type=int)
+    page = max(1, request.args.get("page", 1, type=int) or 1)
+    per_page = min(max(1, request.args.get("per_page", 10, type=int) or 10), 50)
+
+    query = (
+        EmployeePayroll.query.options(
+            joinedload(EmployeePayroll.contract).joinedload(BaseContract.service_personnel),
+            joinedload(EmployeePayroll.contract).joinedload(BaseContract.customer),
+        )
+        .join(BaseContract, EmployeePayroll.contract_id == BaseContract.id)
+        .outerjoin(ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id)
+        .filter(EmployeePayroll.is_substitute_payroll.is_(False))
+    )
+
+    if search:
+        pinyin_search = search.replace(" ", "")
+        query = query.filter(
+            or_(
+                BaseContract.customer_name.ilike(f"%{search}%"),
+                BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search}%"),
+                ServicePersonnel.name.ilike(f"%{search}%"),
+                ServicePersonnel.name_pinyin.ilike(f"%{pinyin_search}%"),
+            )
+        )
+
+    if contract_type in ("nanny", "maternity_nurse", "nanny_trial", "external_substitution"):
+        query = query.filter(BaseContract.type == contract_type)
+
+    if contract_status:
+        query = query.filter(BaseContract.status == contract_status)
+
+    if payout_status:
+        try:
+            query = query.filter(EmployeePayroll.payout_status == PayoutStatus(payout_status))
+        except ValueError:
+            pass
+
+    if year:
+        query = query.filter(EmployeePayroll.year == year)
+    if month:
+        if month < 1 or month > 12:
+            return jsonify({"success": False, "error": "月份参数不正确"}), 400
+        query = query.filter(EmployeePayroll.month == month)
+
+    if payment_status:
+        try:
+            status_enum = PaymentStatus(payment_status)
+            query = query.join(
+                CustomerBill,
+                and_(
+                    CustomerBill.contract_id == EmployeePayroll.contract_id,
+                    CustomerBill.year == EmployeePayroll.year,
+                    CustomerBill.month == EmployeePayroll.month,
+                    CustomerBill.is_substitute_bill.is_(False),
+                ),
+            ).filter(CustomerBill.payment_status == status_enum)
+        except ValueError:
+            pass
+
+    paginated = query.order_by(
+        EmployeePayroll.cycle_start_date.desc(),
+        EmployeePayroll.created_at.desc(),
+    ).paginate(
+        page=page,
+        per_page=per_page,
+        error_out=False,
+    )
+    bill_map = _staff_payroll_bill_map(paginated.items)
+    payloads = [
+        _staff_payroll_card(
+            payroll,
+            bill_map.get((payroll.contract_id, payroll.year, payroll.month)),
+        )
+        for payroll in paginated.items
+    ]
+    db.session.commit()
+    return jsonify(
+        {
+            "success": True,
+            "payrolls": payloads,
+            "total": paginated.total,
+            "page": paginated.page,
+            "pages": paginated.pages,
+            "per_page": paginated.per_page,
         }
     )
 

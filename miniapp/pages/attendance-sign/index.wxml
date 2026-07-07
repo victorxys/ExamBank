@@ -1,4 +1,14 @@
 <view class="attendance-page">
+  <image class="attendance-page-bg" src="https://images.mengyimengsao.com/miniprogram/page-bg.jpg" mode="aspectFill" />
+  <view class="attendance-hero">
+    <image class="attendance-hero-img" src="https://images.mengyimengsao.com/miniprogram/hero-attendance.jpg" mode="aspectFill" />
+    <view class="attendance-hero-copy">
+      <view class="attendance-hero-title">考勤确认</view>
+      <view class="attendance-hero-desc">核对月度考勤，完成客户签署确认。</view>
+      <view class="attendance-hero-accent"></view>
+    </view>
+  </view>
+
   <view class="sticky-head">
     <view class="head-sub">客户：{{customerNameText}}</view>
     <view class="head-main">

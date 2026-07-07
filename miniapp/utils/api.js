@@ -139,6 +139,10 @@ module.exports = {
     const query = buildQuery(params);
     return request({ url: `/miniapp/staff/contracts${query ? `?${query}` : ''}` });
   },
+  staffPayrollList(params = {}) {
+    const query = buildQuery(params);
+    return request({ url: `/miniapp/staff/payrolls${query ? `?${query}` : ''}` });
+  },
   contractDetail(contractId) {
     return request({ url: `/miniapp/customer/contracts/${contractId}` });
   },

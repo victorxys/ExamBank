@@ -1,21 +1,27 @@
 <view class="payroll-page">
-  <block wx:if="{{payroll}}">
+  <image class="payroll-page-bg" src="https://images.mengyimengsao.com/miniprogram/page-bg.jpg" mode="aspectFill" />
+  <view wx:if="{{payroll}}" class="payroll-content">
     <view class="payroll-hero">
-      <image class="hero-bg" src="https://images.mengyimengsao.com/miniprogram/miniapp-hero.png" mode="aspectFill" />
-      <view class="hero-copy">
-        <view class="hero-title">{{payroll.title}}</view>
-        <view class="hero-date">
-          <image class="inline-calendar-img" src="/assets/ui/icons/calendar-white.svg" mode="aspectFit" />
-          <text>{{payroll.cycle_range_text}}</text>
-        </view>
-        <view class="hero-customer">客户：{{payroll.customer_name || '-'}}</view>
+      <image class="hero-bg" src="https://images.mengyimengsao.com/miniprogram/hero-billing-new.jpg" mode="aspectFill" />
+      <view class="payroll-hero-copy">
+        <view class="payroll-hero-title">应付劳务费</view>
+        <view class="payroll-hero-desc">核对工资单明细，确认本月服务费用。</view>
+        <view class="payroll-hero-accent"></view>
       </view>
-      <view class="hero-status {{payroll.customer_confirmed ? 'confirmed' : ''}} {{payroll.estimated ? 'estimated' : ''}}">{{payroll.customer_status_text || '待确认'}}</view>
     </view>
 
-    <view wx:if="{{payroll.readonly}}" class="readonly-tip">运营查看模式：可核对本工资单并通过右侧按钮分享给客户，不能代客户确认。</view>
+    <view class="payroll-info-card">
+      <view class="hero-title">{{payroll.title}}</view>
+      <view class="hero-status {{payroll.customer_confirmed ? 'confirmed' : ''}} {{payroll.estimated ? 'estimated' : ''}}">{{payroll.customer_status_text || '待确认'}}</view>
+      <view class="hero-date">
+        <image class="inline-calendar-img" src="/assets/ui/icons/calendar-line.svg" mode="aspectFit" />
+        <text>{{payroll.cycle_range_text}}</text>
+      </view>
+      <view class="hero-customer">客户：{{payroll.customer_name || '-'}}</view>
+    </view>
+
+    <view wx:if="{{payroll.readonly}}" class="readonly-tip">运营查看模式：可核对本工资单并分享给客户，不能代客户确认。</view>
     <view wx:elif="{{payroll.estimated}}" class="readonly-tip estimate-tip">{{payroll.estimate_note || '本月考勤尚未确认，当前金额为预估劳务费。'}}</view>
-    <button wx:if="{{payroll.readonly && (payroll.customer_share_token || shareToken)}}" class="share-payroll-btn" open-type="share">分享给客户</button>
 
     <view class="summary-card">
       <view class="summary-label">{{payroll.estimated ? '预估本月劳务费' : '本月应付劳务费'}}</view>
@@ -123,7 +129,9 @@
         <text>付款前请核对姓名与银行卡号一致</text>
       </view>
     </view>
-  </block>
+
+    <button wx:if="{{payroll.readonly && (payroll.customer_share_token || shareToken)}}" class="share-payroll-btn bottom-share" open-type="share">分享给客户</button>
+  </view>
 
   <view wx:elif="{{loaded}}" class="empty-state">
     <view class="empty-title">{{loadError ? '无法查看工资单' : '暂无应付劳务费'}}</view>

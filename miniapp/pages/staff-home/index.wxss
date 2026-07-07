@@ -1,11 +1,15 @@
 .staff-page {
-  padding-top: 30rpx;
+  padding: 0 24rpx 54rpx;
 }
 
 .staff-hero {
   min-height: 334rpx;
+  margin: 0 -24rpx;
+  padding: 60rpx 48rpx 36rpx;
+  border-radius: 0;
   display: flex;
   align-items: center;
+  box-shadow: none;
 }
 
 .staff-hero .design-hero-content {
