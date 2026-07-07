@@ -43,6 +43,7 @@ function daysText(value) {
 function buildView(payroll = {}) {
   const cycleStart = formatDate(payroll.cycle_start_date);
   const cycleEnd = formatDate(payroll.cycle_end_date);
+  const displayAmount = payroll.calculated_amount || payroll.amount_due;
   const employeeBank = {
     ...(payroll.employee_bank || {}),
     holder_name: (payroll.employee_bank || {}).holder_name || payroll.employee_name || ''
@@ -52,9 +53,9 @@ function buildView(payroll = {}) {
     ...payroll,
     estimated,
     customer_status_text: estimated ? '预估金额' : payroll.customer_status_text,
-    amount_due_text: estimated ? roundedMoneyWithCentsText(payroll.amount_due) : moneyText(payroll.amount_due),
-    calculated_amount_text: moneyText(payroll.calculated_amount || payroll.amount_due),
-    rounded_calculated_amount_text: roundedMoneyText(payroll.calculated_amount || payroll.amount_due),
+    amount_due_text: roundedMoneyWithCentsText(displayAmount),
+    calculated_amount_text: moneyText(displayAmount),
+    rounded_calculated_amount_text: roundedMoneyText(displayAmount),
     base_salary_text: compactMoneyText(payroll.base_salary),
     salary_days_text: payroll.salary_days || '26',
     work_days_text: payroll.work_days || '0',
