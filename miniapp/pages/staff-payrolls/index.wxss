@@ -311,7 +311,7 @@
   gap: 16rpx 20rpx;
 }
 
-.info-block:nth-child(3) {
+.info-block:first-child {
   grid-column: 1 / -1;
 }
 
@@ -329,6 +329,12 @@
   line-height: 34rpx;
   font-weight: 800;
   word-break: break-word;
+}
+
+.info-block:first-child .info-value {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .level-value {

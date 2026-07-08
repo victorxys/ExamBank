@@ -1047,6 +1047,55 @@ def _payroll_customer_status_text(payroll):
     return "已确认" if getattr(payroll, "customer_confirmed_at", None) else "待确认"
 
 
+def _contract_actual_start_date(contract):
+    raw_start = getattr(contract, "actual_onboarding_date", None) or getattr(contract, "start_date", None)
+    return _date_part(raw_start)
+
+
+def _estimated_payroll_contract_end_date(contract):
+    if not contract:
+        return None
+    is_monthly = bool(getattr(contract, "is_monthly_auto_renew", False))
+    if is_monthly and getattr(contract, "status", None) in ACTIVE_CONTRACT_STATUSES:
+        return None
+    if getattr(contract, "status", None) == "terminated" and getattr(contract, "termination_date", None):
+        return _date_part(contract.termination_date)
+    return _date_part(getattr(contract, "end_date", None))
+
+
+def _estimated_payroll_onboarding_days(contract, effective_start, effective_end):
+    contract_start = _contract_actual_start_date(contract)
+    if not contract_start or not effective_start or not effective_end:
+        return Decimal("0")
+    if effective_start <= contract_start <= effective_end:
+        return Decimal("1")
+    return Decimal("0")
+
+
+def _estimated_payroll_days(contract, cycle_start, cycle_end):
+    contract_start = _contract_actual_start_date(contract)
+    contract_end = _estimated_payroll_contract_end_date(contract)
+    effective_start = max(cycle_start, contract_start) if contract_start else cycle_start
+    effective_end = min(cycle_end, contract_end) if contract_end else cycle_end
+    if effective_end < effective_start:
+        return None
+
+    service_days = Decimal((effective_end - effective_start).days + 1)
+    onboarding_days = _estimated_payroll_onboarding_days(contract, effective_start, effective_end)
+    payable_days = max(Decimal("0"), service_days - onboarding_days)
+    work_days = min(Decimal("26"), payable_days)
+    overtime_days = max(Decimal("0"), payable_days - work_days)
+    return {
+        "effective_start": effective_start,
+        "effective_end": effective_end,
+        "service_days": service_days,
+        "onboarding_days": onboarding_days,
+        "payable_days": payable_days,
+        "work_days": work_days,
+        "overtime_days": overtime_days,
+    }
+
+
 def _ensure_payroll_customer_share_token(payroll):
     if not payroll:
         return ""
@@ -1278,15 +1327,14 @@ def _estimated_payroll_payload(contract, year, month):
 
     cycle_start = date(year, month, 1)
     cycle_end = date(year, month, calendar.monthrange(year, month)[1])
-    contract_start = _date_part(contract.start_date)
-    contract_end = _date_part(contract.termination_date) or _date_part(contract.end_date)
-    effective_start = max(cycle_start, contract_start) if contract_start else cycle_start
-    effective_end = min(cycle_end, contract_end) if contract_end else cycle_end
-    if effective_end < effective_start:
+    estimated_days = _estimated_payroll_days(contract, cycle_start, cycle_end)
+    if not estimated_days:
         return None
 
-    estimated_work_days = Decimal("26")
-    estimated_overtime_days = max(Decimal("0"), Decimal((effective_end - effective_start).days + 1) - estimated_work_days)
+    effective_start = estimated_days["effective_start"]
+    effective_end = estimated_days["effective_end"]
+    estimated_work_days = estimated_days["work_days"]
+    estimated_overtime_days = estimated_days["overtime_days"]
     estimated_leave_days = Decimal("0")
     base_salary = _decimal_value(contract.employee_level)
     salary_days = Decimal("26")
@@ -1306,8 +1354,8 @@ def _estimated_payroll_payload(contract, year, month):
         "customer_confirmed_at": None,
         "customer_status_text": "预估",
         "customer_share_token": "",
-        "cycle_start_date": _iso(_as_midnight(cycle_start)),
-        "cycle_end_date": _iso(_as_midnight(cycle_end)),
+        "cycle_start_date": _iso(_as_midnight(effective_start)),
+        "cycle_end_date": _iso(_as_midnight(effective_end)),
         "customer_name": contract.customer_name or "",
         "employee_name": employee.name if employee else "",
         "amount_due": _format_decimal_string(calculated_amount),
@@ -1346,7 +1394,7 @@ def _customer_payroll_display_payload(payroll, contract_id=None, year=None, mont
     payload["id"] = str(payroll.id)
     payload["customer_confirmed"] = bool(getattr(payroll, "customer_confirmed_at", None))
     payload["customer_confirmed_at"] = _iso(getattr(payroll, "customer_confirmed_at", None))
-    payload["customer_status_text"] = _payroll_customer_status_text(payroll)
+    payload["customer_status_text"] = "预估"
     payload["customer_share_token"] = _ensure_payroll_customer_share_token(payroll)
     payload["payout_status"] = getattr(payroll.payout_status, "value", str(payroll.payout_status or ""))
     payload["payout_status_text"] = _payroll_status_text(payroll)
