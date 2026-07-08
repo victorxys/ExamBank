@@ -34,6 +34,7 @@ api.interceptors.request.use(
       config.url.includes('/employee-self-evaluation') ||
       config.url.includes('/dynamic_forms') ||
       config.url.includes('/form-data/submit') ||
+      config.url.includes('/upload/r2') ||
       config.url.includes('/attendance-forms/by-token/') ||  // 考勤表填写页面免登录
       config.url.includes('/attendance-forms/sign/') ||  // 考勤表签署页面免登录
       config.url.includes('/wechat-attendance/') ||  // 微信考勤API免登录

@@ -43,6 +43,7 @@ import {
     Home as HomeIcon,
     NavigateNext as NavigateNextIcon,
     Delete as DeleteIcon,
+    RotateLeft as RotateLeftIcon,
     RotateRight as RotateRightIcon,
 } from '@mui/icons-material';
 import { formatAddress } from '../utils/formatUtils';
@@ -717,7 +718,7 @@ const OptimizedFileCarousel = ({ questionValue, fieldName, onImageClick, onPrelo
         }
     };
 
-    const handleRotatePreviewImage = async (event) => {
+    const handleRotatePreviewImage = async (event, degrees = 90) => {
         event.stopPropagation();
 
         if (!currentFile?.content || !onRotateImage) {
@@ -730,6 +731,7 @@ const OptimizedFileCarousel = ({ questionValue, fieldName, onImageClick, onPrelo
                 fieldName,
                 imageIndex: currentIndex,
                 originalUrl: currentFile.content,
+                degrees,
             });
 
             if (!newImageUrl) {
@@ -955,12 +957,33 @@ const OptimizedFileCarousel = ({ questionValue, fieldName, onImageClick, onPrelo
                             <DownloadIcon sx={{ fontSize: '16px' }} />
                         </IconButton>
 
-                        {/* 旋转保存按钮 */}
+                        {/* 逆时针旋转保存按钮 */}
+                        <IconButton
+                            size="small"
+                            title="逆时针旋转90度并保存"
+                            disabled={rotatingPreview}
+                            onClick={(event) => handleRotatePreviewImage(event, -90)}
+                            sx={{
+                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                color: 'white',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                },
+                                '&.Mui-disabled': {
+                                    color: 'rgba(255,255,255,0.65)',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+                                },
+                            }}
+                        >
+                            {rotatingPreview ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <RotateLeftIcon sx={{ fontSize: '16px' }} />}
+                        </IconButton>
+
+                        {/* 顺时针旋转保存按钮 */}
                         <IconButton
                             size="small"
                             title="顺时针旋转90度并保存"
                             disabled={rotatingPreview}
-                            onClick={handleRotatePreviewImage}
+                            onClick={(event) => handleRotatePreviewImage(event, 90)}
                             sx={{
                                 backgroundColor: 'rgba(0, 0, 0, 0.6)',
                                 color: 'white',
@@ -1309,11 +1332,89 @@ const DynamicFormPage = () => {
                 survey.getAllQuestions().forEach(question => {
                     if (question.getType() === 'file') {
                         question.storeDataAsText = false;
-                        // 关键修复：禁用 SurveyJS 内置图片预览，避免重复加载
-                        // 我们使用自定义的 OptimizedFileCarousel 组件来显示图片
-                        question.allowImagesPreview = false;
+                        // 员工匿名填写时使用 SurveyJS 原生图片预览；后台查看已有数据时使用自定义轮播。
+                        question.allowImagesPreview = !dataId;
                     }
                 });
+
+                const getFilePreviewItems = (value) => {
+                    const files = Array.isArray(value) ? value : (value ? [value] : []);
+                    return files
+                        .map((file, index) => {
+                            if (typeof file === 'string') {
+                                return {
+                                    name: `图片${index + 1}`,
+                                    type: 'image/jpeg',
+                                    content: file,
+                                };
+                            }
+
+                            const nestedContent = file?.content && typeof file.content === 'object'
+                                ? file.content
+                                : null;
+
+                            return {
+                                name: nestedContent?.name || file?.name || `图片${index + 1}`,
+                                type: nestedContent?.type || file?.type || '',
+                                content: nestedContent?.content || file?.content || '',
+                            };
+                        })
+                        .filter((file) => {
+                            if (!file.content || typeof file.content !== 'string') return false;
+                            if (file.type && file.type.startsWith('image/')) return true;
+                            return /\.(jpe?g|png|gif|webp|bmp|heic|heif)(\?|#|$)/i.test(file.content);
+                        });
+                };
+
+                const renderAnonymousFilePreview = (question, htmlElement) => {
+                    if (dataId || question.getType() !== 'file') return;
+
+                    const contentDiv = htmlElement.querySelector('.sd-question__content') || htmlElement;
+                    let previewRoot = contentDiv.querySelector('.anonymous-file-preview-root');
+                    const previewItems = getFilePreviewItems(question.value);
+
+                    if (!previewItems.length) {
+                        previewRoot?.remove();
+                        return;
+                    }
+
+                    if (!previewRoot) {
+                        previewRoot = document.createElement('div');
+                        previewRoot.className = 'anonymous-file-preview-root';
+                        contentDiv.appendChild(previewRoot);
+                    }
+
+                    previewRoot.innerHTML = '';
+                    previewRoot.style.cssText = 'display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px;';
+
+                    previewItems.forEach((file, index) => {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = 'anonymous-file-preview-item';
+                        button.title = file.name || `图片${index + 1}`;
+                        button.style.cssText = 'width: 96px; height: 96px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 0; background: #f8fafc; overflow: hidden; cursor: zoom-in; position: relative;';
+
+                        const img = document.createElement('img');
+                        img.src = getThumbnailUrl(file.content);
+                        img.alt = file.name || `图片${index + 1}`;
+                        img.loading = 'lazy';
+                        img.style.cssText = 'width: 100%; height: 100%; object-fit: cover; display: block;';
+
+                        button.appendChild(img);
+                        button.onclick = () => {
+                            setLightboxImages(previewItems.map((item, itemIndex) => ({
+                                lightboxUrl: getLightboxUrl(item.content),
+                                originalUrl: item.content,
+                                fieldName: question.name,
+                                imageIndex: itemIndex,
+                            })));
+                            setCurrentImageIndex(index);
+                            setLightboxOpen(true);
+                        };
+
+                        previewRoot.appendChild(button);
+                    });
+                };
 
                 // 注册自定义日期/时间选择器渲染器
                 // 将 SurveyJS 的日期/时间字段替换为响应式选择器组件
@@ -2240,6 +2341,11 @@ const DynamicFormPage = () => {
 
                             // Custom Rendering for File Questions
                             if (options.question.getType() === 'file') {
+                                if (!dataId) {
+                                    renderAnonymousFilePreview(options.question, options.htmlElement);
+                                    return;
+                                }
+
                                 const questionValue = options.question.value;
                                 const questionName = options.question.name;
                                 const contentDiv = options.htmlElement.querySelector('.sd-question__content') || options.htmlElement;
@@ -2924,6 +3030,8 @@ const DynamicFormPage = () => {
 
                             uploadResults.push({
                                 file: file,
+                                name: file.name,
+                                type: file.type,
                                 content: response.data.url
                             });
                         }
@@ -2933,6 +3041,17 @@ const DynamicFormPage = () => {
                         console.error("Upload failed:", error);
                         options.callback("error", "Upload failed: " + (error.response?.data?.error || error.message));
                     }
+                });
+
+                survey.onValueChanged.add((sender, options) => {
+                    if (dataId || options.question?.getType() !== 'file') return;
+
+                    setTimeout(() => {
+                        const questionRoot = document.querySelector(`[data-name="${options.question.name}"]`);
+                        if (questionRoot) {
+                            renderAnonymousFilePreview(options.question, questionRoot);
+                        }
+                    }, 0);
                 });
 
                 // --- AUTO-FILL LOGIC FOR EXIT SUMMARY FORM (wWVDjd) ---
@@ -3111,7 +3230,7 @@ const DynamicFormPage = () => {
         setDeleteDialogOpen(false);
     };
 
-    const rotateAndSaveFormImage = async ({ fieldName, imageIndex, originalUrl }) => {
+    const rotateAndSaveFormImage = async ({ fieldName, imageIndex, originalUrl, degrees = 90 }) => {
         const cleanOriginalUrl = getOriginalUrl(originalUrl);
 
         if (!dataId || !fieldName || !cleanOriginalUrl || !cleanOriginalUrl.startsWith('http')) {
@@ -3128,7 +3247,7 @@ const DynamicFormPage = () => {
                 field_name: fieldName,
                 image_url: cleanOriginalUrl,
                 image_index: imageIndex,
-                degrees: 90,
+                degrees,
             });
 
             const newImageUrl = response.data.image_url;
@@ -3166,7 +3285,7 @@ const DynamicFormPage = () => {
         }
     };
 
-    const handleRotateCurrentImage = async () => {
+    const handleRotateCurrentImage = async (degrees = 90) => {
         const currentImage = lightboxImages[currentImageIndex];
         const originalImageUrl = currentImage?.originalUrl;
 
@@ -3176,6 +3295,7 @@ const DynamicFormPage = () => {
                 fieldName: currentImage?.fieldName,
                 imageIndex: currentImage?.imageIndex,
                 originalUrl: originalImageUrl,
+                degrees,
             });
 
             if (!newImageUrl) {
@@ -3848,9 +3968,33 @@ const DynamicFormPage = () => {
                         <DownloadIcon />
                     </IconButton>
 
-                    {/* Rotate Button */}
+                    {/* Rotate Left Button */}
                     <IconButton
-                        onClick={handleRotateCurrentImage}
+                        onClick={() => handleRotateCurrentImage(-90)}
+                        disabled={rotatingImage}
+                        title="逆时针旋转90度并保存"
+                        sx={{
+                            position: 'fixed',
+                            top: 20,
+                            right: 170,
+                            color: 'white',
+                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                            zIndex: 1301,
+                            '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            },
+                            '&.Mui-disabled': {
+                                color: 'rgba(255,255,255,0.6)',
+                                backgroundColor: 'rgba(0, 0, 0, 0.35)',
+                            },
+                        }}
+                    >
+                        {rotatingImage ? <CircularProgress size={22} sx={{ color: 'white' }} /> : <RotateLeftIcon />}
+                    </IconButton>
+
+                    {/* Rotate Right Button */}
+                    <IconButton
+                        onClick={() => handleRotateCurrentImage(90)}
                         disabled={rotatingImage}
                         title="顺时针旋转90度并保存"
                         sx={{
