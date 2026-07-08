@@ -31,7 +31,7 @@
       </view>
       <view class="auto-line">
         <image class="check-dot-img" src="/assets/ui/icons/check-circle-line.svg" mode="aspectFit" />
-        <text>{{payroll.estimated ? '考勤未确认，按整月出勤预估' : '已根据签署考勤自动计算'}}</text>
+        <text>{{payroll.estimated ? '考勤未确认，按合同周期预估' : '已根据签署考勤自动计算'}}</text>
       </view>
       <view class="summary-divider"></view>
       <view class="stats-row">

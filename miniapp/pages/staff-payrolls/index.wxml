@@ -95,20 +95,7 @@
           </view>
         </view>
 
-        <view class="amount-grid">
-          <view class="amount-item">
-            <view class="amount-label">客户应付</view>
-            <view class="amount-value customer-due">¥ {{item.customer_total_due_text}}</view>
-          </view>
-          <view class="amount-item">
-            <view class="amount-label">员工应收</view>
-            <view class="amount-value employee-due">¥ {{item.employee_total_due_text}}</view>
-          </view>
-          <view class="amount-item">
-            <view class="amount-label">盈余</view>
-            <view class="amount-value margin-text {{item.gross_margin_positive ? '' : 'negative'}}">¥ {{item.gross_margin_text}}</view>
-          </view>
-        </view>
+        
 
         
         <image class="row-arrow" src="/assets/ui/icons/chevron-right.svg" mode="aspectFit" />
