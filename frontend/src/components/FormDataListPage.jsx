@@ -27,6 +27,7 @@ import {
     Download as DownloadIcon,
     Home as HomeIcon,
     NavigateNext as NavigateNextIcon,
+    RotateLeft as RotateLeftIcon,
     RotateRight as RotateRightIcon,
 } from '@mui/icons-material';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
@@ -377,7 +378,7 @@ const FormDataListPage = () => {
 
     }, [formSchema, formToken]);
 
-    const handleRotateCurrentImage = async () => {
+    const handleRotateCurrentImage = async (degrees = 90) => {
         const currentImage = lightboxImages[currentImageIndex];
         const imageUrl = getLightboxUrl(currentImage);
 
@@ -393,7 +394,7 @@ const FormDataListPage = () => {
                 field_name: currentImage.fieldName,
                 image_url: imageUrl,
                 image_index: currentImage.imageIndex,
-                degrees: 90,
+                degrees,
             });
 
             const newImageUrl = response.data.image_url;
@@ -803,11 +804,37 @@ const FormDataListPage = () => {
                         <DownloadIcon />
                     </IconButton>
 
-                    {/* Rotate Button */}
+                    {/* Rotate Left Button */}
+                    <Tooltip title="逆时针旋转90度并保存" arrow>
+                        <span>
+                            <IconButton
+                                onClick={() => handleRotateCurrentImage(-90)}
+                                disabled={rotatingImage}
+                                sx={{
+                                    position: 'absolute',
+                                    top: -50,
+                                    right: 150,
+                                    color: 'white',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                    },
+                                    '&.Mui-disabled': {
+                                        color: 'rgba(255,255,255,0.6)',
+                                        backgroundColor: 'rgba(0, 0, 0, 0.35)',
+                                    },
+                                }}
+                            >
+                                {rotatingImage ? <CircularProgress size={22} sx={{ color: 'white' }} /> : <RotateLeftIcon />}
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+
+                    {/* Rotate Right Button */}
                     <Tooltip title="顺时针旋转90度并保存" arrow>
                         <span>
                             <IconButton
-                                onClick={handleRotateCurrentImage}
+                                onClick={() => handleRotateCurrentImage(90)}
                                 disabled={rotatingImage}
                                 sx={{
                                     position: 'absolute',

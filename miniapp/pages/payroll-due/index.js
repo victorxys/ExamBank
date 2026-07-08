@@ -19,16 +19,6 @@ function roundedMoneyWithCentsText(value) {
   });
 }
 
-function compactMoneyText(value) {
-  const number = Number(value || 0);
-  if (Number.isNaN(number)) return value || '0';
-  if (Math.abs(number - Math.round(number)) < 0.001) return String(Math.round(number));
-  return number.toLocaleString('zh-CN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
-}
-
 function roundedMoneyText(value) {
   const number = Number(value || 0);
   if (Number.isNaN(number)) return value || '0';
@@ -56,7 +46,7 @@ function buildView(payroll = {}) {
     amount_due_text: roundedMoneyWithCentsText(displayAmount),
     calculated_amount_text: moneyText(displayAmount),
     rounded_calculated_amount_text: roundedMoneyText(displayAmount),
-    base_salary_text: compactMoneyText(payroll.base_salary),
+    base_salary_text: moneyText(payroll.base_salary),
     salary_days_text: payroll.salary_days || '26',
     work_days_text: payroll.work_days || '0',
     overtime_days_text: payroll.overtime_days || '0',
