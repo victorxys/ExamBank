@@ -596,7 +596,15 @@ def submit_form_data(form_id):
         db.session.flush()
 
         _process_sync_mapping(new_form_data, dynamic_form, current_user)
-        
+
+        # 入职登记表（N0Il9H）：提交后自动创建/更新员工信息
+        from backend.services.staff_from_form_service import (
+            maybe_auto_create_staff_from_entry_form,
+        )
+        employee_result = maybe_auto_create_staff_from_entry_form(
+            new_form_data, dynamic_form.form_token
+        )
+
         db.session.commit()
             
         response = {
@@ -605,6 +613,8 @@ def submit_form_data(form_id):
         }
         if score is not None:
             response['score'] = score
+        if employee_result:
+            response['employee'] = employee_result
 
         return jsonify(response), 201
     except Exception as e:
@@ -659,7 +669,15 @@ def update_form_data(data_id):
 
         # 处理同步映射逻辑
         _process_sync_mapping(form_data, form_data.dynamic_form, current_user)
-        
+
+        # 入职登记表（N0Il9H）：更新后同步员工信息
+        from backend.services.staff_from_form_service import (
+            maybe_auto_create_staff_from_entry_form,
+        )
+        employee_result = maybe_auto_create_staff_from_entry_form(
+            form_data, form_data.dynamic_form.form_token
+        )
+
         db.session.commit()
             
         response = {
@@ -668,6 +686,8 @@ def update_form_data(data_id):
         }
         if form_data.score is not None:
             response['score'] = form_data.score
+        if employee_result:
+            response['employee'] = employee_result
 
         return jsonify(response), 200
     except Exception as e:
