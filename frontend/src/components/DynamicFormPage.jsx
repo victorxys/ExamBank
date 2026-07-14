@@ -2837,16 +2837,29 @@ const DynamicFormPage = () => {
                             localStorage.removeItem(`survey-autosave-${formToken}`);
                         } else {
                             // 非考试类型：区分管理员编辑和访客提交
+                            // 入职登记表提交/更新时后端会自动创建或更新员工信息
+                            const employeeResult = response.data?.employee;
+                            const employeeHint = employeeResult
+                                ? `（已${employeeResult.created ? '自动创建' : '同步更新'}员工：${employeeResult.name}）`
+                                : '';
+
                             if (dataId) {
                                 // 管理员编辑：显示提示并刷新页面，不设置 completed 状态
                                 setAlert({
                                     open: true,
-                                    message: '保存成功！',
+                                    message: `保存成功！${employeeHint}`,
                                     severity: 'success'
                                 });
                                 setTimeout(() => window.location.reload(), 100);
                             } else {
                                 // 访客提交：设置 completed 状态，SurveyJS 会自动显示 completedHtml
+                                if (employeeHint) {
+                                    setAlert({
+                                        open: true,
+                                        message: `提交成功！${employeeHint}`,
+                                        severity: 'success'
+                                    });
+                                }
                                 setSubmissionState('completed');
                                 // Cleanup auto-save on successful submission
                                 localStorage.removeItem(`survey-autosave-${formToken}`);
@@ -3606,14 +3619,14 @@ const DynamicFormPage = () => {
                         flexWrap: 'wrap',
                         justifyContent: { xs: 'center', md: 'flex-end' }
                     }}>
-                        {/* 创建员工信息按钮（仅 N0Il9H 表单显示） */}
+                        {/* 同步员工信息按钮（入职表提交时已自动创建；此处供管理员手动补同步） */}
                         {formToken === 'N0Il9H' && dataId && (
                             <Button
                                 variant="contained"
                                 color="secondary"
                                 size="small"
                                 onClick={async () => {
-                                    if (!window.confirm('确定要根据当前表单数据创建/更新员工信息吗？')) return;
+                                    if (!window.confirm('确定要根据当前表单数据创建/更新员工信息吗？\n（员工提交入职表时已会自动创建，此按钮用于补同步或强制刷新）')) return;
                                     try {
                                         const res = await api.post(`/staff/create-from-form/${dataId}`);
                                         setAlert({
@@ -3625,7 +3638,7 @@ const DynamicFormPage = () => {
                                         console.error(err);
                                         setAlert({
                                             open: true,
-                                            message: '操作失败: ' + (err.response?.data?.message || err.message),
+                                            message: '操作失败: ' + (err.response?.data?.error || err.response?.data?.message || err.message),
                                             severity: 'error'
                                         });
                                     }
@@ -3634,11 +3647,11 @@ const DynamicFormPage = () => {
                                     backgroundColor: 'secondary.main',
                                     color: 'white',
                                     '&:hover': {
-                                        backgroundColor: 'secondary.dark'
-                                    }
+                                        backgroundColor: 'secondary.dark',
+                                    },
                                 }}
                             >
-                                创建员工信息
+                                同步员工信息
                             </Button>
                         )}
 

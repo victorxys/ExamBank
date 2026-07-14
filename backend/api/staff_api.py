@@ -455,167 +455,39 @@ def get_latest_contract_by_name(name):
 @staff_api.route('/create-from-form/<uuid:data_id>', methods=['POST'])
 def create_staff_from_form(data_id):
     """
-    从动态表单数据创建或更新员工信息。
-    
+    从动态表单数据创建或更新员工信息（手动触发；入职表提交时也会自动执行同等逻辑）。
+
     Args:
         data_id: DynamicFormData 的 UUID
-        
+
     Returns:
         JSON response with success message and employee ID
     """
+    from backend.services.staff_from_form_service import (
+        create_or_update_staff_from_form_data,
+    )
+
     try:
         logging.info(f"[CREATE_STAFF] 开始处理表单数据 ID: {data_id}")
-        
-        # 1. 查询表单数据
+
         form_data = DynamicFormData.query.get(str(data_id))
         if not form_data:
             logging.error(f"[CREATE_STAFF] 表单数据不存在: {data_id}")
             return jsonify({"error": "表单数据不存在"}), 404
-        
-        # 2. 提取表单字段
-        data = form_data.data
-        if not data:
-            logging.error(f"[CREATE_STAFF] 表单数据为空: {data_id}")
-            return jsonify({"error": "表单数据为空"}), 400
-        
-        logging.info(f"[CREATE_STAFF] 表单数据字段: {list(data.keys())}")
-        logging.debug(f"[CREATE_STAFF] 完整表单数据: {data}")
-        
-        # 3. 映射字段（支持多种格式）
-        # 格式1: Jinshuju field_X 格式（萌嫂入职登记表使用此格式）
-        # 格式2: 中文字段名
-        # 格式3: 英文字段名
-        
-        # 姓名: field_1 或 "姓名" 或 "name"
-        name = data.get("field_1") or data.get("姓名") or data.get("name")
-        
-        # 手机号: field_2 或 "手机号" 或 "phone_number" 或 "联系电话"
-        phone_number = (
-            data.get("field_2") or 
-            data.get("手机号") or 
-            data.get("phone_number") or 
-            data.get("联系电话")
-        )
-        
-        # 身份证号: field_93 或 "身份证号" 或 "id_card_number" 或 "身份证号码"
-        id_card_number = (
-            data.get("field_93") or 
-            data.get("身份证号") or 
-            data.get("id_card_number") or 
-            data.get("身份证号码")
-        )
-        
-        # 地址: field_3 或 "现居住地址" 或 "address" 或 "住址"
-        address = (
-            data.get("field_3") or 
-            data.get("现居住地址") or 
-            data.get("address") or 
-            data.get("住址")
-        )
 
-        salary_card_holder_name = _first_present(data, [
-            "问题3",
-            "工资卡持卡人",
-            "工资卡持卡人姓名",
-            "持卡人姓名",
-            "salary_card_holder_name",
-            "salary_card_holder",
-        ])
-        salary_card_bank_name = _first_present(data, [
-            "问题4",
-            "工资卡开户行",
-            "工资卡开户行名称",
-            "开户行",
-            "开户行名称",
-            "salary_card_bank_name",
-            "salary_card_bank",
-        ])
-        salary_card_number = _first_present(data, [
-            "问题5",
-            "工资卡卡号",
-            "工资卡银行卡号",
-            "银行卡号",
-            "salary_card_number",
-            "bank_card_number",
-        ])
-        
-        # 确保手机号是字符串格式（可能是数字）
-        if phone_number and not isinstance(phone_number, str):
-            phone_number = str(phone_number)
-        salary_card_holder_name = _clean_optional_string(salary_card_holder_name)
-        salary_card_bank_name = _clean_optional_string(salary_card_bank_name)
-        salary_card_number = _clean_optional_string(salary_card_number)
-        
-        logging.info(
-            "[CREATE_STAFF] 提取的字段 - "
-            f"姓名: {name}, 手机号: {phone_number}, 身份证: {id_card_number}, 地址: {address}, "
-            f"工资卡持卡人: {salary_card_holder_name}, 工资卡开户行: {salary_card_bank_name}, "
-            f"工资卡卡号: {salary_card_number}"
+        employee, created, message = create_or_update_staff_from_form_data(
+            form_data, commit=True
         )
-        
-        # 4. 验证必填字段
-        if not name:
-            logging.error(f"[CREATE_STAFF] 缺少必填字段：姓名")
-            return jsonify({"error": "缺少必填字段：姓名"}), 400
-        if not phone_number:
-            logging.error(f"[CREATE_STAFF] 缺少必填字段：手机号")
-            return jsonify({"error": "缺少必填字段：手机号"}), 400
-        
-        # 5. 检查是否已存在。手机号可能在登记表里被更新，所以身份证要先作为稳定身份兜底。
-        existing_employee = None
-        if id_card_number:
-            existing_employee = ServicePersonnel.query.filter_by(
-                id_card_number=id_card_number
-            ).first()
-        if not existing_employee:
-            existing_employee = ServicePersonnel.query.filter_by(
-                phone_number=phone_number
-            ).first()
-        
-        if existing_employee:
-            # 更新现有员工信息
-            existing_employee.name = name
-            existing_employee.phone_number = phone_number
-            if id_card_number:
-                existing_employee.id_card_number = id_card_number
-            if address:
-                existing_employee.address = address
-            if salary_card_holder_name:
-                existing_employee.salary_card_holder_name = salary_card_holder_name
-            if salary_card_bank_name:
-                existing_employee.salary_card_bank_name = salary_card_bank_name
-            if salary_card_number:
-                existing_employee.salary_card_number = salary_card_number
-            
-            db.session.commit()
-            
-            return jsonify({
-                "message": "员工信息已更新",
-                "id": str(existing_employee.id),
-                "name": existing_employee.name
-            }), 200
-        else:
-            # 创建新员工
-            new_employee = ServicePersonnel(
-                name=name,
-                phone_number=phone_number,
-                id_card_number=id_card_number,
-                address=address,
-                salary_card_holder_name=salary_card_holder_name,
-                salary_card_bank_name=salary_card_bank_name,
-                salary_card_number=salary_card_number,
-                is_active=True
-            )
-            
-            db.session.add(new_employee)
-            db.session.commit()
-            
-            return jsonify({
-                "message": "员工信息创建成功",
-                "id": str(new_employee.id),
-                "name": new_employee.name
-            }), 201
-            
+        return jsonify({
+            "message": message,
+            "id": str(employee.id),
+            "name": employee.name,
+        }), (201 if created else 200)
+
+    except ValueError as e:
+        db.session.rollback()
+        logging.error(f"[CREATE_STAFF] 校验失败: {e}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         db.session.rollback()
         logging.error(f"创建员工失败: {str(e)}", exc_info=True)
