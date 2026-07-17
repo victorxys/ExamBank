@@ -474,7 +474,7 @@ ${managementFeeNotePart}`;
                             {/* 薪酬和费用字段 */}
                             {isMaternityNurse && (
                                 <>
-                                    <Grid item xs={12} sm={4}><TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type ="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()} disabled={isReadOnly} /></Grid>
+                                    <Grid item xs={12} sm={4}><TextField required fullWidth name="employee_level" label="月薪/劳务报酬 (元/月)" type ="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()} disabled={isReadOnly} helperText="纯劳务；业务级别=月薪+管理费" /></Grid>
                                     <Grid item xs={12} sm={4}><TextField fullWidth name="deposit_amount" label="定金 (元)" type="number" value={formData.deposit_amount} onChange={handleChange} helperText="默认为3000元" onWheel={(e) => e.target.blur()} disabled={isReadOnly} /></ Grid>
                                     <Grid item xs={12} sm={4}>
                                         <FormControl fullWidth disabled={isReadOnly}>
@@ -488,7 +488,7 @@ ${managementFeeNotePart}`;
                                             </Select>
                                         </FormControl>
                                     </Grid>
-                                    <Grid item xs={12} sm={6}><TextField fullWidth name="security_deposit_paid" label="客交保证金 (元)" type= "number" value={formData.security_deposit_paid} onChange={handleChange} onWheel={(e) => e.target.blur()} disabled={isReadOnly} /></Grid>
+                                    <Grid item xs={12} sm={6}><TextField fullWidth name="security_deposit_paid" label="级别/客交保证金 (元)" type= "number" value={formData.security_deposit_paid} onChange={handleChange} onWheel={(e) => e.target.blur()} disabled={isReadOnly} helperText="业务级别 = 客交保证金 = 月薪 + 管理费" /></Grid>
                                     <Grid item xs={12} sm={6}><TextField fullWidth disabled name="management_fee_amount" label="管理费 (自动计算)" type="number" value={formData.management_fee_amount} /></Grid>
                                 </>
                             )}

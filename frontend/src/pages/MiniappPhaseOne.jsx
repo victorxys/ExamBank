@@ -630,7 +630,14 @@ export default function MiniappPhaseOne() {
             <h2 className="mb-3 text-base font-extrabold text-slate-900">合同信息</h2>
             <DetailRow label="客户" value={contractDetail.customer_name} />
             <DetailRow label="服务人员" value={contractDetail.employee_name} />
-            <DetailRow label="劳务报酬" value={contractDetail.employee_level ? `${contractDetail.employee_level} 元/月` : '-'} />
+            {contractDetail.type === 'maternity_nurse' || contractDetail.contract_type_value === 'maternity_nurse' ? (
+              <>
+                <DetailRow label="级别(总价/含管理费)" value={(contractDetail.package_level ?? contractDetail.security_deposit_paid) ? `${contractDetail.package_level ?? contractDetail.security_deposit_paid} 元` : '-'} />
+                <DetailRow label="月薪/劳务报酬" value={(contractDetail.salary_amount ?? contractDetail.employee_level) ? `${contractDetail.salary_amount ?? contractDetail.employee_level} 元/月` : '-'} />
+              </>
+            ) : (
+              <DetailRow label="劳务报酬" value={contractDetail.employee_level ? `${contractDetail.employee_level} 元/月` : '-'} />
+            )}
             <DetailRow label="管理费" value={contractDetail.management_fee_amount ? `${contractDetail.management_fee_amount} 元/月` : '-'} />
             <DetailRow label="签署状态" value={signingStatusText[contractDetail.signing_status] || contractDetail.signing_status} />
           </div>

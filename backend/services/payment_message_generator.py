@@ -24,7 +24,8 @@ ADJUSTMENT_TYPE_LABELS = {
     AdjustmentType.DEFERRED_FEE: "上期顺延费用",
     AdjustmentType.INTRODUCTION_FEE: "介绍费",
     AdjustmentType.DEPOSIT: "保证金",
-    AdjustmentType.COMPANY_PAID_SALARY: "保证金代付员工工资"
+    AdjustmentType.COMPANY_PAID_SALARY: "保证金代付员工工资",
+    # 月嫂末期「保证金代付管理费」类型为 CUSTOMER_INCREASE，展示名按 description 特殊处理
 }
 
 class PaymentMessageGenerator:
@@ -296,10 +297,13 @@ class PaymentMessageGenerator:
         """根据智能命名规则确定调整项的名称，并移除系统标记。"""
         generic_types = [AdjustmentType.CUSTOMER_INCREASE, AdjustmentType.CUSTOMER_DECREASE, AdjustmentType.EMPLOYEE_INCREASE, AdjustmentType.EMPLOYEE_DECREASE]
         
-        clean_description = (adj.description or "").replace("[系统添加]", "").strip()
+        clean_description = (adj.description or "").replace("[系统添加]", "").replace("[系统]", "").strip()
 
         if adj.adjustment_type in generic_types:
             if clean_description:
+                # 月嫂末期：保证金代付管理费
+                if "保证金代付管理费" in clean_description:
+                    return "保证金代付管理费"
                 return clean_description
             else:
                 return ADJUSTMENT_TYPE_LABELS.get(adj.adjustment_type, adj.adjustment_type.name)

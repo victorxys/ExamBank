@@ -193,14 +193,14 @@ const PublicSigningPage = () => {
                 )}
                 <Grid item xs={12}>
                     <Typography>
-                        <strong>乙方劳务报酬:</strong> {contract.employee_level?.toFixed(2)}
+                        <strong>{contract.type === 'maternity_nurse' ? '乙方月薪/劳务报酬' : '乙方劳务报酬'}:</strong> {contract.employee_level?.toFixed(2)}
                         {/* --- 核心修改：根据合同类型显示不同单位 --- */}
                         {contract.type === 'nanny_trial' ? ' 元/日' : ' 元/月'}
                     </Typography>
                 </Grid>
                 {contract.security_deposit_paid >0 && (
                 <Grid item xs={12}>
-                    <Typography><strong>保证金:</strong> {contract.security_deposit_paid?.toFixed(2 )} 元</Typography>
+                    <Typography><strong>{contract.type === 'maternity_nurse' ? '级别/保证金' : '保证金'}:</strong> {contract.security_deposit_paid?.toFixed(2 )} 元</Typography>
                 </Grid>
                 )}
                 {contract.management_fee_amount >0 && (

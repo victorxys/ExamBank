@@ -56,6 +56,7 @@ from backend.services.contract_operation_log_service import (
     snapshot_contract,
 )
 from backend.utils.miniapp_config import get_miniapp_credentials, miniapp_credential_status
+from backend.api.utils import get_contract_level_semantics
 
 contract_bp = Blueprint("contract_api", __name__, url_prefix="/api/contracts")
 
@@ -1451,6 +1452,7 @@ def get_contract_details(contract_id):
             # --- 新增字段 ---
             "deposit_amount": str(getattr(contract, 'deposit_amount', '')) if contract.type == 'maternity_nurse' else '',
             # 根据 security_deposit_paid 和 employee_level 反算 deposit_rate
+            # 月嫂：employee_level=月薪，security_deposit_paid=级别总价
             "deposit_rate": str(
                 round(1 - (float(contract.employee_level or 0) / float(contract.security_deposit_paid)), 2)
             ) if contract.type == 'maternity_nurse' and contract.security_deposit_paid and float(contract.security_deposit_paid) > 0 else '0.25',
@@ -1463,6 +1465,8 @@ def get_contract_details(contract_id):
             "requires_signature": contract.requires_signature,
             # --- 家庭ID字段 ---
             "family_id": contract.family_id,
+            # --- 方案 A：级别语义（存储不变，仅补充展示字段）---
+            **get_contract_level_semantics(contract),
         }
 
         return jsonify(result)
@@ -2741,10 +2745,15 @@ def get_transferable_contracts_for_customer(customer_id):
         results = []
         for contract in contracts:
             effective_end_date = contract.termination_date or contract.end_date
+            level_sem = get_contract_level_semantics(contract)
             results.append({
                 "contract_id": str(contract.id),
                 "service_personnel_name": contract.service_personnel.name if contract.service_personnel else "N/A",
+                # 存储月薪；展示级别用 level_display
                 "employee_level": str(contract.employee_level or 0),
+                "salary_amount": level_sem["salary_amount"],
+                "package_level": level_sem["package_level"],
+                "level_display": level_sem["level_display"],
                 "effective_end_date": effective_end_date.isoformat(),
                 "transferable_deposit_amount": str(contract.security_deposit_paid or 0)
             })
