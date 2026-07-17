@@ -364,14 +364,14 @@ const ContractDetail = () => {
 
             // --- 核心修改：区分月嫂合同和育儿嫂合同的计算逻辑 ---
             if (contract?.contract_type_value === 'maternity_nurse') {
-                // 月嫂逻辑：管理费 = (级别 / (1 - 费率)) * 费率
-                // 注意：这里的费率是指管理费占总金额(级别+管理费)的比例
+                // 月嫂：employee_level=月薪；费率=管理费占(月薪+管理费)总价比例
+                // 管理费 = (月薪 / (1 - 费率)) * 费率；业务级别/保证金 = 月薪 + 管理费
                 if (rate < 1) {
                     const totalAmount = level / (1 - rate);
                     newFee = totalAmount * rate;
                 }
             } else {
-                // 育儿嫂逻辑：管理费 = 级别 * 费率
+                // 育儿嫂：级别=月薪，管理费 = 级别 * 费率
                 newFee = level * rate;
             }
 
@@ -390,13 +390,13 @@ const ContractDetail = () => {
 
             // --- 核心修改：区分月嫂合同和育儿嫂合同的计算逻辑 ---
             if (contract?.contract_type_value === 'maternity_nurse') {
-                // 月嫂逻辑：管理费 = (级别 / (1 - 费率)) * 费率
+                // 月嫂：employee_level=月薪；管理费 = (月薪/(1-费率))*费率
                 if (rate < 1) {
                     const totalAmount = level / (1 - rate);
                     newFee = totalAmount * rate;
                 }
             } else {
-                // 育儿嫂逻辑：管理费 = 级别 * 费率
+                // 育儿嫂：级别=月薪，管理费 = 级别 * 费率
                 newFee = level * rate;
             }
 
@@ -1165,14 +1165,12 @@ const ContractDetail = () => {
 
     const specificFields = contract.contract_type_value === 'maternity_nurse' ? {
         '合同类型': '月嫂合同',
-        '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
+        // 方案 A：级别=保证金总价；月薪=employee_level（与育儿嫂不同）
+        '级别(总价/含管理费)': `¥${formatCurrency(contract.package_level ?? contract.security_deposit_paid)}`,
+        '月薪/劳务报酬': `¥${formatCurrency(contract.salary_amount ?? contract.employee_level)}`,
         '预产期': formatDate(contract.provisional_start_date),
-        // '实际上户日期': formatDate(contract.actual_onboarding_date),
-        // '定金': `¥${formatCurrency(contract.deposit_amount)}`,
         '管理费': `¥${formatCurrency(contract.management_fee_amount)}`,
-        // '管理费率': `${(contract.management_fee_rate * 100).toFixed(0)}%`,
-        '保证金支付': `¥${formatCurrency(contract.security_deposit_paid)}`,
-        // '优惠金额': `¥${formatCurrency(contract.discount_amount)}`,
+        '客交保证金': `¥${formatCurrency(contract.security_deposit_paid)}`,
     } : contract.contract_type_value === 'nanny_trial' ? {
         '合同类型': '育儿嫂试工',
         '级别/日薪': `¥${formatCurrency(contract.employee_level)}`,
@@ -1184,7 +1182,6 @@ const ContractDetail = () => {
         '合同类型': '育儿嫂合同',
         '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
         '管理费': `¥${formatCurrency(contract.management_fee_amount)}`,
-        // '是否自动月签': contract.is_monthly_auto_renew ? '是' : '否',
     };
 
     const autoRenewField = (contract.contract_type_value === 'nanny') ? (
@@ -1489,7 +1486,7 @@ const ContractDetail = () => {
         actual_onboarding_date: '实际上户日期',
         attachment_content: '附件内容',
         customer_name: '客户姓名',
-        employee_level: '级别/月薪',
+        employee_level: contract?.contract_type_value === 'maternity_nurse' ? '月薪/劳务报酬' : '级别/月薪',
         end_date: '结束日期',
         expected_offboarding_date: '预计下户日期',
         introduction_fee: '介绍费',
@@ -1498,7 +1495,7 @@ const ContractDetail = () => {
         management_fee_rate: '管理费率',
         notes: '备注',
         requires_signature: '是否需要签署',
-        security_deposit_paid: '保证金',
+        security_deposit_paid: contract?.contract_type_value === 'maternity_nurse' ? '级别/客交保证金' : '保证金',
         service_personnel_id: '服务人员',
         service_personnel_name: '服务人员姓名',
         signing_status: '签署状态',
@@ -2208,12 +2205,13 @@ const ContractDetail = () => {
                             sx={{ width: '100%', mt: 2 }}
                         />
                         <TextField
-                            label="员工级别/月薪"
+                            label={contract?.contract_type_value === 'maternity_nurse' ? '月薪/劳务报酬' : '员工级别/月薪'}
                             type="number"
                             fullWidth
                             margin="normal"
                             value={renewalData.employee_level}
                             onChange={(e) => setRenewalData({ ...renewalData, employee_level: e.target.value })}
+                            helperText={contract?.contract_type_value === 'maternity_nurse' ? '月嫂存月薪（纯劳务）；业务级别=月薪+管理费' : ''}
                         />
                         <TextField
                             label="管理费率"
@@ -2246,7 +2244,7 @@ const ContractDetail = () => {
                         {/* --- 新增：月嫂续约显示预计客交保证金 --- */}
                         {contract?.contract_type_value === 'maternity_nurse' && (
                             <TextField
-                                label="预计客交保证金 (自动计算)"
+                                label="预计级别/客交保证金 (自动计算)"
                                 value={
                                     (parseFloat(renewalData.employee_level || 0) + parseFloat(renewalData.management_fee_amount || 0)).toFixed(2)
                                 }
@@ -2256,7 +2254,7 @@ const ContractDetail = () => {
                                     readOnly: true,
                                     startAdornment: <InputAdornment position="start">¥</InputAdornment>,
                                 }}
-                                helperText="月嫂合同：保证金 = 员工级别 + 管理费"
+                                helperText="月嫂：业务级别 = 客交保证金 = 月薪 + 管理费"
                                 variant="filled"
                             />
                         )}
@@ -2349,12 +2347,13 @@ const ContractDetail = () => {
                             sx={{ width: '100%', mt: 2 }}
                         />
                         <TextField
-                            label="新员工级别/月薪"
+                            label={contract?.contract_type_value === 'maternity_nurse' ? '新月薪/劳务报酬' : '新员工级别/月薪'}
                             type="number"
                             fullWidth
                             margin="normal"
                             value={changeData.employee_level}
                             onChange={(e) => setChangeData({ ...changeData, employee_level: e.target.value })}
+                            helperText={contract?.contract_type_value === 'maternity_nurse' ? '月嫂存月薪（纯劳务）；业务级别=月薪+管理费' : ''}
                         />
                         <TextField
                             label="新管理费率"

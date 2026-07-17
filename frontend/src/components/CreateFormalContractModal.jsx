@@ -1347,7 +1347,7 @@ ${managementFeeNotePart}`;
 
                         {formData.contract_type === 'maternity_nurse' && (
                             <>
-                                <Grid item xs={12} sm={4}><TextField required fullWidth name="employee_level" label="乙方劳务报酬 (元/月)" type="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()} /></Grid>
+                                <Grid item xs={12} sm={4}><TextField required fullWidth name="employee_level" label="月薪/劳务报酬 (元/月)" type="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()} helperText="纯劳务；业务级别=月薪+管理费" /></Grid>
                                 <Grid item xs={12} sm={4}><TextField fullWidth name="deposit_amount" label="定金 (元)" type="number" value={formData.deposit_amount} onChange={handleInputChange} helperText="默认为3000元" onWheel={(e) => e.target.blur()} /></Grid>
                                 <Grid item xs={12} sm={4}>
                                     <FormControl fullWidth>
@@ -1361,8 +1361,8 @@ ${managementFeeNotePart}`;
                                         </Select>
                                     </FormControl>
                                 </Grid>
-                                <Grid item xs={12} sm={6}><TextField fullWidth name="security_deposit_paid" label="客交保证金 (元)" type="number" value={formData.security_deposit_paid} onChange={handleChange} onWheel={(e) => e.target.blur()} /></Grid>
-                                <Grid item xs={12} sm={6}><TextField fullWidth disabled name="management_fee_amount" label="服务费 (自动计算)" type="number" value={formData.management_fee_amount} /></Grid>
+                                <Grid item xs={12} sm={6}><TextField fullWidth name="security_deposit_paid" label="级别/客交保证金 (元)" type="number" value={formData.security_deposit_paid} onChange={handleChange} onWheel={(e) => e.target.blur()} helperText="业务级别 = 客交保证金 = 月薪 + 管理费" /></Grid>
+                                <Grid item xs={12} sm={6}><TextField fullWidth disabled name="management_fee_amount" label="管理费 (自动计算)" type="number" value={formData.management_fee_amount} /></Grid>
 
                             </>
                         )}
@@ -1618,7 +1618,7 @@ const TransferOptionDialog = ({ open, onClose, onConfirm, contracts, value, onCh
                                     value={c.contract_id}
                                     control={<Radio />}
                                     label={
-                                        `【${c.service_personnel_name}】月薪 ${c.employee_level} 的合同于 ${formatDate(c.effective_end_date)} 结束，有 ${c.transferable_deposit_amount} 元保证金可转移`
+                                        `【${c.service_personnel_name}】月薪 ${c.salary_amount ?? c.employee_level}、级别 ${c.level_display ?? c.package_level ?? c.transferable_deposit_amount} 的合同于 ${formatDate(c.effective_end_date)} 结束，有 ${c.transferable_deposit_amount} 元保证金可转移`
                                     }
                                 />
                             ))}

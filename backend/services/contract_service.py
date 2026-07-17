@@ -410,13 +410,17 @@ class ContractService:
             if final_management_fee_rate > 0:
                 # 区分月嫂合同和育儿嫂合同的计算逻辑
                 if isinstance(old_contract, MaternityNurseContract) and final_management_fee_rate < 1:
-                    # 月嫂逻辑：管理费 = (级别 / (1 - 费率)) * 费率
-                    # 24310 / (1 - 0.15) * 0.15 = 28600 * 0.15 = 4290
+                    # 月嫂存储：employee_level=月薪；业务级别/保证金=月薪+管理费
+                    # 管理费 = (月薪 / (1 - 费率)) * 费率
+                    # 例：24310 / (1 - 0.15) * 0.15 = 28600 * 0.15 = 4290
                     total_amount = new_employee_level / (1 - final_management_fee_rate)
                     final_management_fee_amount = (total_amount * final_management_fee_rate).quantize(Decimal('0.01'))
-                    current_app.logger.info(f"月嫂续约计算: 级别={new_employee_level}, 费率={final_management_fee_rate}, 计算出管理费={final_management_fee_amount}")
+                    current_app.logger.info(
+                        f"月嫂续约计算: 月薪={new_employee_level}, 费率={final_management_fee_rate}, "
+                        f"级别/保证金={total_amount}, 管理费={final_management_fee_amount}"
+                    )
                 else:
-                    # 育儿嫂逻辑：管理费 = 级别 * 费率
+                    # 育儿嫂逻辑：级别=月薪，管理费 = 级别 * 费率
                     final_management_fee_amount = (new_employee_level * final_management_fee_rate).quantize(Decimal('0.01'))
                     current_app.logger.info(f"普通续约计算: 级别={new_employee_level}, 费率={final_management_fee_rate}, 计算出管理费={final_management_fee_amount}")
             
@@ -474,10 +478,12 @@ class ContractService:
                 new_contract_fields['management_fee_amount'] = final_management_fee_amount
                 current_app.logger.info(f"月嫂合同续约：设置管理费金额为 {final_management_fee_amount}")
 
-                # 【关键修复】正确计算月嫂合同的客交保证金 (security_deposit_paid)
-                # 逻辑：客交保证金 = 员工级别 + 管理费
+                # 月嫂：业务级别 = 客交保证金 = 月薪 + 管理费
                 new_contract_fields['security_deposit_paid'] = new_employee_level + final_management_fee_amount
-                current_app.logger.info(f"月嫂合同续约：设置客交保证金为 {new_contract_fields['security_deposit_paid']} (级别 {new_employee_level} + 管理费 {final_management_fee_amount})")
+                current_app.logger.info(
+                    f"月嫂合同续约：设置级别/客交保证金为 {new_contract_fields['security_deposit_paid']} "
+                    f"(月薪 {new_employee_level} + 管理费 {final_management_fee_amount})"
+                )
                 
                 # 月嫂合同续约优化：自动确认实际上户日期并生成账单
                 new_contract_fields['actual_onboarding_date'] = start_date
@@ -832,23 +838,25 @@ class ContractService:
             if final_management_fee_rate > 0:
                 # 区分月嫂合同和育儿嫂合同的计算逻辑
                 if isinstance(old_contract, MaternityNurseContract) and final_management_fee_rate < 1:
-                    # 月嫂逻辑：管理费 = (级别 / (1 - 费率)) * 费率
+                    # 月嫂：employee_level=月薪；管理费=(月薪/(1-费率))*费率；级别/保证金=月薪+管理费
                     total_amount = new_employee_level / (1 - final_management_fee_rate)
                     final_management_fee_amount = (total_amount * final_management_fee_rate).quantize(Decimal('0.01'))
                 else:
-                    # 育儿嫂逻辑：管理费 = 级别 * 费率
+                    # 育儿嫂：级别=月薪，管理费 = 级别 * 费率
                     final_management_fee_amount = (new_employee_level * final_management_fee_rate).quantize(Decimal('0.01'))
 
             new_service_personnel_id = change_data.get("service_personnel_id")
 
-            # 【关键修复】正确计算变更合同的客交保证金
-            # 默认情况下(育儿嫂)，保证金 = 员工级别
+            # 育儿嫂：保证金 = 级别/月薪
             security_deposit_paid = new_employee_level
             
-            # 如果是月嫂合同，保证金 = 员工级别 + 管理费
+            # 月嫂：业务级别 = 客交保证金 = 月薪 + 管理费
             if isinstance(old_contract, MaternityNurseContract):
                  security_deposit_paid = new_employee_level + final_management_fee_amount
-                 current_app.logger.info(f"月嫂合同变更：设置客交保证金为 {security_deposit_paid} (级别 {new_employee_level} + 管理费 {final_management_fee_amount})")
+                 current_app.logger.info(
+                     f"月嫂合同变更：设置级别/客交保证金为 {security_deposit_paid} "
+                     f"(月薪 {new_employee_level} + 管理费 {final_management_fee_amount})"
+                 )
 
             # Handle requires_signature and signing_status
             requires_signature = change_data.get("requires_signature")

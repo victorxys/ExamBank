@@ -3026,7 +3026,13 @@ class BaseContract(db.Model):
         cascade="all, delete-orphan",
     )
 
-    employee_level = db.Column(db.String(100), comment="级别，通常是月薪或服务价格")
+    # 语义注意（方案 A，存储不变）：
+    # - 育儿嫂：employee_level = 业务「级别/月薪」（纯劳务，管理费另算）
+    # - 月嫂：employee_level = 「月薪/纯劳务报酬」；业务「级别」= security_deposit_paid（= 月薪+管理费）
+    employee_level = db.Column(
+        db.String(100),
+        comment="月嫂=月薪(纯劳务)；育儿嫂=级别/月薪(纯劳务)。月嫂业务级别见 security_deposit_paid",
+    )
 
     status = db.Column(
         db.String(50),

@@ -90,7 +90,7 @@
             <view class="info-value">{{item.service_range_text}}</view>
           </view>
           <view class="info-block">
-            <view class="info-label">月服务费/级别</view>
+            <view class="info-label">月薪/级别</view>
             <view class="info-value level-value">{{item.employee_level_text}}</view>
           </view>
         </view>

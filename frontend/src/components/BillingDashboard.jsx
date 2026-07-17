@@ -1001,7 +1001,7 @@ const BillingDashboard = () => {
                         <TableCell>合同周期</TableCell>
                         <TableCell>劳务时间段</TableCell>
                         <TableCell>状态</TableCell>
-                        <TableCell>月服务费/级别</TableCell>
+                        <TableCell>级别</TableCell>
                         <TableCell>本月应付/应收</TableCell>
                         <TableCell align="center">操作</TableCell>
                     </TableRow>
@@ -1113,7 +1113,17 @@ const BillingDashboard = () => {
 
                         <TableCell><Chip label={bill.status} size="small" color={bill.status === 'active' ? 'success' : 'default'} /></TableCell>
                         
-                        <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>{formatValue('级别', bill.employee_level)}</TableCell>
+                        <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>
+                            <Tooltip
+                                title={
+                                    bill.is_maternity_level_semantics
+                                        ? `月嫂级别(总价)=¥${bill.level_display ?? bill.package_level}；月薪=¥${bill.salary_amount ?? bill.employee_level}`
+                                        : (bill.level_display_label || '级别/月薪')
+                                }
+                            >
+                                <span>{formatValue('级别', bill.level_display ?? bill.package_level ?? bill.employee_level)}</span>
+                            </Tooltip>
+                        </TableCell>
 
                         <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>

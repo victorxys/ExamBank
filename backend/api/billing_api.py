@@ -67,7 +67,12 @@ from backend.services.contract_service import (
     cancel_substitute_bill_due_to_transfer,
     update_salary_history_on_contract_activation
 )
-from backend.api.utils import get_billing_details_internal, get_contract_type_details, _log_activity
+from backend.api.utils import (
+    get_billing_details_internal,
+    get_contract_type_details,
+    get_contract_level_semantics,
+    _log_activity,
+)
 from backend.services.contract_service import _find_successor_contract_internal
 from backend.services.payment_message_generator import PaymentMessageGenerator
 from backend.services.bank_statement_service import BankStatementService
@@ -636,6 +641,7 @@ def get_bills():
                     employee_payable_is_settled = all(adj.is_settled for adj in payable_adjustments)
             # --- 新增逻辑结束 ---
 
+            level_sem = get_contract_level_semantics(contract)
             item = {
                 "id": str(bill.id),
                 "contract_id": str(contract.id),
@@ -657,7 +663,14 @@ def get_bills():
                 "contract_type_label": get_contract_type_details(contract.type),
                 "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False),
                 "contract_type_value": contract.type,
+                # employee_level 仍返回存储值（月嫂=月薪）；列表「级别」展示用 level_display
                 "employee_level": str(contract.employee_level or "0"),
+                "salary_amount": level_sem["salary_amount"],
+                "package_level": level_sem["package_level"],
+                "level_display": level_sem["level_display"],
+                "level_display_label": level_sem["level_display_label"],
+                "salary_label": level_sem["salary_label"],
+                "is_maternity_level_semantics": level_sem["is_maternity_level_semantics"],
                 "active_cycle_start": bill.cycle_start_date.isoformat() if bill.cycle_start_date else None,
                 "active_cycle_end": bill.cycle_end_date.isoformat() if bill.cycle_end_date else None,
                 "invoice_needed": invoice_balance.get("auto_invoice_needed", False),
@@ -689,12 +702,23 @@ def get_bills():
                         "username",
                         getattr(sub_employee, "name", "未知替班员工"),
                     )
-                    item["employee_level"] = str(sub_record.substitute_salary or "0")
+                    # 替班级别口径：月嫂替班为含管理费总价；展示与 employee_level 一致
+                    sub_level = str(sub_record.substitute_salary or "0")
+                    item["employee_level"] = sub_level
+                    item["salary_amount"] = sub_level
+                    item["package_level"] = sub_level
+                    item["level_display"] = sub_level
+                    item["level_display_label"] = "替班级别"
+                    item["salary_label"] = "替班级别"
+                    item["is_maternity_level_semantics"] = (
+                        getattr(sub_record, "substitute_type", None) == "maternity_nurse"
+                    )
                     item["active_cycle_start"] = sub_record.start_date.isoformat()
                     item["active_cycle_end"] = sub_record.end_date.isoformat()
                 else:
                     item["employee_name"] = "替班(记录丢失)"
                     item["employee_level"] = "N/A"
+                    item["level_display"] = "N/A"
 
             results.append(item)
 
@@ -1778,6 +1802,7 @@ def get_all_contracts():
                 can_convert = _check_can_convert(contract)
 
             
+            level_sem = get_contract_level_semantics(contract)
             results.append(
                 {
                     "id": str(contract.id),
@@ -1787,6 +1812,13 @@ def get_all_contracts():
                     "contract_type_label": get_contract_type_details(contract.type),
                     "status": effective_status,
                     "employee_level": contract.employee_level,
+                    "salary_amount": level_sem["salary_amount"],
+                    "package_level": level_sem["package_level"],
+                    "level_display": level_sem["level_display"],
+                    "level_display_label": level_sem["level_display_label"],
+                    "salary_label": level_sem["salary_label"],
+                    "is_maternity_level_semantics": level_sem["is_maternity_level_semantics"],
+                    "security_deposit_paid": str(getattr(contract, "security_deposit_paid", None) or 0),
                     "start_date": contract.start_date.isoformat() if contract.start_date else None,
                     "end_date": contract.end_date.isoformat() if contract.end_date else None,
                     "actual_onboarding_date": getattr(contract,"actual_onboarding_date", None),
@@ -2495,6 +2527,9 @@ def get_single_contract_details(contract_id):
             # --- 签署相关字段 ---
             "signing_status": contract.signing_status.value if contract.signing_status else 'UNSIGNED',
             "requires_signature": contract.requires_signature,
+            # --- 方案 A：级别语义展示字段（存储不变）---
+            **get_contract_level_semantics(contract),
+            "security_deposit_paid": str(getattr(contract, "security_deposit_paid", None) or 0),
         }
         if contract.type == 'nanny_trial':
             result['trial_outcome'] = contract.trial_outcome.value if contract.trial_outcome else None

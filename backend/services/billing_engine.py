@@ -38,6 +38,7 @@ D = decimal.Decimal
 CTX = decimal.Context(prec=10)
 
 
+
 def _nanny_service_days_excluding_start(cycle_start, cycle_end, contract_start_date, is_first_bill):
     """首月基础劳务天数不包含合同开始日。"""
     cycle_days = D((cycle_end - cycle_start).days + 1)
@@ -126,6 +127,106 @@ class BillingEngine:
         if isinstance(dt_obj, date):
             return datetime(dt_obj.year, dt_obj.month, dt_obj.day, tzinfo=tzinfo)
         return None
+
+    def _count_maternity_nurse_billing_cycles(self, contract) -> int:
+        """按与账单生成相同的规则，统计月嫂合同有多少个 26 天服务周期。"""
+        start = self._to_date(getattr(contract, "actual_onboarding_date", None)) or self._to_date(
+            getattr(contract, "start_date", None)
+        )
+        end = self._to_date(
+            getattr(contract, "expected_offboarding_date", None) or getattr(contract, "end_date", None)
+        )
+        if not start or not end or start >= end:
+            return 0
+
+        count = 0
+        cycle_start = start
+        while cycle_start < end:
+            cycle_end = cycle_start + timedelta(days=26)
+            if cycle_end >= end:
+                cycle_end = end
+            count += 1
+            if cycle_end >= end:
+                break
+            cycle_start = cycle_end
+        return count
+
+    def _is_last_maternity_nurse_cycle(self, contract, cycle_start, cycle_end=None) -> bool:
+        """
+        判断当前周期是否为月嫂合同的最后一个服务周期。
+        规则与账单生成一致：走到 contract_end 的那一期为末期。
+        """
+        cycle_start = self._to_date(cycle_start)
+        cycle_end = self._to_date(cycle_end)
+        contract_end = self._to_date(
+            getattr(contract, "expected_offboarding_date", None)
+            or getattr(contract, "termination_date", None)
+            or getattr(contract, "end_date", None)
+        )
+        if not cycle_start or not contract_end:
+            return False
+
+        # 优先用账单周期结束日判断：结束日已到达/覆盖合同结束日 → 末期
+        if cycle_end and cycle_end >= contract_end:
+            return True
+
+        # 回退：按与账单生成相同的算法推演，看当前 cycle_start 是否为最后一期起点
+        start = self._to_date(getattr(contract, "actual_onboarding_date", None)) or self._to_date(
+            getattr(contract, "start_date", None)
+        )
+        if not start:
+            return False
+
+        cursor = start
+        last_cycle_start = start
+        while cursor < contract_end:
+            last_cycle_start = cursor
+            next_end = cursor + timedelta(days=26)
+            if next_end >= contract_end:
+                break
+            cursor = next_end
+        return cycle_start == last_cycle_start
+
+    def _is_security_deposit_transferred_out(self, bill) -> bool:
+        """本账单上是否存在保证金转出（续约/变更/手工转移）。"""
+        if not bill or not getattr(bill, "id", None):
+            return False
+
+        adjustments = []
+        try:
+            if hasattr(bill, "financial_adjustments") and bill.financial_adjustments is not None:
+                adjustments = list(bill.financial_adjustments)
+            else:
+                adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=bill.id).all()
+        except Exception:
+            adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=bill.id).all()
+
+        for adj in adjustments:
+            desc = (adj.description or "").strip()
+            details = adj.details or {}
+            if "保证金转出" in desc:
+                return True
+            if details.get("transferred_to_contract_id") and ("保证金" in desc or "退款" in desc):
+                if any(k in desc for k in ("转出", "转移", "已转移", "转至")):
+                    return True
+            if details.get("status") == "transferred" and "保证金" in desc:
+                return True
+        return False
+
+    def _has_customer_security_deposit_for_salary(self, contract, bill) -> bool:
+        """
+        是否可用客交保证金代付本期员工工资。
+
+        条件：
+        1. 合同上 security_deposit_paid > 0
+        2. 本期账单上保证金未转出（续约/变更/转移后不可再代付）
+        """
+        deposit = D(getattr(contract, "security_deposit_paid", 0) or 0)
+        if deposit <= 0:
+            return False
+        if self._is_security_deposit_transferred_out(bill):
+            return False
+        return True
 
     def get_or_create_bill_for_nanny_contract(self, contract_id, year, month, end_date_override=None):
         """
@@ -1475,49 +1576,58 @@ class BillingEngine:
             )
             return
 
-        # --- 新增逻辑：当强制重算时，优先使用现有账单的周期日期 ---
+        # --- 强制重算：按现有账单周期重算（同月可能有多张 26 天账单）---
         if force_recalculate:
-            bill_to_recalculate = None
-            # 优先使用从API层传递过来的精确周期开始日期来查找
+            bills_to_recalculate = []
             if cycle_start_date_override:
-                bill_to_recalculate = CustomerBill.query.filter_by(
+                bill = CustomerBill.query.filter_by(
                     contract_id=contract.id,
                     cycle_start_date=cycle_start_date_override,
                     is_substitute_bill=False,
                 ).first()
-                if bill_to_recalculate:
-                    current_app.logger.info(f"[MN CALC] 强制重算，通过cycle_start_date_override找到了精确账单 {bill_to_recalculate.id}。")
-
-            # 如果没有精确日期，则回退到旧的、可能不准确的按月查找
-            if not bill_to_recalculate:
-                bill_to_recalculate = CustomerBill.query.filter_by(
-                    contract_id=contract.id,
-                    year=year,
-                    month=month,
-                    is_substitute_bill=False,
-                ).first()
-                if bill_to_recalculate:
-                    current_app.logger.warning(f"[MN CALC] 强制重算，回退到按月份查找，找到账单 {bill_to_recalculate.id}。")
-
-            if bill_to_recalculate:
-                current_app.logger.info(
-                    f"[MN CALC] 使用账单 {bill_to_recalculate.id} 的周期 {bill_to_recalculate.cycle_start_date} to {bill_to_recalculate.cycle_end_date} 进行重算。"
+                if bill:
+                    bills_to_recalculate = [bill]
+                    current_app.logger.info(
+                        f"[MN CALC] 强制重算，通过cycle_start_date_override找到了精确账单 {bill.id}。"
+                    )
+            else:
+                # 同月可能有多期（跨 26 天周期），必须全部重算，不能只取 first()
+                bills_to_recalculate = (
+                    CustomerBill.query.filter_by(
+                        contract_id=contract.id,
+                        year=year,
+                        month=month,
+                        is_substitute_bill=False,
+                    )
+                    .order_by(CustomerBill.cycle_start_date.asc())
+                    .all()
                 )
-                self._process_one_billing_cycle(
-                    contract,
-                    bill_to_recalculate.cycle_start_date,
-                    bill_to_recalculate.cycle_end_date,
-                    year,
-                    month,
-                    force_recalculate=True,
-                    actual_work_days_override=actual_work_days_override
-                )
+                if bills_to_recalculate:
+                    current_app.logger.info(
+                        f"[MN CALC] 强制重算，按月份找到 {len(bills_to_recalculate)} 张账单。"
+                    )
+
+            if bills_to_recalculate:
+                for bill_to_recalculate in bills_to_recalculate:
+                    current_app.logger.info(
+                        f"[MN CALC] 使用账单 {bill_to_recalculate.id} 的周期 "
+                        f"{bill_to_recalculate.cycle_start_date} to {bill_to_recalculate.cycle_end_date} 进行重算。"
+                    )
+                    self._process_one_billing_cycle(
+                        contract,
+                        bill_to_recalculate.cycle_start_date,
+                        bill_to_recalculate.cycle_end_date,
+                        year,
+                        month,
+                        force_recalculate=True,
+                        actual_work_days_override=actual_work_days_override,
+                    )
                 return
             else:
                 current_app.logger.warning(
                     f"    [MN CALC] 强制重算，但未找到月嫂合同 {contract.id} 在 {year}-{month} 的任何现有账单。将按常规流程计算。"
                 )
-        # --- 结束新增逻辑 ---
+        # --- 结束强制重算分支 ---
 
         # 原有逻辑：如果不是强制重算，或者强制重算但未找到现有账单，则按常规方式推导周期
         # 确保 cycle_start 是 date 类型
@@ -1596,6 +1706,8 @@ class BillingEngine:
             current_app.logger.info(
                 f"      [CYCLE PROC] No existing bill found or not forcing recalculation. Using derived dates: {actual_cycle_start_date} to {actual_cycle_end_date}"
             )
+        self._remove_final_salary_adjustments_after_payroll_transfer(bill, payroll)
+
         details = self._calculate_maternity_nurse_details(contract, bill, payroll, actual_work_days_override=actual_work_days_override)
         
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
@@ -1606,6 +1718,52 @@ class BillingEngine:
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
         _update_bill_payment_status(bill)
+
+        # 末期且本期仍有客交保证金时：创建「公司代付工资」+ 镜像「保证金支付工资」
+        # 保证金已转出（续约/变更）则 create_final_salary_adjustments 内部会清除代付项
+        contract_end_date = self._to_date(
+            getattr(contract, "expected_offboarding_date", None)
+            or getattr(contract, "termination_date", None)
+            or contract.end_date
+        )
+        cycle_end_for_final = self._to_date(actual_cycle_end_date)
+        final_adjustments_synced = False
+        is_terminal_cycle = bool(
+            contract_end_date
+            and cycle_end_for_final
+            and cycle_end_for_final >= contract_end_date
+        )
+
+        if (
+            is_terminal_cycle
+            and contract.status in ["active", "finished", "pending", "terminated"]
+        ):
+            current_app.logger.info(
+                f"[MN CALC] 合同 {contract.id} 末期账单 {bill.id}，同步最终结算调整"
+                f"（仅当本期有可用保证金时代付工资）。"
+            )
+            self.create_final_salary_adjustments(bill.id)
+            final_adjustments_synced = True
+
+        if (
+            not final_adjustments_synced
+            and contract.status in ["terminated", "finished"]
+            and not bill.is_substitute_bill
+        ):
+            last_bill_in_db = (
+                CustomerBill.query.filter(
+                    CustomerBill.contract_id == contract.id,
+                    CustomerBill.is_substitute_bill == False,
+                )
+                .order_by(CustomerBill.cycle_end_date.desc())
+                .first()
+            )
+            if last_bill_in_db and last_bill_in_db.id == bill.id:
+                current_app.logger.info(
+                    f"[MN CALC] 合同 {contract.id} 已结束，同步最后账单 {bill.id} 的最终结算调整。"
+                )
+                self.create_final_salary_adjustments(bill.id)
+
         current_app.logger.info(
             f"      [CYCLE PROC] 周期 {actual_cycle_start_date} 计算完成。"
         )
@@ -1675,20 +1833,29 @@ class BillingEngine:
         total_days_worked = base_work_days + overtime_days
         
 
-        # 1. 管理费和管理费率计算
-        management_fee = ((customer_deposit - level)/26 * (base_work_days)).quantize(QUANTIZER)
+        # 1. 管理费和管理费率计算（每期均按劳务天数收取本次交管理费，含末期）
+        # 应收总额由：本次交管理费 + 代付工资等 - 保证金退款 等一并结清
+        management_fee = (
+            ((customer_deposit - level) / D(26) * base_work_days).quantize(QUANTIZER)
+            if base_work_days > 0
+            else D(0)
+        )
         # --- 【健壮性修复】优先使用合同上存储的费率 ---
         if contract.management_fee_rate is not None:
             management_fee_rate = D(contract.management_fee_rate)
-        elif customer_deposit > 0:
-            management_fee_rate = (management_fee / customer_deposit).quantize(D("0.0001"))
+        elif customer_deposit > 0 and (customer_deposit - level) > 0:
+            management_fee_rate = ((customer_deposit - level) / customer_deposit).quantize(D("0.0001"))
         else:
             management_fee_rate = D(0)
         log_extras["management_fee_reason"] = (
-            f"客交保证金({customer_deposit:.2f}) - 级别({level:.2f}) / 26 * 劳务天数( {base_work_days}) = {management_fee:.2f}"
+            f"(客交保证金/级别总价({customer_deposit:.2f}) - 月薪({level:.2f})) / 26 * 劳务天数({base_work_days}) "
+            f"= {management_fee:.2f}"
         )
         log_extras["management_fee_rate_reason"] = (
-            f"管理费({management_fee:.2f}) / 客交保证金({customer_deposit:.2f}) = {management_fee_rate * 100:.2f}%"
+            f"管理费率({management_fee_rate * 100:.2f}%) = "
+            f"(客交保证金/级别总价({customer_deposit:.2f}) - 月薪({level:.2f})) / 客交保证金"
+            if customer_deposit > 0
+            else "客交保证金为0，管理费率为0"
         )
 
 
@@ -1705,7 +1872,7 @@ class BillingEngine:
         log_extras["customer_overtime_daily_rate_reason"] = (
             f"客交保证金({customer_deposit:.2f}) / 26"
         )
-        log_extras["employee_daily_rate_reason"] = f"级别({level:.2f}) / 26"
+        log_extras["employee_daily_rate_reason"] = f"月薪({level:.2f}) / 26"
 
 
 
@@ -2650,13 +2817,15 @@ class BillingEngine:
             employee_payroll_id=payroll_id
         ).all()
 
-        # 计算增款项（不再包含公司代付工资和保证金代付工资）
+        # 计算增款项（不含公司代付/保证金代付工资，二者在 final 中单独汇总）
+        # 定金(DEPOSIT)需计入客户应收
         cust_increase = sum(
             adj.amount
             for adj in customer_adjustments
             if adj.adjustment_type in [
                 AdjustmentType.CUSTOMER_INCREASE,
                 AdjustmentType.INTRODUCTION_FEE,
+                AdjustmentType.DEPOSIT,
             ]
         )
         cust_decrease = sum(
@@ -2818,6 +2987,7 @@ class BillingEngine:
                         f"({log_extras.get('customer_overtime_daily_rate_reason', '客户加班日薪')}) * 加班天数({overtime_days:.3f}) = {d.get('customer_overtime_fee', 0):.2f}"
                     )
                 if calc_type == "maternity_nurse":
+                    log["本次交管理费"] = log_extras.get("management_fee_reason", "N/A")
                     log["管理费"] = log_extras.get("management_fee_reason", "N/A")
                     log["管理费率"] = log_extras.get(
                         "management_fee_rate_reason", "N/A"
@@ -3320,26 +3490,13 @@ class BillingEngine:
         """
         为给定的最后一个月账单创建“公司代付工资”及其镜像调整项。
         此函数是幂等的：如果调整项已存在，它会检查并更新金额；如果不存在，则创建。
+
+        重要：仅当本期仍可用「客交保证金」代付工资时才创建。
+        续约/变更把保证金转走后，不能再生成保证金代付工资。
         """
         bill = db.session.get(CustomerBill, bill_id)
         if not bill:
             current_app.logger.error(f"[FinalAdj] 找不到账单ID: {bill_id}")
-            return
-        if self._has_payroll_transfer_to_successor(bill):
-            current_app.logger.info(
-                f"账单 {bill.id} 的员工工资已转移至后继合同，跳过最终薪资结算调整项的创建。"
-            )
-            if self._remove_final_salary_adjustments_after_payroll_transfer(bill):
-                payroll = EmployeePayroll.query.filter_by(
-                    contract_id=bill.contract_id,
-                    cycle_start_date=bill.cycle_start_date,
-                    is_substitute_payroll=bill.is_substitute_bill,
-                ).first()
-                if payroll:
-                    details = self._calculate_nanny_details(bill.contract, bill, payroll, bill.actual_work_days)
-                    final_bill, final_payroll = self._calculate_final_amounts(bill, payroll, details)
-                    log = self._create_calculation_log(details)
-                    self._update_bill_with_log(final_bill, final_payroll, details, log)
             return
 
         contract = bill.contract
@@ -3348,6 +3505,38 @@ class BillingEngine:
             cycle_start_date=bill.cycle_start_date,
             is_substitute_payroll=bill.is_substitute_bill
         ).first()
+
+        # 清理误加的「保证金代付管理费」（已废弃：末期仍走本次交管理费字段）
+        legacy_removed = False
+        for adj in FinancialAdjustment.query.filter(
+            FinancialAdjustment.customer_bill_id == bill.id,
+            FinancialAdjustment.description == "[系统] 保证金代付管理费",
+        ).all():
+            db.session.delete(adj)
+            legacy_removed = True
+        if legacy_removed:
+            db.session.flush()
+
+        # 工资已整笔转到后继合同 → 清除代付项
+        if self._has_payroll_transfer_to_successor(bill, payroll):
+            current_app.logger.info(
+                f"账单 {bill.id} 的员工工资已转移至后继合同，跳过最终薪资结算调整项的创建。"
+            )
+            if self._remove_final_salary_adjustments_after_payroll_transfer(bill, payroll):
+                if payroll:
+                    self._recalculate_bill_after_final_salary_adjustments(bill, payroll)
+            return
+
+        # 客交保证金不可用（无保证金 / 已转出）→ 不得代付工资
+        if not self._has_customer_security_deposit_for_salary(contract, bill):
+            current_app.logger.info(
+                f"[FinalAdj] 账单 {bill.id} 本期无可用客交保证金（未交或已转出），"
+                f"不创建/清除保证金代付工资。"
+            )
+            if self._remove_final_salary_adjustments(bill, payroll):
+                if payroll:
+                    self._recalculate_bill_after_final_salary_adjustments(bill, payroll)
+            return
 
         if not payroll:
             current_app.logger.error(f"[FinalAdj] 找不到与账单 {bill_id} 关联的薪酬单。")
@@ -3385,7 +3574,10 @@ class BillingEngine:
                     self._mirror_company_paid_salary_adjustment(existing_adj, payroll, amount=amount_to_set)
                     adjustment_was_changed = True
                 else:
+                    # 金额未变时也确保镜像存在（月嫂历史账单可能缺镜像）
                     self._mirror_company_paid_salary_adjustment(any_company_paid_salary_adj, payroll, amount=amount_to_set)
+                    # 即使调整项金额未变，也需要重算一次，避免 total_due 未计入代付工资
+                    adjustment_was_changed = True
             elif allow_creation:
                 current_app.logger.info(f"[FinalAdj] 创建新的公司代付工资 for bill {bill.id}: {amount_to_set}")
                 new_adj = FinancialAdjustment(
@@ -3399,26 +3591,42 @@ class BillingEngine:
                 self._mirror_company_paid_salary_adjustment(new_adj, payroll, amount=amount_to_set)
                 adjustment_was_changed = True
 
-        if adjustment_was_changed:
+        if adjustment_was_changed or legacy_removed:
             current_app.logger.info(f"[FinalAdj] 公司代付工资调整项已变更，为账单 {bill.id } 触发重算。")
             db.session.flush()
+            self._recalculate_bill_after_final_salary_adjustments(bill, payroll)
 
-            details = {}
-            if contract.type == 'nanny_trial':
-                trial_days = (self._to_date(contract.end_date) - self ._to_date(contract.start_date)).days
-                details = self._calculate_nanny_trial_termination_details(contract, trial_days, bill, payroll, bill.actual_work_days)
-            elif contract.type == 'nanny':
-                details = self._calculate_nanny_details(contract, bill, payroll, bill.actual_work_days)
-            else:
-                current_app.logger.error(f"[FinalAdj] Recalculation for contract type ' {contract.type}' is not implemented.")
+    def _recalculate_bill_after_final_salary_adjustments(self, bill, payroll):
+        """最终薪资调整项变更后，按合同类型重算客户应收/员工应付。"""
+        contract = bill.contract
+        details = {}
+        if contract.type == "nanny_trial":
+            trial_days = (self._to_date(contract.end_date) - self._to_date(contract.start_date)).days
+            details = self._calculate_nanny_trial_termination_details(
+                contract, trial_days, bill, payroll, bill.actual_work_days
+            )
+        elif contract.type == "nanny":
+            details = self._calculate_nanny_details(contract, bill, payroll, bill.actual_work_days)
+        elif contract.type == "maternity_nurse":
+            details = self._calculate_maternity_nurse_details(
+                contract, bill, payroll, bill.actual_work_days
+            )
+        else:
+            current_app.logger.error(
+                f"[FinalAdj] Recalculation for contract type '{contract.type}' is not implemented."
+            )
+            return
 
-            if details:
-                final_bill, final_payroll = self._calculate_final_amounts(bill, payroll, details)
-                log = self._create_calculation_log(details)
-                self._update_bill_with_log(final_bill, final_payroll, details, log)
-                current_app.logger.info(f"[FinalAdj] 账单 {bill.id} 重算完成。")
-            else:
-                 current_app.logger.warning(f"[FinalAdj] Details for bill {bill.id} could not be calculated, skipping finalization.")
+        if details:
+            final_bill, final_payroll = self._calculate_final_amounts(bill, payroll, details)
+            log = self._create_calculation_log(details)
+            self._update_bill_with_log(final_bill, final_payroll, details, log)
+            _update_bill_payment_status(final_bill)
+            current_app.logger.info(f"[FinalAdj] 账单 {bill.id} 重算完成。total_due={final_bill.total_due}")
+        else:
+            current_app.logger.warning(
+                f"[FinalAdj] Details for bill {bill.id} could not be calculated, skipping finalization."
+            )
 
     def _mirror_company_paid_salary_adjustment(self, company_adj: FinancialAdjustment, payroll: EmployeePayroll, amount=None):
         """
@@ -3467,15 +3675,11 @@ class BillingEngine:
             company_adj.mirrored_adjustment_id = new_adj.id
             db.session.add(company_adj)
 
-    def _remove_final_salary_adjustments_after_payroll_transfer(self, bill: CustomerBill, payroll: EmployeePayroll | None = None):
-        """
-        当员工工资已经转移到后继合同首期时，源合同当期不应再保留
-        普通合同结束才使用的“公司代付工资/保证金支付工资”。
-        """
+    def _remove_final_salary_adjustments(
+        self, bill: CustomerBill, payroll: EmployeePayroll | None = None
+    ) -> bool:
+        """删除账单上的公司代付工资及其员工侧保证金支付工资镜像。"""
         if not bill:
-            return False
-
-        if not self._has_payroll_transfer_to_successor(bill, payroll):
             return False
 
         if payroll is None:
@@ -3496,6 +3700,15 @@ class BillingEngine:
             db.session.delete(adjustment)
             adjustment_was_deleted = True
 
+        # 清理历史上误加的「保证金代付管理费」系统项（已废弃，管理费走本次交管理费）
+        legacy_mgmt_adjs = FinancialAdjustment.query.filter(
+            FinancialAdjustment.customer_bill_id == bill.id,
+            FinancialAdjustment.description == "[系统] 保证金代付管理费",
+        ).all()
+        for adjustment in legacy_mgmt_adjs:
+            db.session.delete(adjustment)
+            adjustment_was_deleted = True
+
         if payroll:
             deposit_paid_adjustments = FinancialAdjustment.query.filter(
                 FinancialAdjustment.employee_payroll_id == payroll.id,
@@ -3506,12 +3719,27 @@ class BillingEngine:
                 adjustment_was_deleted = True
 
         if adjustment_was_deleted:
-            current_app.logger.info(
-                f"[SuccessorPayrollTransferFinalAdj] 账单 {bill.id} 的员工工资已转移到后继合同，已清理"
-                "上的公司代付工资/保证金支付工资调整项。"
-            )
             db.session.flush()
         return adjustment_was_deleted
+
+    def _remove_final_salary_adjustments_after_payroll_transfer(self, bill: CustomerBill, payroll: EmployeePayroll | None = None):
+        """
+        当员工工资已经转移到后继合同首期时，源合同当期不应再保留
+        普通合同结束才使用的“公司代付工资/保证金支付工资”。
+        """
+        if not bill:
+            return False
+
+        if not self._has_payroll_transfer_to_successor(bill, payroll):
+            return False
+
+        deleted = self._remove_final_salary_adjustments(bill, payroll)
+        if deleted:
+            current_app.logger.info(
+                f"[SuccessorPayrollTransferFinalAdj] 账单 {bill.id} 的员工工资已转移到后继合同，"
+                f"已清理公司代付工资/保证金支付工资调整项。"
+            )
+        return deleted
 
     def _has_payroll_transfer_to_successor(self, bill: CustomerBill, payroll: EmployeePayroll | None = None) -> bool:
         """

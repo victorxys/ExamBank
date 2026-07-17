@@ -28,6 +28,54 @@ def get_contract_type_details(contract_type):
         return "育儿嫂试工"
     return "未知类型"
 
+
+def get_contract_level_semantics(contract) -> dict:
+    """
+    方案 A：不改存储，只统一「级别」展示语义。
+
+    存储约定（保持不变）：
+      - employee_level:
+          月嫂 = 月薪/纯劳务报酬
+          育儿嫂 = 级别/纯月薪（二者同义）
+      - security_deposit_paid:
+          月嫂 = 业务级别总价 = 月薪 + 管理费 = 客交保证金
+          育儿嫂 = 通常等于 employee_level
+
+    业务展示约定：
+      - 月嫂「级别」= security_deposit_paid（含管理费总价）
+      - 月嫂「月薪」= employee_level
+      - 育儿嫂「级别/月薪」= employee_level
+    """
+    contract_type = getattr(contract, "type", None)
+    salary = getattr(contract, "employee_level", None)
+    deposit = getattr(contract, "security_deposit_paid", None)
+
+    def _s(v):
+        if v is None:
+            return "0"
+        return str(v)
+
+    if contract_type == "maternity_nurse":
+        package = deposit if deposit is not None else 0
+        return {
+            "salary_amount": _s(salary),
+            "package_level": _s(package),
+            "level_display": _s(package),
+            "level_display_label": "级别(总价/含管理费)",
+            "salary_label": "月薪/劳务报酬",
+            "is_maternity_level_semantics": True,
+        }
+
+    # 育儿嫂等：级别即月薪
+    return {
+        "salary_amount": _s(salary),
+        "package_level": _s(salary),
+        "level_display": _s(salary),
+        "level_display_label": "级别/月薪",
+        "salary_label": "级别/月薪",
+        "is_maternity_level_semantics": False,
+    }
+
 def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=False):
     for key in field_keys:
         if key in calc:
@@ -80,17 +128,33 @@ def _get_details_template(contract, cycle_start, cycle_end):
             days_in_cycle = (cycle_end_d - cycle_start_d).days
             period_str = f"{cycle_start_d.isoformat()} ~ {cycle_end_d.isoformat()} ({days_in_cycle}天)"
 
+    level_sem = get_contract_level_semantics(contract)
+
+    if is_maternity:
+        # 月嫂：级别=保证金总价；月薪=employee_level（纯劳务）
+        level_fields = {
+            "级别": level_sem["package_level"],
+            "月薪": level_sem["salary_amount"],
+            "客交保证金": str(getattr(contract, "security_deposit_paid", 0) or 0),
+            "管理费": str(getattr(contract, "management_fee_amount", 0) or 0),
+            "定金": str(getattr(contract, "deposit_amount", 0) or 0),
+            "介绍费": str(getattr(contract, "introduction_fee", "0.00")),
+            "合同备注": contract.notes or "—",
+        }
+    else:
+        level_fields = {
+            "级别": str(contract.employee_level or 0),
+            "客交保证金": str(getattr(contract, "security_deposit_paid", 0) or 0),
+            "管理费": str(getattr(contract, "management_fee_amount", 0) or 0),
+            "定金": "0.00",
+            "介绍费": str(getattr(contract, "introduction_fee", "0.00")),
+            "合同备注": contract.notes or "—",
+        }
+
     customer_groups = [
         {
             "name": "级别与保证金",
-            "fields": {
-                "级别": str(contract.employee_level or 0),
-                "客交保证金": str(getattr(contract, "security_deposit_paid", 0)),
-                "管理费": str(getattr(contract, "management_fee_amount", 0)),
-                "定金": str(getattr(contract, "deposit_amount", 0)) if is_maternity else "0.00",
-                "介绍费": str(getattr(contract, "introduction_fee", "0.00")),
-                "合同备注": contract.notes or "—",
-            },
+            "fields": level_fields,
         },
         {
             "name": "劳务周期",
@@ -113,7 +177,7 @@ def _get_details_template(contract, cycle_start, cycle_end):
             "本次交管理费": "待计算",
         }
         employee_groups[0]["fields"] = {
-            "级别": str(contract.employee_level or 0),
+            "月薪": level_sem["salary_amount"],
             "萌嫂保证金(工资)": "待计算",
             "加班费": "待计算",
             "被替班费用": "0.00",
