@@ -1,6 +1,103 @@
 <view class="attendance-page">
+  <!-- 月嫂：确认实际上户日期 + 时刻（半小时步长） -->
+  <view wx:if="{{showMaternityOnboarding}}" class="onboarding-prompt-page">
+    <view class="onboarding-hero">
+      <view class="onboarding-hero-icon">🏠</view>
+      <view class="onboarding-hero-title">确认实际上户</view>
+      <view class="onboarding-hero-sub">首期 26 天考勤周期将从该时刻起算</view>
+    </view>
+
+    <view class="onboarding-card">
+      <view class="onboarding-customer-row">
+        <view class="onboarding-customer-label">服务客户</view>
+        <view class="onboarding-customer-name">{{maternityOnboardingPrompt.customer_name || customerNameText || '客户'}}</view>
+      </view>
+      <view wx:if="{{maternityOnboardingPrompt.contract_start_date}}" class="onboarding-period-row">
+        <view class="onboarding-period-label">合同周期</view>
+        <view class="onboarding-period-value">
+          {{maternityOnboardingPrompt.contract_start_date}}
+          <text wx:if="{{maternityOnboardingPrompt.contract_end_date}}"> ~ {{maternityOnboardingPrompt.contract_end_date}}</text>
+        </view>
+      </view>
+
+      <view class="onboarding-divider"></view>
+
+      <view class="onboarding-field">
+        <view class="onboarding-field-label">
+          <text class="onboarding-field-required">*</text>上户日期
+        </view>
+        <picker
+          mode="date"
+          value="{{maternityOnboardingDate}}"
+          start="{{maternityOnboardingPrompt.contract_start_date}}"
+          end="{{maternityOnboardingPrompt.contract_end_date}}"
+          bindchange="onMaternityOnboardingDateChange"
+        >
+          <view class="onboarding-field-value {{maternityOnboardingDate ? '' : 'placeholder'}}">
+            <text>{{maternityOnboardingDate || '请选择日期'}}</text>
+            <text class="onboarding-field-arrow">›</text>
+          </view>
+        </picker>
+      </view>
+
+      <view class="onboarding-field">
+        <view class="onboarding-field-label">
+          <text class="onboarding-field-required">*</text>上户时间
+          <text class="onboarding-field-hint">以半小时为单位</text>
+        </view>
+        <view
+          class="onboarding-field-value {{maternityOnboardingTime ? '' : 'placeholder'}}"
+          bindtap="openMaternityOnboardingTimePicker"
+        >
+          <text>{{maternityOnboardingTime || '请选择上户时间'}}</text>
+          <text class="onboarding-field-arrow">›</text>
+        </view>
+      </view>
+
+      <view class="onboarding-tip">
+        <view class="onboarding-tip-title">说明</view>
+        <view class="onboarding-tip-text">上户日当天不计入出勤；上户时刻将用于与下户日合并计算考勤，请准确填写到达客户家的时间。</view>
+      </view>
+
+      <button
+        class="onboarding-submit-btn {{(maternityOnboardingDate && maternityOnboardingTime && !savingMaternityOnboarding) ? '' : 'disabled'}}"
+        loading="{{savingMaternityOnboarding}}"
+        disabled="{{savingMaternityOnboarding || !maternityOnboardingDate || !maternityOnboardingTime}}"
+        bindtap="confirmMaternityOnboarding"
+      >确认并开始填报考勤</button>
+    </view>
+
+    <!-- 半小时步长时间选择器 -->
+    <view wx:if="{{maternityTimePickerOpen}}" class="time-mask" catchtouchmove="true">
+      <view class="time-sheet">
+        <view class="time-sheet-head">
+          <button class="picker-cancel" bindtap="cancelMaternityTime">取消</button>
+          <view class="picker-title">选择上户时间</view>
+          <button class="picker-confirm" bindtap="confirmMaternityTime">确定</button>
+        </view>
+        <picker-view class="picker-view" value="{{maternityTimeValue}}" bindchange="onMaternityTimePickerChange">
+          <picker-view-column>
+            <block wx:for="{{maternityTimeColumns.hours}}" wx:key="*this">
+              <view class="picker-item">{{item}} 时</view>
+            </block>
+          </picker-view-column>
+          <picker-view-column>
+            <block wx:for="{{maternityTimeColumns.minutes}}" wx:key="*this">
+              <view class="picker-item">{{item}} 分</view>
+            </block>
+          </picker-view-column>
+        </picker-view>
+      </view>
+    </view>
+  </view>
+
+  <block wx:else>
   <view class="sticky-head">
-    <view class="head-sub">客户：{{customerNameText}}</view>
+    <view class="head-sub">
+      客户：{{customerNameText}}
+      <text wx:if="{{showMaternityBadge}}" class="maternity-badge">月嫂·26天</text>
+    </view>
+    <view wx:if="{{isMaternity && cycleRangeText}}" class="head-cycle">考勤周期：{{cycleRangeText}}</view>
     <view class="head-main">
       <button class="{{prevMonthClass}}" bindtap="goPrevMonth">
         <image class="month-arrow-img" src="/assets/ui/icons/chevron-left.svg" mode="aspectFit" />
@@ -255,4 +352,5 @@
       </picker-view>
     </view>
   </view>
+  </block>
 </view>

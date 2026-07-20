@@ -39,13 +39,19 @@ function request(options) {
         const body = res.data || {};
         if (res.statusCode >= 200 && res.statusCode < 300) {
           if (body && body.success === false) {
-            reject(new Error(body.error || body.message || '操作失败'));
+            const err = new Error(body.error || body.message || '操作失败');
+            err.statusCode = res.statusCode;
+            err.payload = body;
+            reject(err);
             return;
           }
           resolve(body);
           return;
         }
-        reject(new Error(body.error || body.message || `请求失败 ${res.statusCode}`));
+        const err = new Error(body.error || body.message || `请求失败 ${res.statusCode}`);
+        err.statusCode = res.statusCode;
+        err.payload = body;
+        reject(err);
       },
       fail(err) {
         reject(new Error(err.errMsg || '网络请求失败'));
@@ -196,6 +202,13 @@ module.exports = {
   },
   updateEmployeeAttendance(formId, data) {
     return request({ url: `/miniapp/employee/attendance/${formId}`, method: 'PUT', data });
+  },
+  setMaternityOnboardingDate(contractId, data) {
+    return request({
+      url: `/miniapp/employee/attendance/maternity/${contractId}/onboarding-date`,
+      method: 'POST',
+      data
+    });
   },
   ayiOptions() {
     return request({ url: '/miniapp/ayi/options' });

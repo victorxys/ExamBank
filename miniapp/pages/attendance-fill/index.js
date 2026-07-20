@@ -41,9 +41,50 @@ function buildTimeColumns() {
   return { hours, minutes };
 }
 
+/** 上户时刻：半小时步长（与业务要求一致） */
+function buildHalfHourTimeColumns() {
+  const hours = [];
+  for (let i = 0; i < 24; i += 1) hours.push(`${String(i).padStart(2, '0')}`);
+  return { hours, minutes: ['00', '30'] };
+}
+
+function halfHourTimeToIndexes(timeStr) {
+  const columns = buildHalfHourTimeColumns();
+  const [hRaw, mRaw] = String(timeStr || '09:00').split(':');
+  let h = Number(hRaw);
+  let m = Number(mRaw);
+  if (!Number.isFinite(h)) h = 9;
+  if (!Number.isFinite(m)) m = 0;
+  // 对齐半小时
+  if (m < 15) m = 0;
+  else if (m < 45) m = 30;
+  else {
+    h = Math.min(h + 1, 23);
+    m = 0;
+  }
+  const hourIdx = Math.max(0, columns.hours.indexOf(String(h).padStart(2, '0')));
+  const minuteIdx = m === 30 ? 1 : 0;
+  return {
+    indexes: [hourIdx < 0 ? 9 : hourIdx, minuteIdx],
+    time: `${String(h).padStart(2, '0')}:${m === 30 ? '30' : '00'}`
+  };
+}
+
 function monthTitle(form) {
   if (!form) return '考勤填报';
+  const isMaternity = form.is_maternity || form.attendance_cycle_type === 'maternity_26d';
+  if (isMaternity && form.cycle_start_date && form.cycle_end_date) {
+    return '月嫂考勤填报';
+  }
   return `${form.actual_year || form.year || ''}年${form.actual_month || form.month || ''}月考勤填报`;
+}
+
+function isMaternityFormLocal(form) {
+  return Boolean(
+    form?.is_maternity
+    || form?.attendance_cycle_type === 'maternity_26d'
+    || form?.contract_info?.is_maternity
+  );
 }
 
 function isSameDate(left, right) {
@@ -63,10 +104,17 @@ function buildTypeOptions(selectedType, form, editingDate, modalReadOnly = false
   const contractInfo = (form && form.contract_info) || {};
   const options = TYPE_OPTIONS.filter((item) => {
     if (item.value === 'onboarding') {
-      return isFirstMonth(form) && contractInfo.start_date && isSameDate(editingDate, contractInfo.start_date);
+      // 月嫂：上户日 = 实际上户日；育儿嫂：合同开始日（无实际上户日概念）
+      const isMaternity = isMaternityFormLocal(form) || contractInfo.is_maternity;
+      const onboardingDate = isMaternity
+        ? (contractInfo.actual_onboarding_date || contractInfo.start_date)
+        : contractInfo.start_date;
+      return isFirstMonth(form) && onboardingDate && isSameDate(editingDate, onboardingDate);
     }
     if (item.value === 'offboarding') {
-      const endDate = getContractEndDate(contractInfo);
+      const endDate = getContractEndDate(contractInfo)
+        || contractInfo.expected_offboarding_date
+        || contractInfo.attendance_end_date;
       return isLastMonth(form) && endDate && isSameDate(editingDate, endDate);
     }
     return true;
@@ -137,6 +185,8 @@ function buildBottomActions(form, readOnly, historicalView) {
 }
 
 function shouldApplyAutoOvertime(form = {}) {
+  // 月嫂不做自动补齐加班
+  if (isMaternityFormLocal(form)) return false;
   return ['employee_confirmed', 'customer_signed', 'synced'].includes(form.status);
 }
 
@@ -256,6 +306,9 @@ Page({
     selectedYear: null,
     selectedMonth: null,
     selectedContractId: '',
+    selectedCycleStart: '',
+    availableMaternityCycles: [],
+    maternityCycleIndex: -1,
     form: { contract_info: {} },
     attendanceData: normalizeAttendanceData({}),
     monthDays: [],
@@ -278,6 +331,9 @@ Page({
     pageTitleText: '考勤填报',
     customerNameText: '请确认考勤信息',
     monthText: '-',
+    cycleRangeText: '',
+    isMaternity: false,
+    showMaternityBadge: false,
     avatarText: '员工',
     dateRange: '',
     canGoPrev: true,
@@ -300,6 +356,15 @@ Page({
     saveStateClass: 'save-state ok',
     saving: false,
     submitting: false,
+    // 月嫂上户日引导（日期 + 半小时时刻；时间必填但默认可为空）
+    maternityOnboardingPrompt: null,
+    maternityOnboardingDate: '',
+    maternityOnboardingTime: '', // 展示为空，强制用户点选；滚轮默认停在 09:00
+    maternityTimePickerOpen: false,
+    maternityTimeColumns: buildHalfHourTimeColumns(),
+    maternityTimeValue: [9, 0],
+    savingMaternityOnboarding: false,
+    showMaternityOnboarding: false,
     modalOpen: false,
     editingDate: '',
     editingDateText: '',
@@ -368,13 +433,15 @@ Page({
     const selectedYear = options.year ? Number(options.year) : null;
     const selectedMonth = options.month ? Number(options.month) : null;
     const selectedContractId = options.contractId || options.contractid || '';
+    const selectedCycleStart = options.cycleStart || options.cycle_start || '';
     this.autoSaveTimer = null;
     this.setData({
       id,
       employeeToken: options.employee_token || '',
       selectedYear,
       selectedMonth,
-      selectedContractId
+      selectedContractId,
+      selectedCycleStart
     });
     this.loadForm(selectedYear, selectedMonth);
   },
@@ -399,6 +466,7 @@ Page({
         params.month = month;
       }
       if (contractId) params.contractId = contractId;
+      if (this.data.selectedCycleStart) params.cycleStart = this.data.selectedCycleStart;
       const result = Object.keys(params).length
         ? await api.employeeAttendanceByToken(token, params)
         : await api.employeeAttendanceByToken(token);
@@ -407,12 +475,121 @@ Page({
       if (formYear && formYear !== this.data.holidayYear) {
         this.setData({ holidays: {}, holidayYear: formYear });
       }
+      this.setData({
+        showMaternityOnboarding: false,
+        maternityOnboardingPrompt: null
+      });
       this.applyForm(form);
       this.loadHolidays(formYear);
     } catch (error) {
+      const payload = error.payload || {};
+      if (
+        error.statusCode === 409
+        || payload.error === 'maternity_onboarding_date_required'
+      ) {
+        const defaultDate = payload.suggested_onboarding_date
+          || payload.contract_start_date
+          || '';
+        // 时间必填但默认为空；打开选择器时滚轮停在 09:00
+        const timeInfo = halfHourTimeToIndexes('09:00');
+        this.setData({
+          showMaternityOnboarding: true,
+          maternityOnboardingPrompt: payload,
+          maternityOnboardingDate: defaultDate,
+          maternityOnboardingTime: '',
+          maternityTimeValue: timeInfo.indexes,
+          maternityTimeColumns: buildHalfHourTimeColumns(),
+          customerNameText: payload.customer_name || '月嫂合同',
+          selectedContractId: payload.contract_id || this.data.selectedContractId
+        });
+        return;
+      }
       wx.showToast({ title: error.message || '加载失败', icon: 'none' });
     } finally {
       wx.hideLoading();
+    }
+  },
+
+  onMaternityOnboardingDateChange(event) {
+    this.setData({ maternityOnboardingDate: event.detail.value || '' });
+  },
+
+  openMaternityOnboardingTimePicker() {
+    // 已选时间则定位到已选；未选则滚轮默认停在 09:00（展示仍为空直到点确定）
+    const info = halfHourTimeToIndexes(this.data.maternityOnboardingTime || '09:00');
+    this.setData({
+      maternityTimePickerOpen: true,
+      maternityTimeValue: info.indexes,
+      maternityTimeColumns: buildHalfHourTimeColumns()
+    });
+  },
+
+  onMaternityTimePickerChange(event) {
+    this.setData({ maternityTimeValue: event.detail.value || [9, 0] });
+  },
+
+  cancelMaternityTime() {
+    this.setData({ maternityTimePickerOpen: false });
+  },
+
+  confirmMaternityTime() {
+    const columns = this.data.maternityTimeColumns || buildHalfHourTimeColumns();
+    const value = this.data.maternityTimeValue || [9, 0];
+    const hour = columns.hours[value[0]] || '09';
+    const minute = columns.minutes[value[1]] || '00';
+    this.setData({
+      maternityOnboardingTime: `${hour}:${minute}`,
+      maternityTimePickerOpen: false
+    });
+  },
+
+  async confirmMaternityOnboarding() {
+    const prompt = this.data.maternityOnboardingPrompt || {};
+    const contractId = prompt.contract_id || this.data.selectedContractId;
+    const dateValue = this.data.maternityOnboardingDate
+      || prompt.suggested_onboarding_date
+      || prompt.contract_start_date;
+    const timeValue = (this.data.maternityOnboardingTime || '').trim();
+    if (!contractId || !dateValue) {
+      wx.showToast({ title: '请选择上户日期', icon: 'none' });
+      return;
+    }
+    if (!timeValue) {
+      wx.showToast({ title: '请选择上户时间', icon: 'none' });
+      return;
+    }
+    this.setData({ savingMaternityOnboarding: true });
+    try {
+      const result = await api.setMaternityOnboardingDate(contractId, {
+        actual_onboarding_date: dateValue,
+        onboarding_time: timeValue
+      });
+      wx.showToast({
+        title: result.bills_regenerated ? '已确认并更新账单' : '上户信息已确认',
+        icon: 'success'
+      });
+      // 进入「当期」考勤周期（含今日）；若上户在未来则首期
+      const cycleStart = result.current_cycle_start || result.first_cycle_start || dateValue;
+      this.setData({
+        showMaternityOnboarding: false,
+        maternityOnboardingPrompt: null,
+        maternityTimePickerOpen: false,
+        selectedContractId: contractId,
+        selectedCycleStart: cycleStart
+      });
+      const cycleDate = new Date(String(cycleStart).slice(0, 10).replace(/-/g, '/'));
+      const year = cycleDate.getFullYear();
+      const month = cycleDate.getMonth() + 1;
+      this.setData({ selectedYear: year, selectedMonth: month });
+      // 有 form_id 时优先按表单打开当期考勤
+      if (result.form_id && result.current_cycle_start === result.first_cycle_start) {
+        this.setData({ id: result.form_id });
+      }
+      await this.loadForm(year, month);
+    } catch (error) {
+      wx.showToast({ title: error.message || '保存失败', icon: 'none' });
+    } finally {
+      this.setData({ savingMaternityOnboarding: false });
     }
   },
 
@@ -473,6 +650,35 @@ Page({
     const statusText = buildStatus(normalizedForm, completed, historicalView);
     const monthText = String(selectedMonth || form.month || '-');
     const bottomActions = buildBottomActions(normalizedForm, readOnly, historicalView);
+    const maternity = isMaternityFormLocal(normalizedForm);
+    const cycleRangeText = (form.cycle_start_date && form.cycle_end_date)
+      ? `${formatFullDate(form.cycle_start_date)} - ${formatFullDate(form.cycle_end_date)}`
+      : '';
+    const pageTitleText = maternity
+      ? `月嫂考勤${historicalView ? '记录' : '填报'}`
+      : `${monthText}月考勤${historicalView ? '记录' : '填报'}`;
+
+    // 月嫂可切换周期列表
+    const availableCycles = Array.isArray(form.available_maternity_cycles)
+      ? form.available_maternity_cycles
+      : (this.data.availableMaternityCycles || []);
+    const currentCycleStart = form.cycle_start_date
+      ? String(form.cycle_start_date).slice(0, 10)
+      : this.data.selectedCycleStart;
+    let maternityCycleIndex = availableCycles.findIndex(
+      (c) => String(c.cycle_start_date || '').slice(0, 10) === currentCycleStart
+    );
+    if (maternityCycleIndex < 0 && availableCycles.length) maternityCycleIndex = 0;
+
+    // 月嫂按周期切换；育儿嫂按自然月
+    const maternityCanPrev = maternity && maternityCycleIndex > 0;
+    const maternityCanNext = maternity
+      && maternityCycleIndex >= 0
+      && maternityCycleIndex < availableCycles.length - 1;
+    const nannyCanPrev = !maternity && selectedYear >= 2024;
+    const nannyCanNext = !maternity && canGoNext;
+    const canGoPrevFinal = maternity ? maternityCanPrev : nannyCanPrev;
+    const canGoNextFinal = maternity ? maternityCanNext : nannyCanNext;
 
     this.setData({
       form: normalizedForm,
@@ -481,6 +687,9 @@ Page({
       selectedYear,
       selectedMonth,
       selectedContractId: normalizedForm.contract_id || this.data.selectedContractId || '',
+      selectedCycleStart: currentCycleStart || this.data.selectedCycleStart,
+      availableMaternityCycles: availableCycles,
+      maternityCycleIndex,
       attendanceData,
       monthDays: calendar.monthDays.map(formatDate),
       calendarCells: calendar.cells,
@@ -489,23 +698,26 @@ Page({
       stats,
       showHolidayOvertimeStat: Number(stats.holidayOvertimeDays || 0) > 0,
       title: monthTitle(form),
-      pageTitleText: `${monthText}月考勤${historicalView ? '记录' : '填报'}`,
+      pageTitleText,
       customerNameText: normalizedForm.contract_info.customer_name || '请确认考勤信息',
       monthText,
+      cycleRangeText,
+      isMaternity: maternity,
+      showMaternityBadge: maternity,
       submitText: bottomActions.submitText,
       statusText,
       avatarText: (form.contract_info && form.contract_info.employee_name)
         ? String(form.contract_info.employee_name).slice(-2)
         : '员工',
-      dateRange: `${formatFullDate(form.cycle_start_date)} - ${formatFullDate(form.cycle_end_date)}`,
-      canGoPrev: selectedYear >= 2024,
-      canGoNext,
-      prevMonthClass: buildMonthButtonClass(selectedYear >= 2024),
-      nextMonthClass: buildMonthButtonClass(canGoNext),
+      dateRange: cycleRangeText,
+      canGoPrev: canGoPrevFinal,
+      canGoNext: canGoNextFinal,
+      prevMonthClass: buildMonthButtonClass(canGoPrevFinal),
+      nextMonthClass: buildMonthButtonClass(canGoNextFinal),
       readOnly,
       historicalView,
       showReadonlyBanner: readOnly,
-      showAutoBanner: Number(stats.autoOvertimeDays || 0) > 0,
+      showAutoBanner: !maternity && Number(stats.autoOvertimeDays || 0) > 0,
       showAutoSave: !readOnly,
       showShareButton: bottomActions.showShareButton,
       showSubmitButton: bottomActions.showSubmitButton,
@@ -598,15 +810,47 @@ Page({
   },
 
   goPrevMonth() {
+    // 月嫂：按 26 天考勤周期切换
+    if (this.data.isMaternity && (this.data.availableMaternityCycles || []).length) {
+      const idx = this.data.maternityCycleIndex;
+      if (idx <= 0) return;
+      this.navigateMaternityCycle(idx - 1);
+      return;
+    }
     if (!this.data.canGoPrev || !this.data.selectedYear || !this.data.selectedMonth) return;
     const date = new Date(this.data.selectedYear, this.data.selectedMonth - 2, 1);
     this.loadForm(date.getFullYear(), date.getMonth() + 1);
   },
 
   goNextMonth() {
+    // 月嫂：按 26 天考勤周期切换
+    if (this.data.isMaternity && (this.data.availableMaternityCycles || []).length) {
+      const cycles = this.data.availableMaternityCycles || [];
+      const idx = this.data.maternityCycleIndex;
+      if (idx < 0 || idx >= cycles.length - 1) return;
+      this.navigateMaternityCycle(idx + 1);
+      return;
+    }
     if (!this.data.canGoNext || !this.data.selectedYear || !this.data.selectedMonth) return;
     const date = new Date(this.data.selectedYear, this.data.selectedMonth, 1);
     this.loadForm(date.getFullYear(), date.getMonth() + 1);
+  },
+
+  navigateMaternityCycle(index) {
+    const cycles = this.data.availableMaternityCycles || [];
+    const target = cycles[index];
+    if (!target || !target.cycle_start_date) return;
+    const start = target.cycle_start_date.slice(0, 10);
+    const parts = start.split('-').map(Number);
+    const year = parts[0];
+    const month = parts[1];
+    this.setData({
+      selectedCycleStart: start,
+      selectedYear: year,
+      selectedMonth: month,
+      maternityCycleIndex: index
+    });
+    this.loadForm(year, month);
   },
 
   goOnboardingAttendance(event) {
@@ -743,7 +987,41 @@ Page({
       original = { ...original, startTime: original.endTime || original.startTime || '' };
     }
 
-    const defaultType = TYPE_OPTIONS.some((item) => item.value === requestedType) ? requestedType : 'normal';
+    // 仅月嫂：上户记录无时间时，回填合同实际上户时刻
+    // 育儿嫂无「实际上户日期」，上户时刻必须人工填写，不在此回填
+    const contractInfo = (this.data.form && this.data.form.contract_info) || {};
+    const isMaternityOnly = Boolean(
+      this.data.isMaternity
+      || contractInfo.is_maternity
+      || this.data.form?.attendance_cycle_type === 'maternity_26d'
+    );
+    const contractOnboardingTime = isMaternityOnly
+      ? (contractInfo.actual_onboarding_time || '')
+      : '';
+    if (
+      isMaternityOnly
+      && original
+      && original.type === 'onboarding'
+      && !original.startTime
+      && contractOnboardingTime
+    ) {
+      original = { ...original, startTime: contractOnboardingTime };
+    }
+    if (
+      isMaternityOnly
+      && !original
+      && contractInfo.actual_onboarding_date
+      && isSameDate(editingDate, contractInfo.actual_onboarding_date)
+    ) {
+      original = {
+        ...defaultRecordForType('onboarding', editingDate),
+        startTime: contractOnboardingTime || ''
+      };
+    }
+
+    const defaultType = original
+      ? (original.type || 'normal')
+      : (TYPE_OPTIONS.some((item) => item.value === requestedType) ? requestedType : 'normal');
     const record = original ? { ...original } : defaultRecordForType(defaultType, editingDate);
     if (original && (original.type === 'out_of_beijing' || original.type === 'out_of_country')) {
       record.date = editingDate;

@@ -205,7 +205,20 @@ const getAttendanceEndDate = (info) => {
     return info.attendance_end_date || (info.status === 'terminated' ? info.termination_date : info.end_date);
 };
 
-const buildDisplayMonthDays = (cycleStartDate) => {
+const buildDisplayMonthDays = (cycleStartDate, cycleEndDate = null, { isMaternity = false } = {}) => {
+    // 月嫂：按 26 天考勤周期完整展示（可跨自然月）
+    if (isMaternity && cycleStartDate && cycleEndDate) {
+        const start = startOfDay(parseISO(cycleStartDate));
+        const end = startOfDay(parseISO(cycleEndDate));
+        const days = [];
+        let current = start;
+        while (current <= end) {
+            days.push(current);
+            current = addDays(current, 1);
+        }
+        return days;
+    }
+    // 育儿嫂：展示 cycle_start 所在自然月
     const start = parseISO(cycleStartDate);
     const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
     const monthEnd = new Date(start.getFullYear(), start.getMonth() + 1, 0);
@@ -396,6 +409,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     });
     const [monthDays, setMonthDays] = useState([]);
     const [contractInfo, setContractInfo] = useState(null);
+    // 月嫂未确认上户日时的引导数据
+    const [maternityOnboardingPrompt, setMaternityOnboardingPrompt] = useState(null);
+    const [maternityOnboardingDate, setMaternityOnboardingDate] = useState('');
+    const [savingMaternityOnboarding, setSavingMaternityOnboarding] = useState(false);
 
     // 更新 URL 参数的函数（不刷新页面）
     const updateUrlParams = useCallback((year, month, contractId = null) => {
@@ -635,12 +652,27 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     }, [selectedYear, selectedMonth]);
 
     const isDateDisabled = useCallback((date) => {
-        if (!contractInfo) return false;
+        if (!contractInfo && !formData) return false;
         const targetDate = startOfDay(date);
 
-        // 始终检查合同开始日期 - 合同开始前的日期都禁用
-        if (contractInfo.start_date) {
-            const startDate = startOfDay(parseISO(contractInfo.start_date));
+        // 月嫂：只能填当前 26 天周期内的日期
+        const isMaternity = Boolean(
+            formData?.is_maternity
+            || formData?.attendance_cycle_type === 'maternity_26d'
+            || contractInfo?.is_maternity
+        );
+        if (isMaternity && formData?.cycle_start_date && formData?.cycle_end_date) {
+            const cycleStart = startOfDay(parseISO(formData.cycle_start_date));
+            const cycleEnd = startOfDay(parseISO(formData.cycle_end_date));
+            if (targetDate < cycleStart || targetDate > cycleEnd) return true;
+        }
+
+        // 服务开始日：月嫂优先实际上户日
+        const serviceStartStr = contractInfo?.actual_onboarding_date
+            || contractInfo?.effective_start_date
+            || contractInfo?.start_date;
+        if (serviceStartStr) {
+            const startDate = startOfDay(parseISO(serviceStartStr));
             if (targetDate < startDate) return true;
         }
 
@@ -649,19 +681,21 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         //   - 如果状态是 active，不检查结束日期（会自动续约）
         //   - 如果已终止，使用终止日期
         // 对于普通合同，使用结束日期
-        if (contractInfo.is_monthly_auto_renew && contractInfo.status === 'active' && !contractInfo.attendance_end_date) {
+        if (contractInfo?.is_monthly_auto_renew && contractInfo.status === 'active' && !contractInfo.attendance_end_date) {
             // 月签合同且未终止，不检查结束日期限制
             return false;
         }
 
-        const endDateStr = getAttendanceEndDate(contractInfo);
+        const endDateStr = getAttendanceEndDate(contractInfo)
+            || contractInfo?.expected_offboarding_date
+            || contractInfo?.attendance_end_date;
         if (endDateStr) {
             const endDate = startOfDay(parseISO(endDateStr));
             if (targetDate > endDate) return true;
         }
 
         return false;
-    }, [contractInfo]);
+    }, [contractInfo, formData]);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -938,10 +972,28 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 setAttendanceData(emptyData);
             }
 
-            setMonthDays(buildDisplayMonthDays(data.cycle_start_date));
+            setMonthDays(buildDisplayMonthDays(
+                data.cycle_start_date,
+                data.cycle_end_date,
+                {
+                    isMaternity: Boolean(
+                        data.is_maternity
+                        || data.attendance_cycle_type === 'maternity_26d'
+                        || data.contract_info?.is_maternity
+                    ),
+                }
+            ));
+            setMaternityOnboardingPrompt(null);
 
         } catch (error) {
             console.error("Failed to fetch attendance data", error);
+
+            // 月嫂未确认实际上户日：引导选择
+            if (error.response?.status === 409 && error.response?.data?.error === 'maternity_onboarding_date_required') {
+                setMaternityOnboardingPrompt(error.response.data);
+                setFormData(null);
+                return;
+            }
 
             // 检查是否有建议的月份（合同开始月份在请求的周期之后）
             if (error.response?.status === 404 && error.response?.data?.suggested_year && error.response?.data?.suggested_month) {
@@ -956,7 +1008,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
             toast({
                 title: "获取数据失败",
-                description: "无法加载考勤表数据，请检查链接是否正确。",
+                description: error.response?.data?.message || "无法加载考勤表数据，请检查链接是否正确。",
                 variant: "destructive"
             });
         } finally {
@@ -1527,6 +1579,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     // 自动将超出26天的出勤转为加班
     // 返回处理后的 attendanceData
     const autoConvertOvertimeIfNeeded = (data) => {
+        // 月嫂 26 天结算周期：不做「超过 26 天自动补齐加班」
+        if (formData?.is_maternity || formData?.attendance_cycle_type === 'maternity_26d' || contractInfo?.is_maternity) {
+            return { data, converted: false, overtimeDays: 0 };
+        }
         const MAX_WORK_DAYS = 26;
 
         // 【关键修复】先清洗掉上一轮自动生成的垃圾加班数据（垃圾回收机制）
@@ -1919,6 +1975,89 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     };
 
     if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><Loader2 className="w-8 h-8 animate-spin text-indigo-600" /></div>;
+
+    // 月嫂：引导选择实际上户日（类似育儿嫂首月上户日）
+    if (maternityOnboardingPrompt) {
+        const suggested = maternityOnboardingPrompt.suggested_onboarding_date
+            || maternityOnboardingPrompt.contract_start_date
+            || '';
+        const dateValue = maternityOnboardingDate || suggested;
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+                <div className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+                    <div className="flex items-center gap-2">
+                        <AlertCircle className="w-6 h-6 text-amber-500" />
+                        <h2 className="text-lg font-bold text-gray-900">请先确认实际上户日期</h2>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                        月嫂合同 <b>{maternityOnboardingPrompt.customer_name || ''}</b> 尚未确认实际上户日期。
+                        首期考勤周期将从实际上户日起按 26 天划分。
+                    </p>
+                    {maternityOnboardingPrompt.contract_start_date && (
+                        <p className="text-xs text-gray-500">
+                            合同周期：{maternityOnboardingPrompt.contract_start_date}
+                            {maternityOnboardingPrompt.contract_end_date
+                                ? ` ~ ${maternityOnboardingPrompt.contract_end_date}`
+                                : ''}
+                        </p>
+                    )}
+                    <label className="block text-sm font-medium text-gray-700">
+                        实际上户日期
+                        <input
+                            type="date"
+                            className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2"
+                            value={dateValue}
+                            min={maternityOnboardingPrompt.contract_start_date || undefined}
+                            max={maternityOnboardingPrompt.contract_end_date || undefined}
+                            onChange={(e) => setMaternityOnboardingDate(e.target.value)}
+                        />
+                    </label>
+                    <button
+                        type="button"
+                        disabled={savingMaternityOnboarding || !dateValue}
+                        className="w-full bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white font-medium py-3 rounded-xl"
+                        onClick={async () => {
+                            try {
+                                setSavingMaternityOnboarding(true);
+                                const contractId = maternityOnboardingPrompt.contract_id || selectedContractId;
+                                await api.post(
+                                    `/attendance-forms/maternity/${contractId}/onboarding-date`,
+                                    { actual_onboarding_date: dateValue }
+                                );
+                                setMaternityOnboardingPrompt(null);
+                                setMaternityOnboardingDate('');
+                                toast({
+                                    title: '上户日期已确认',
+                                    description: '正在加载首期 26 天考勤表…',
+                                });
+                                // 重新拉取考勤表
+                                lastFetchedMonth.current = { year: null, month: null, contractId: null };
+                                const onboarding = parseISO(dateValue);
+                                setSelectedYear(onboarding.getFullYear());
+                                setSelectedMonth(onboarding.getMonth() + 1);
+                                if (selectedContractId || contractId) {
+                                    setSelectedContractId(contractId);
+                                }
+                                // trigger reload via fetchAttendanceData if in scope - use location reload pattern
+                                window.location.search = `?year=${onboarding.getFullYear()}&month=${onboarding.getMonth() + 1}&contractId=${contractId}`;
+                            } catch (err) {
+                                toast({
+                                    title: '保存失败',
+                                    description: err.response?.data?.error || err.message,
+                                    variant: 'destructive',
+                                });
+                            } finally {
+                                setSavingMaternityOnboarding(false);
+                            }
+                        }}
+                    >
+                        {savingMaternityOnboarding ? '保存中…' : '确认上户日期并开始填报'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     if (!formData) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="text-center"><AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" /><h2 className="text-xl font-bold">无法加载考勤表</h2></div></div>;
 
     // Stats - Calculate total days for each category (with 3 decimal places)
@@ -2107,21 +2246,26 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     // 【重要】无论是"假期加班"还是"正常加班"均算出勤，不需要扣除
     // 带薪休假、出京、出境都算作出勤天数，不需要扣除
     // 上户月：上户当天不计入基础出勤；下户月：上户日剩余小时与下户日小时合并计算。
+    const isMaternityCycle = Boolean(
+        formData?.is_maternity
+        || formData?.attendance_cycle_type === 'maternity_26d'
+        || contractInfo?.is_maternity
+    );
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
     totalWorkDays = validDaysCount - totalOnboardingDays + offboardingAdjustment - totalLeaveDays;
-    const recalculatedAutoOvertimeDays = Math.max(
-        0,
-        totalWorkDays - MAX_WORK_DAYS - manualNormalOvertimeDays
-    );
-    if (autoOvertimeDays > 0) {
+    const recalculatedAutoOvertimeDays = isMaternityCycle
+        ? 0
+        : Math.max(0, totalWorkDays - MAX_WORK_DAYS - manualNormalOvertimeDays);
+    if (!isMaternityCycle && autoOvertimeDays > 0) {
         autoOvertimeDays = recalculatedAutoOvertimeDays;
+    } else if (isMaternityCycle) {
+        autoOvertimeDays = 0;
     }
     const displayAutoOvertimeDays = autoOvertimeDays;
     totalOvertimeDays = totalManualOvertimeDays + autoOvertimeDays;
 
-    // 【关键修复】出勤天数(基本劳务天数)单月最高不超过26天
-    // 超过的部分已经在保存时被 autoConvertOvertimeIfNeeded 转换为了 overtime_records
-    if (totalWorkDays > MAX_WORK_DAYS) {
+    // 育儿嫂：出勤天数单月最高不超过26天；月嫂按真实 26 天周期天数，不强制截断
+    if (!isMaternityCycle && totalWorkDays > MAX_WORK_DAYS) {
         totalWorkDays = MAX_WORK_DAYS;
     }
 
@@ -2144,7 +2288,20 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                             <div className="flex items-end h-full pb-2">
                                 <p className="text-sm text-gray-500">
                                     客户: {contractInfo?.customer_name || '请确认考勤信息'}
+                                    {(formData?.is_maternity || formData?.attendance_cycle_type === 'maternity_26d') && (
+                                        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800">
+                                            月嫂·26天周期
+                                        </span>
+                                    )}
                                 </p>
+                                {(formData?.is_maternity || formData?.attendance_cycle_type === 'maternity_26d')
+                                    && formData?.cycle_start_date && formData?.cycle_end_date && (
+                                    <p className="text-xs text-teal-700 mt-0.5">
+                                        考勤周期：{format(parseISO(formData.cycle_start_date), 'M月d日', { locale: zhCN })}
+                                        {' ~ '}
+                                        {format(parseISO(formData.cycle_end_date), 'M月d日', { locale: zhCN })}
+                                    </p>
+                                )}
                             </div>
                         </div>
 

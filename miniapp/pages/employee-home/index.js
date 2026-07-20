@@ -50,12 +50,41 @@ Page({
         ...contractView(item),
         start_date_text: formatDate(item.start_date)
       }));
-      const attendanceForms = (todos.attendance_forms || []).map((item) => ({
-        ...item,
-        cycle_start_date_text: formatDate(item.attendance_start_date || item.cycle_start_date),
-        cycle_end_date_text: formatDate(item.attendance_end_date || item.cycle_end_date),
-        date_range: `${formatDate(item.attendance_start_date || item.cycle_start_date)} - ${formatDate(item.attendance_end_date || item.cycle_end_date)}`
-      }));
+      const attendanceForms = (todos.attendance_forms || []).map((item) => {
+        const start = item.attendance_start_date || item.cycle_start_date;
+        const end = item.attendance_end_date || item.cycle_end_date;
+        const isMaternity = Boolean(item.is_maternity || item.attendance_cycle_type === 'maternity_26d');
+        const needsOnboarding = Boolean(item.needs_onboarding_date || item.status === 'need_onboarding_date');
+        let actionTitle;
+        if (needsOnboarding) {
+          actionTitle = item.todo_title || '月嫂考勤待确认上户';
+        } else if (isMaternity) {
+          actionTitle = item.todo_title
+            || (item.status === 'employee_confirmed' ? '月嫂考勤待客户确认' : '月嫂考勤待填写');
+        } else {
+          actionTitle = `${item.month || '-'} 月考勤${item.status === 'employee_confirmed' ? '待客户确认' : '待填写'}`;
+        }
+        let actionDesc = `${item.customer_name || '客户'}`;
+        if (needsOnboarding) {
+          actionDesc += ` · ${item.todo_desc_suffix || '请先确认实际上户日期与时间'}`;
+        } else if (start && end) {
+          actionDesc += ` · ${formatDate(start)} - ${formatDate(end)}`;
+        }
+        return {
+          ...item,
+          list_key: item.id || `ph_${item.contract_id}`,
+          is_maternity: isMaternity,
+          needs_onboarding_date: needsOnboarding,
+          cycle_start_date_text: formatDate(start),
+          cycle_end_date_text: formatDate(end),
+          date_range: start && end ? `${formatDate(start)} - ${formatDate(end)}` : '',
+          action_title: actionTitle,
+          action_desc: actionDesc,
+          badge_text: needsOnboarding
+            ? '待上户'
+            : (item.status === 'employee_confirmed' ? '已提交' : '待填')
+        };
+      });
       const activeContracts = (result.active_contracts || []).map(contractView);
       const recentContracts = ((result.recent_contracts && result.recent_contracts.length)
         ? result.recent_contracts
@@ -93,8 +122,71 @@ Page({
   },
 
   goAttendanceFill(event) {
-    const id = event.currentTarget.dataset.id;
-    if (id) wx.navigateTo({ url: `/pages/attendance-fill/index?id=${id}` });
+    const {
+      id,
+      contractId,
+      cycleStart,
+      employeeId,
+      needsOnboarding
+    } = event.currentTarget.dataset;
+    const resolvedEmployeeId = employeeId
+      || (this.data.employee && this.data.employee.id)
+      || '';
+
+    // 月嫂待确认上户：用员工 ID + contractId 进入上户引导
+    if (needsOnboarding === true || needsOnboarding === 'true' || !id) {
+      const token = resolvedEmployeeId;
+      if (!token && !contractId) {
+        wx.showToast({ title: '缺少考勤信息', icon: 'none' });
+        return;
+      }
+      const now = new Date();
+      const query = [
+        token ? `id=${encodeURIComponent(token)}` : '',
+        token ? `employee_token=${encodeURIComponent(token)}` : '',
+        `year=${now.getFullYear()}`,
+        `month=${now.getMonth() + 1}`,
+        contractId ? `contractId=${encodeURIComponent(contractId)}` : '',
+        cycleStart ? `cycleStart=${encodeURIComponent(cycleStart)}` : ''
+      ].filter(Boolean).join('&');
+      wx.navigateTo({ url: `/pages/attendance-fill/index?${query}` });
+      return;
+    }
+
+    const parts = [
+      `id=${id}`,
+      contractId ? `contractId=${encodeURIComponent(contractId)}` : '',
+      cycleStart ? `cycleStart=${encodeURIComponent(cycleStart)}` : '',
+      resolvedEmployeeId ? `employee_token=${encodeURIComponent(resolvedEmployeeId)}` : ''
+    ].filter(Boolean);
+    wx.navigateTo({ url: `/pages/attendance-fill/index?${parts.join('&')}` });
+  },
+
+  openAttendanceForm(form, year, month) {
+    const employeeId = (this.data.employee && this.data.employee.id) || '';
+    if (!form) return;
+    // 月嫂无上户日或无 form id：走 by-token + contractId
+    if (!form.id || form.needs_onboarding_date || form.status === 'need_onboarding_date') {
+      const token = form.employee_id || employeeId;
+      const query = [
+        token ? `id=${encodeURIComponent(token)}` : '',
+        token ? `employee_token=${encodeURIComponent(token)}` : '',
+        year ? `year=${year}` : '',
+        month ? `month=${month}` : '',
+        form.contract_id ? `contractId=${encodeURIComponent(form.contract_id)}` : '',
+        form.cycle_start_date ? `cycleStart=${encodeURIComponent(form.cycle_start_date)}` : ''
+      ].filter(Boolean).join('&');
+      wx.navigateTo({ url: `/pages/attendance-fill/index?${query}` });
+      return;
+    }
+    const parts = [
+      `id=${form.id}`,
+      form.contract_id ? `contractId=${encodeURIComponent(form.contract_id)}` : '',
+      form.cycle_start_date ? `cycleStart=${encodeURIComponent(form.cycle_start_date)}` : '',
+      year ? `year=${year}` : '',
+      month ? `month=${month}` : ''
+    ].filter(Boolean);
+    wx.navigateTo({ url: `/pages/attendance-fill/index?${parts.join('&')}` });
   },
 
   async goAttendanceEntry() {
@@ -114,11 +206,10 @@ Page({
         return;
       }
       const form = forms.find((item) => item.status === 'draft')
+        || forms.find((item) => item.status === 'need_onboarding_date')
         || forms.find((item) => item.status === 'employee_confirmed')
         || forms[0];
-      if (form && form.id) {
-        wx.navigateTo({ url: `/pages/attendance-fill/index?id=${form.id}` });
-      }
+      this.openAttendanceForm(form, year, month);
     } catch (error) {
       wx.showToast({ title: error.message || '加载失败', icon: 'none' });
     } finally {

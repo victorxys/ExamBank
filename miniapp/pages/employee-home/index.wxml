@@ -29,18 +29,26 @@
     </view>
   </block>
 
-  <block wx:for="{{attendanceForms}}" wx:key="id">
-    <view class="action-card" data-id="{{item.id}}" bindtap="goAttendanceFill">
+  <block wx:for="{{attendanceForms}}" wx:key="list_key">
+    <view
+      class="action-card"
+      data-id="{{item.id}}"
+      data-contract-id="{{item.contract_id}}"
+      data-cycle-start="{{item.cycle_start_date}}"
+      data-employee-id="{{item.employee_id}}"
+      data-needs-onboarding="{{item.needs_onboarding_date}}"
+      bindtap="goAttendanceFill"
+    >
       <view class="action-main">
         <view class="action-icon attendance-icon">
           <image class="action-icon-img" src="{{icons.attendanceFill}}" mode="aspectFit" />
         </view>
         <view class="action-content">
-          <view class="action-title">{{item.month || '-'}} 月考勤{{item.status === 'employee_confirmed' ? '待客户确认' : '待填写'}}</view>
-          <view class="action-desc">{{item.customer_name || '客户'}} · {{item.date_range}}</view>
+          <view class="action-title">{{item.action_title}}</view>
+          <view class="action-desc">{{item.action_desc}}</view>
         </view>
       </view>
-      <view class="todo-badge teal">{{item.status === 'employee_confirmed' ? '已提交' : '待填'}}</view>
+      <view class="todo-badge teal">{{item.badge_text}}</view>
     </view>
   </block>
 

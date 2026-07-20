@@ -94,10 +94,20 @@ const AttendanceSelectionPage = ({ forms, employeeName }) => {
                                         客户: {form.family_customers.join('、')}
                                     </h3>
                                     <p className="text-sm text-gray-600 mt-1">
-                                        服务期间: {periodText}
+                                        {form.is_maternity ? '考勤周期' : '服务期间'}: {periodText}
                                     </p>
+                                    {form.is_maternity && (
+                                        <span className="mt-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800">
+                                            月嫂·26天周期
+                                        </span>
+                                    )}
+                                    {form.needs_onboarding_date && (
+                                        <p className="mt-1 text-xs text-amber-600">
+                                            请先确认实际上户日期
+                                        </p>
+                                    )}
                                 </div>
-                                <StatusBadge status={form.status} />
+                                <StatusBadge status={form.status === 'need_onboarding_date' ? 'draft' : form.status} />
                             </div>
 
                             {/* Action Buttons */}
