@@ -83,9 +83,40 @@ from backend.services.contract_operation_log_service import (
     snapshot_contract,
 )
 from backend.utils.miniapp_config import get_miniapp_credentials, miniapp_credential_status
+from backend.services.maternity_attendance_service import (
+    find_maternity_cycle_for_reference,
+    get_maternity_service_start,
+    list_maternity_attendance_cycles,
+)
 
 
 D = decimal.Decimal
+
+
+def _date_only_value(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return None
+
+
+def _maternity_todo_focus_cycle(contract, today):
+    """
+    同一合同待办只关注一期：
+    - 今天落在某期内 → 该期（当期）
+    - 今天在服务结束后 → 末期
+    - 今天在首期前 → 首期
+    即运营侧「当前应跟进的一期」，不堆积历史未签考勤。
+    """
+    if not get_maternity_service_start(contract):
+        return None
+    cycles = list_maternity_attendance_cycles(contract)
+    if not cycles:
+        return None
+    return find_maternity_cycle_for_reference(contract, today)
 
 billing_bp = Blueprint("billing_api", __name__, url_prefix="/api/billing")
 _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE = {
@@ -3289,7 +3320,7 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
         } for p in pending_payments_query.all()]
 
         # --- 待确认月嫂考勤（运营提醒员工填写/客户签署）---
-        # 与小程序待办 cutoff 对齐，避免历史噪声
+        # 同一合同只展示应跟进的一期（非历史堆积），列表按周期时间正序
         maternity_todo_cutoff = date(2026, 6, 1)
         status_label_map = {
             "need_onboarding": "待确认上户",
@@ -3298,8 +3329,9 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
         }
         pending_maternity_attendance = []
         seen_keys = set()
+        focus_cycle_cache = {}
 
-        # 1) 已有考勤表：draft / employee_confirmed
+        # 1) 已有考勤表：draft / employee_confirmed（每合同仅焦点一期）
         maternity_forms = (
             AttendanceForm.query.options(
                 joinedload(AttendanceForm.contract).joinedload(BaseContract.service_personnel)
@@ -3310,10 +3342,13 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
                 AttendanceForm.status.in_(["draft", "employee_confirmed"]),
                 func.date(AttendanceForm.cycle_start_date) >= maternity_todo_cutoff,
             )
-            .order_by(AttendanceForm.cycle_start_date.desc())
-            .limit(100)
+            .order_by(AttendanceForm.cycle_start_date.asc())
+            .limit(200)
             .all()
         )
+        # {contract_id: (match_score, item)}  每合同只留一张
+        form_pick_by_contract = {}
+
         for form in maternity_forms:
             contract = form.contract
             if not contract:
@@ -3321,18 +3356,44 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
             key = f"form:{form.id}"
             if key in seen_keys:
                 continue
-            seen_keys.add(key)
-            cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
-            cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
+
+            cycle_start = _date_only_value(form.cycle_start_date)
+            cycle_end = _date_only_value(form.cycle_end_date)
+            contract_id = str(contract.id)
+            if contract_id not in focus_cycle_cache:
+                focus_cycle_cache[contract_id] = _maternity_todo_focus_cycle(
+                    contract, today
+                )
+            focus = focus_cycle_cache[contract_id]
+            if not focus:
+                continue
+            focus_start, focus_end = focus
+
+            # 精确起点优先，否则与焦点期有交集
+            if cycle_start == focus_start:
+                match_score = 2
+            elif (
+                cycle_start
+                and cycle_end
+                and cycle_start <= focus_end
+                and cycle_end >= focus_start
+            ):
+                match_score = 1
+            else:
+                continue
+            # 未开始的下一期草稿不进待办
+            if cycle_start and cycle_start > focus_start and cycle_start > today:
+                continue
+
             employee_name = (
                 contract.service_personnel.name
                 if contract.service_personnel
                 else "未知员工"
             )
-            pending_maternity_attendance.append({
+            item = {
                 "id": str(form.id),
                 "form_id": str(form.id),
-                "contract_id": str(contract.id),
+                "contract_id": contract_id,
                 "employee_id": str(form.employee_id) if form.employee_id else None,
                 "employee_name": employee_name,
                 "customer_name": contract.customer_name or "",
@@ -3344,9 +3405,17 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
                 "customer_signature_token": form.customer_signature_token,
                 "has_customer_signed": form.status in ("customer_signed", "synced"),
                 "updated_at": form.updated_at.isoformat() if form.updated_at else None,
-            })
+            }
+            prev = form_pick_by_contract.get(contract_id)
+            if prev is None or match_score > prev[0]:
+                form_pick_by_contract[contract_id] = (match_score, item)
+            seen_keys.add(key)
+
+        for _score, item in form_pick_by_contract.values():
+            pending_maternity_attendance.append(item)
 
         # 2) 活跃月嫂合同尚无实际上户日（先确认上户才能出考勤）
+        # 未到预产期/合同开始日的不提醒（避免远期合同进入核心待办）
         missing_onboarding_contracts = (
             MaternityNurseContract.query.options(
                 joinedload(MaternityNurseContract.service_personnel)
@@ -3361,8 +3430,8 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
                     >= today - timedelta(days=60),
                 ),
             )
-            .order_by(MaternityNurseContract.start_date.desc())
-            .limit(50)
+            .order_by(MaternityNurseContract.start_date.asc())
+            .limit(80)
             .all()
         )
         for contract in missing_onboarding_contracts:
@@ -3375,9 +3444,16 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
                 for item in pending_maternity_attendance
             ):
                 continue
+
+            provisional = _date_only_value(contract.provisional_start_date)
+            start = _date_only_value(contract.start_date)
+            end = _date_only_value(contract.end_date)
+            # 提醒起点：优先预产期，否则合同开始日；当天及之后才进入「待确认上户」
+            onboarding_ready_from = provisional or start
+            if onboarding_ready_from and onboarding_ready_from > today:
+                continue
+
             seen_keys.add(key)
-            start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
-            end = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
             employee_name = (
                 contract.service_personnel.name
                 if contract.service_personnel
@@ -3400,20 +3476,11 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
                 "updated_at": None,
             })
 
-        # 待办列表：表单优先按状态（待签署 > 待填写），再按周期新到旧
-        status_rank = {"employee_confirmed": 0, "draft": 1, "need_onboarding": 2}
+        # 时间正序：按考勤周期开始日升序
         pending_maternity_attendance.sort(
             key=lambda x: (
-                status_rank.get(x.get("status"), 9),
-                x.get("cycle_start_date") or "",
-            ),
-            reverse=False,
-        )
-        # cycle_start 新的在前：再按日期降序微调
-        pending_maternity_attendance.sort(
-            key=lambda x: (
-                status_rank.get(x.get("status"), 9),
-                -(int((x.get("cycle_start_date") or "0000-00-00").replace("-", "") or 0)),
+                x.get("cycle_start_date") or "9999-99-99",
+                x.get("customer_name") or "",
             )
         )
 
