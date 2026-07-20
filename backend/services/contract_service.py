@@ -485,10 +485,15 @@ class ContractService:
                     f"(月薪 {new_employee_level} + 管理费 {final_management_fee_amount})"
                 )
                 
-                # 月嫂合同续约优化：自动确认实际上户日期并生成账单
+                # 月嫂续约：默认以上户日=续约开始日生成账单；允许之后在详情页重新设置上户日并重算
+                # 预计下户日对齐合同结束日，避免后续改上户日时丢失服务时长
                 new_contract_fields['actual_onboarding_date'] = start_date
+                new_contract_fields['expected_offboarding_date'] = end_date
                 new_contract_fields['status'] = 'active'
-                current_app.logger.info(f"月嫂合同续约：自动设置实际上户日期为 {start_date}，状态为 active")
+                current_app.logger.info(
+                    f"月嫂合同续约：默认实际上户日期={start_date}，预计下户日期={end_date}，状态为 active"
+                    f"（可在合同详情重新设置上户日期并重建账单）"
+                )
 
 
             NewContractModel = type(old_contract)
@@ -866,6 +871,9 @@ class ContractService:
             else:
                 signing_status = SigningStatus.UNSIGNED
 
+            # 月嫂变更：无需签署时直接 active；需签署时 pending（签署后可再确认上户日）
+            change_status = "active" if requires_signature is False else "pending"
+
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
                 "service_personnel_id": new_service_personnel_id,
@@ -874,7 +882,7 @@ class ContractService:
                 "employee_level": new_employee_level,
                 "management_fee_amount": final_management_fee_amount,
                 "management_fee_rate": final_management_fee_rate,
-                "status": "pending", # 新合同初始为待定状态，签署后激活
+                "status": change_status,
                 "customer_name": old_contract.customer_name,
                 "customer_name_pinyin": old_contract.customer_name_pinyin,
                 "previous_contract_id": old_contract.id,
@@ -897,6 +905,21 @@ class ContractService:
                 # 如果 change_data 中提供了该字段，则覆盖
                 if 'is_monthly_auto_renew' in change_data:
                     new_contract_fields['is_monthly_auto_renew'] = change_data['is_monthly_auto_renew']
+            elif isinstance(old_contract, MaternityNurseContract):
+                new_contract_fields['deposit_amount'] = change_data.get(
+                    'deposit_amount', old_contract.deposit_amount
+                )
+                new_contract_fields['discount_amount'] = change_data.get(
+                    'discount_amount', old_contract.discount_amount
+                )
+                # 变更默认以上户日=变更开始日；可在详情页重新设置并重建账单
+                new_contract_fields['actual_onboarding_date'] = start_date
+                new_contract_fields['expected_offboarding_date'] = end_date
+                # status 已在上方按 requires_signature 设为 active/pending
+                current_app.logger.info(
+                    f"月嫂合同变更：默认实际上户日期={start_date}，预计下户日期={end_date}，"
+                    f"status={new_contract_fields['status']}（可重新设置上户日期并重建账单）"
+                )
 
             NewContractModel = type(old_contract)
             changed_contract = NewContractModel(**new_contract_fields)
@@ -919,7 +942,9 @@ class ContractService:
                 # 即使没有账单，也继续创建新合同
                 return changed_contract
 
-            if not personnel_changed and not is_end_of_month:
+            # 月嫂合同按 26 天周期出账，不走育儿嫂「账单合并」；仅转移保证金，账单由上户日重建
+            is_maternity = isinstance(old_contract, MaternityNurseContract)
+            if not personnel_changed and not is_end_of_month and not is_maternity:
                 # 场景1: 服务人员未变 & 旧合同不是月末结束 -> 合并整个账单
                 current_app.logger.info(f"变更合同 {old_contract.id} ，服务人员未变且非月末结束，执行账单合并逻辑。")
                 
@@ -949,7 +974,7 @@ class ContractService:
 
             else:
                 self._delete_non_transferable_adjustments(old_contract, last_bill_old_contract)
-                # 场景2: 服务人员已变 OR 服务人员未变但旧合同月末结束 -> 仅转移保证金
+                # 场景2: 月嫂 / 服务人员已变 / 月末结束 -> 仅转移保证金
                 current_app.logger.info(f"变更合同 {old_contract.id}，执行仅转移保证金逻辑。")
                 deposit_refund = final_settlement.get('deposit_refund', Decimal('0'))
                 if deposit_refund > 0:
@@ -964,21 +989,8 @@ class ContractService:
                     )
                     db.session.add(refund_adj)
 
-                    # 步骤2: 在新合同上创建“转入”的待处理调整项
-                    # 确保新合同的第一个账单存在，以便附加调整项
-                    changed_contract_start_date = changed_contract.start_date
-                    _, changed_contract_last_day_of_month = calendar.monthrange(changed_contract_start_date.year, changed_contract_start_date.month)
-                    changed_contract_first_cycle_end_date = date(changed_contract_start_date.year, changed_contract_start_date.month, changed_contract_last_day_of_month)        
-                    engine = BillingEngine()
-                    engine._get_or_create_bill_and_payroll(
-                        changed_contract, 
-                        changed_contract.start_date.year, 
-                        changed_contract.start_date.month, 
-                        changed_contract.start_date, 
-                        changed_contract_first_cycle_end_date
-                    )
-                    db.session.flush()
-
+                    # 步骤2: 在新合同上创建“转入”的待处理调整项（挂合同，不预建错误周期账单）
+                    # 月嫂账单由实际上户日驱动的 regenerate 统一生成，PENDING 调整会挂到首期
                     deposit_adj = FinancialAdjustment(
                         contract_id=changed_contract.id,
                         adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
@@ -990,6 +1002,27 @@ class ContractService:
                     )
                     db.session.add(deposit_adj)
                     current_app.logger.info(f"已将 {deposit_refund} 的保证金从旧合同 {old_contract.id} 转移到新合同 {changed_contract.id}")
+
+                    # 非月嫂：仍预建首期账单以便立即附加调整（兼容原育儿嫂变更）
+                    if not is_maternity:
+                        changed_contract_start_date = changed_contract.start_date
+                        _, changed_contract_last_day_of_month = calendar.monthrange(
+                            changed_contract_start_date.year, changed_contract_start_date.month
+                        )
+                        changed_contract_first_cycle_end_date = date(
+                            changed_contract_start_date.year,
+                            changed_contract_start_date.month,
+                            changed_contract_last_day_of_month,
+                        )
+                        engine = BillingEngine()
+                        engine._get_or_create_bill_and_payroll(
+                            changed_contract,
+                            changed_contract.start_date.year,
+                            changed_contract.start_date.month,
+                            changed_contract.start_date,
+                            changed_contract_first_cycle_end_date,
+                        )
+                        db.session.flush()
 
                 # 确保旧合同的最后一个账单被重算，以反映保证金转出
                 engine = BillingEngine()
