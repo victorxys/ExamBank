@@ -3414,6 +3414,125 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
         for _score, item in form_pick_by_contract.values():
             pending_maternity_attendance.append(item)
 
+        covered_contract_ids = {
+            item["contract_id"] for item in pending_maternity_attendance if item.get("contract_id")
+        }
+
+        # 1.5) 已有实际上户日、但焦点期尚无考勤表（或表未出现在待办中）
+        # 运营仍需提醒月嫂填写并由客户签字，不能只依赖「库里已有 draft 表」
+        onboarded_maternity_contracts = (
+            MaternityNurseContract.query.options(
+                joinedload(MaternityNurseContract.service_personnel)
+            )
+            .filter(
+                MaternityNurseContract.actual_onboarding_date.isnot(None),
+                MaternityNurseContract.status.in_(
+                    ["active", "pending", "terminated", "finished", "completed"]
+                ),
+                or_(
+                    MaternityNurseContract.start_date.is_(None),
+                    func.date(MaternityNurseContract.start_date) >= maternity_todo_cutoff,
+                    func.date(MaternityNurseContract.actual_onboarding_date)
+                    >= maternity_todo_cutoff,
+                ),
+            )
+            .order_by(MaternityNurseContract.actual_onboarding_date.asc())
+            .limit(120)
+            .all()
+        )
+        for contract in onboarded_maternity_contracts:
+            contract_id = str(contract.id)
+            if contract_id in covered_contract_ids:
+                continue
+
+            focus = _maternity_todo_focus_cycle(contract, today)
+            if not focus:
+                continue
+            focus_start, focus_end = focus
+            # 焦点期尚未开始：不提前打扰
+            if focus_start > today:
+                continue
+            # 焦点期结束过久且无未完成表：不再挂待办（避免极老合同长期占位）
+            if focus_end < today - timedelta(days=45):
+                continue
+
+            # 若焦点期已有客户签署完成的表，则无需再提醒
+            focus_forms = AttendanceForm.query.filter(
+                AttendanceForm.contract_id == contract.id,
+                AttendanceForm.status.in_(
+                    ["draft", "employee_confirmed", "customer_signed", "synced"]
+                ),
+            ).all()
+            has_completed = False
+            best_incomplete = None
+            for form in focus_forms:
+                cs = _date_only_value(form.cycle_start_date)
+                ce = _date_only_value(form.cycle_end_date)
+                matches = cs == focus_start or (
+                    cs and ce and cs <= focus_end and ce >= focus_start
+                )
+                if not matches:
+                    continue
+                if form.status in ("customer_signed", "synced"):
+                    has_completed = True
+                    break
+                if form.status in ("draft", "employee_confirmed"):
+                    if best_incomplete is None or cs == focus_start:
+                        best_incomplete = form
+
+            if has_completed:
+                continue
+
+            employee_name = (
+                contract.service_personnel.name
+                if contract.service_personnel
+                else "未知员工"
+            )
+            if best_incomplete:
+                # 理论上应在步骤 1 命中；兜底仍挂上
+                form = best_incomplete
+                cs = _date_only_value(form.cycle_start_date)
+                ce = _date_only_value(form.cycle_end_date)
+                pending_maternity_attendance.append({
+                    "id": str(form.id),
+                    "form_id": str(form.id),
+                    "contract_id": contract_id,
+                    "employee_id": str(form.employee_id) if form.employee_id else None,
+                    "employee_name": employee_name,
+                    "customer_name": contract.customer_name or "",
+                    "status": form.status,
+                    "status_label": status_label_map.get(form.status, form.status),
+                    "cycle_start_date": cs.isoformat() if cs else focus_start.isoformat(),
+                    "cycle_end_date": ce.isoformat() if ce else focus_end.isoformat(),
+                    "employee_access_token": form.employee_access_token
+                    or str(form.employee_id or contract.service_personnel_id or ""),
+                    "customer_signature_token": form.customer_signature_token,
+                    "has_customer_signed": False,
+                    "updated_at": form.updated_at.isoformat() if form.updated_at else None,
+                })
+            else:
+                # 无表：占位待办，引导运营打开考勤页（会按周期自动建表）
+                pending_maternity_attendance.append({
+                    "id": f"need-form-{contract.id}-{focus_start.isoformat()}",
+                    "form_id": None,
+                    "contract_id": contract_id,
+                    "employee_id": str(contract.service_personnel_id)
+                    if contract.service_personnel_id
+                    else None,
+                    "employee_name": employee_name,
+                    "customer_name": contract.customer_name or "",
+                    "status": "draft",
+                    "status_label": status_label_map["draft"],
+                    "cycle_start_date": focus_start.isoformat(),
+                    "cycle_end_date": focus_end.isoformat(),
+                    "employee_access_token": str(contract.service_personnel_id or ""),
+                    "customer_signature_token": None,
+                    "has_customer_signed": False,
+                    "updated_at": None,
+                    "needs_form_create": True,
+                })
+            covered_contract_ids.add(contract_id)
+
         # 2) 活跃月嫂合同尚无实际上户日（先确认上户才能出考勤）
         # 未到预产期/合同开始日的不提醒（避免远期合同进入核心待办）
         missing_onboarding_contracts = (
