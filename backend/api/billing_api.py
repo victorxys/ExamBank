@@ -901,17 +901,46 @@ def update_single_contract(contract_id):
                         current_app.logger.info(f"====合同==== {contract.id} 的实际上户日期从 {existing_date} 更新为 {new_onboarding_date.date()}")
                         contract.actual_onboarding_date = new_onboarding_date
 
+                        # 服务时长锚点：优先预产期→结束日；否则用合同起止日；再否则用预计下户日
                         provisional_start_obj = contract.provisional_start_date
                         provisional_start = provisional_start_obj.date() if isinstance(provisional_start_obj, datetime) else provisional_start_obj
 
-                        original_end_obj = contract.end_date
-                        original_end = original_end_obj.date() if isinstance(original_end_obj,datetime) else original_end_obj
+                        start_obj = contract.start_date
+                        start_d = start_obj.date() if isinstance(start_obj, datetime) else start_obj
 
-                        if provisional_start and original_end:
-                            total_days = (original_end - provisional_start).days
-                            contract.expected_offboarding_date = new_onboarding_date +timedelta(days=total_days)
+                        end_obj = contract.end_date
+                        end_d = end_obj.date() if isinstance(end_obj, datetime) else end_obj
+
+                        expected_off_obj = contract.expected_offboarding_date
+                        expected_off_d = expected_off_obj.date() if isinstance(expected_off_obj, datetime) else expected_off_obj
+
+                        duration_start = provisional_start or start_d or existing_date
+                        duration_end = expected_off_d or end_d
+
+                        if duration_start and duration_end and duration_end >= duration_start:
+                            total_days = (duration_end - duration_start).days
+                            new_expected_off = new_onboarding_date + timedelta(days=total_days)
                         else:
-                            contract.expected_offboarding_date = new_onboarding_date +timedelta(days=26)
+                            # 默认一个 26 天服务周期
+                            new_expected_off = new_onboarding_date + timedelta(days=26)
+
+                        contract.expected_offboarding_date = new_expected_off
+
+                        # 续签/变更合同：同步合同起止日，使首个账单周期起点与上户日一致
+                        is_renew_or_change = bool(
+                            getattr(contract, "previous_contract_id", None)
+                            or getattr(contract, "source", None) in ("renewal", "change")
+                        )
+                        if is_renew_or_change:
+                            contract.start_date = new_onboarding_date
+                            contract.end_date = new_expected_off
+                            if contract.status in (None, "pending"):
+                                contract.status = "active"
+                            current_app.logger.info(
+                                f"续签/变更月嫂合同 {contract.id}: 同步 start/end 为 "
+                                f"{new_onboarding_date.date()} ~ {new_expected_off.date() if hasattr(new_expected_off, 'date') else new_expected_off}"
+                            )
+
                         log_details['实际上户日期'] = {'from': str(existing_date), 'to': str(new_onboarding_date.date())}
                         should_generate_bills = True
                 else:
@@ -985,12 +1014,23 @@ def update_single_contract(contract_id):
                 changes=changes,
             )
 
-        db.session.commit()
-
         if should_generate_bills:
-            current_app.logger.info(f"为合同 {contract.id} 触发统一的后台账单生成任务...")
-            generate_all_bills_for_contract_task.delay(str(contract.id))
-            return jsonify({"message": "合同信息更新成功，并已在后台开始生成所有相关账单。"})
+            # 同一事务内重建：先清旧周期，再按新上户日作为首个账单周期起点重新核算
+            current_app.logger.info(
+                f"为合同 {contract.id} 按实际上户日期重建月嫂账单周期..."
+            )
+            engine = BillingEngine()
+            engine.regenerate_maternity_bills_from_onboarding(
+                str(contract.id), force_recalculate=True
+            )
+            db.session.commit()
+            current_app.logger.info(f"合同 {contract.id} 的账单已按新上户日期重建完成。")
+            return jsonify({
+                "message": "合同信息更新成功，已按新上户日期重新核算全部账单。",
+                "regenerated": True,
+            })
+
+        db.session.commit()
         
         # --- BEGIN: 我们新增的重算逻辑 ---
         if should_recalculate_first_bill:
@@ -2095,79 +2135,43 @@ def create_virtual_contract():
 @admin_required
 def generate_all_bills_for_contract(contract_id):
     current_app.logger.info(
-        f"--- [API START] 开始为合同 {contract_id} 批量生成账单 ---"
+        f"--- [API START] 开始为合同 {contract_id} 按上户日重建全部账单 ---"
     )
     contract = db.session.get(MaternityNurseContract, contract_id)
-    if (
-        not contract
-        or not contract.actual_onboarding_date
-        or not contract.expected_offboarding_date
-    ):
-        return jsonify({"error": "合同未找到或缺少必要日期"}), 404
+    if not contract or not contract.actual_onboarding_date:
+        return jsonify({"error": "合同未找到或缺少实际上户日期"}), 404
+
+    if not contract.expected_offboarding_date and contract.end_date:
+        contract.expected_offboarding_date = contract.end_date
+
+    if not contract.expected_offboarding_date:
+        return jsonify({"error": "合同缺少预计下户日期与结束日"}), 404
 
     try:
         engine = BillingEngine()
-        cycle_start = contract.actual_onboarding_date
-        processed_months = set()
-        cycle_count = 0
-
-        current_app.logger.info(
-            f"[API] 准备进入循环，预计下户日期为: {contract.expected_offboarding_date}"
+        engine.regenerate_maternity_bills_from_onboarding(
+            str(contract.id), force_recalculate=True
         )
-
-        while cycle_start <= contract.expected_offboarding_date:
-            cycle_count += 1
-            cycle_end = cycle_start + timedelta(days=26)
-            if cycle_end > contract.expected_offboarding_date:
-                cycle_end = contract.expected_offboarding_date
-
-            settlement_month_key = (cycle_end.year, cycle_end.month)
-
-            if settlement_month_key not in processed_months:
-                current_app.logger.info(
-                    f"[API] 正在为周期 {cycle_start} ~ {cycle_end} 创建后台计算任务 (结算月: {settlement_month_key[0]}-{settlement_month_key[1]})"
-                )
-                engine.calculate_for_month(
-                    year=settlement_month_key[0],
-                    month=settlement_month_key[1],
-                    contract_id=str(contract.id),
-                    force_recalculate=True,
-                )
-                processed_months.add(settlement_month_key)
-
-            if cycle_end >= contract.expected_offboarding_date:
-                break
-            cycle_start = cycle_end + timedelta(days=1)
-
         db.session.commit()
 
         newly_generated_bills = CustomerBill.query.filter_by(
-            contract_id=contract_id
+            contract_id=contract_id,
+            is_substitute_bill=False,
         ).order_by(CustomerBill.cycle_start_date.asc()).all()
 
         bills_data = [{
             "id": str(bill.id),
             "billing_period": f"{bill.year}-{str(bill.month).zfill(2)}",
-            "cycle_start_date": bill.cycle_start_date.isoformat(),
-            "cycle_end_date": bill.cycle_end_date.isoformat(),
+            "cycle_start_date": bill.cycle_start_date.isoformat() if bill.cycle_start_date else None,
+            "cycle_end_date": bill.cycle_end_date.isoformat() if bill.cycle_end_date else None,
             "base_work_days": (bill.calculation_details or {}).get("base_work_days", "0"),
             "overtime_days": (bill.calculation_details or {}).get("overtime_days", "0"),
             "total_due": str(bill.total_due),
-            "status": bill.payment_status.value,
+            "status": bill.payment_status.value if bill.payment_status else None,
         } for bill in newly_generated_bills]
 
-        
-
-        if cycle_end == contract.expected_offboarding_date:
-            current_app.logger.info(
-                f"[API LOOP-{cycle_count}] 已到达预计下户日期，循环结束。"
-            )
-
         current_app.logger.info(
-            f"--- [API END] 所有周期处理完毕，共涉及月份: {processed_months} ---"
-        )
-        current_app.logger.info(
-            f"--- [API END] 所有周期处理完毕，共循环 {cycle_count} 次。---"
+            f"--- [API END] 合同 {contract.id} 重建完成，共 {len(bills_data)} 个非替班账单 ---"
         )
 
         return jsonify({
@@ -2176,7 +2180,7 @@ def generate_all_bills_for_contract(contract_id):
         })
 
     except Exception as e:
-        # 这里的 rollback 可能不是必须的，因为引擎内部已经处理了
+        db.session.rollback()
         current_app.logger.error(
             f"为合同 {contract_id} 批量生成账单时发生顶层错误: {e}", exc_info=True
         )
@@ -2523,7 +2527,9 @@ def get_single_contract_details(contract_id):
             "can_convert_to_formal": can_convert,
             "termination_date": safe_isoformat(contract.termination_date),
             "previous_contract_id": str(contract.previous_contract_id) if contract.previous_contract_id else None,
+            "source": getattr(contract, "source", None),
             "successor_contract_id": str(contract.next_contracts[0].id) if contract.next_contracts else None,
+            "expected_offboarding_date": safe_isoformat(getattr(contract, "expected_offboarding_date", None)),
             # --- 签署相关字段 ---
             "signing_status": contract.signing_status.value if contract.signing_status else 'UNSIGNED',
             "requires_signature": contract.requires_signature,

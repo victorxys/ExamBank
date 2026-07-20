@@ -33,6 +33,7 @@ from backend.models import (
     VideoSynthesis,
     CourseResource,
     NannyContract,
+    MaternityNurseContract,
     BaseContract,
     ExternalSubstitutionContract,
     NannyTrialContract,
@@ -2850,12 +2851,13 @@ def generate_all_bills_task(contract_id):
 @celery_app.task(name="tasks.generate_all_bills_for_contract")
 def generate_all_bills_for_contract_task(contract_id):
     """
-    为一个合同串行生成所有账单的统一任务。
+    为一个月嫂合同串行生成所有账单的统一任务。
+    先清理非替班旧周期，再按实际上户日期作为首个账单周期起点重建，
+    避免 force_recalculate 沿用旧 cycle 导致续签/变更改上户日后账单错位。
     """
     app = create_flask_app_for_task()
     with app.app_context():
         from backend.models import db, MaternityNurseContract
-        from datetime import timedelta
 
         # 使用 with_for_update() 来锁定合同记录，防止在账单生成期间被修改
         contract = db.session.query(MaternityNurseContract).filter_by(id=contract_id).with_for_update().first()
@@ -2864,44 +2866,33 @@ def generate_all_bills_for_contract_task(contract_id):
             current_app.logger.error(f"[GenerateAllBillsTask] 合同 {contract_id} 未找到。")
             return
 
-        if not contract.actual_onboarding_date or not contract.expected_offboarding_date:
-            current_app.logger.error(f"[GenerateAllBillsTask] 合同 {contract_id} 缺少实际上户日期或预计下户日期。")
+        if not contract.actual_onboarding_date:
+            current_app.logger.error(f"[GenerateAllBillsTask] 合同 {contract_id} 缺少实际上户日期。")
+            return
+
+        # 无预计下户日时回退到合同结束日
+        if not contract.expected_offboarding_date and contract.end_date:
+            contract.expected_offboarding_date = contract.end_date
+            current_app.logger.info(
+                f"[GenerateAllBillsTask] 合同 {contract_id} 缺少预计下户日期，已回退为 end_date={contract.end_date}"
+            )
+
+        if not contract.expected_offboarding_date:
+            current_app.logger.error(f"[GenerateAllBillsTask] 合同 {contract_id} 缺少预计下户日期与结束日。")
             return
 
         try:
-            cycle_start = contract.actual_onboarding_date
-            end_date = contract.expected_offboarding_date
             engine = BillingEngine()
-
-            current_app.logger.info(f"===== [GenerateAllBillsTask] 开始为合同 {contract.id} 生成所有账单 =====")
-
-            while cycle_start < end_date:
-                cycle_end = cycle_start + timedelta(days=26)
-                if cycle_end > end_date:
-                    cycle_end = end_date
-
-                settlement_month = cycle_end.month
-                settlement_year = cycle_end.year
-
-                current_app.logger.info(f"  -> 正在处理结算月: {settlement_year}-{settlement_month} (周期: {cycle_start} to {cycle_end})")
-
-                # 直接调用引擎，不再创建新的异步任务
-                engine.calculate_for_month(
-                    year=settlement_year,
-                    month=settlement_month,
-                    contract_id=str(contract.id),
-                    force_recalculate=True,
-                )
-
-                if cycle_end >= end_date:
-                    break
-
-                # 移动到下一个周期
-                cycle_start = cycle_end + timedelta(days=1)
-
-
-            current_app.logger.info(f"===== [GenerateAllBillsTask] 合同 {contract.id} 的所有账单已成功处理。 =====")
-            db.session.commit() # 所有操作成功后，统一提交
+            current_app.logger.info(
+                f"===== [GenerateAllBillsTask] 开始为合同 {contract.id} 按上户日重建全部账单 ====="
+            )
+            engine.regenerate_maternity_bills_from_onboarding(
+                str(contract.id), force_recalculate=True
+            )
+            current_app.logger.info(
+                f"===== [GenerateAllBillsTask] 合同 {contract.id} 的所有账单已成功处理。 ====="
+            )
+            db.session.commit()
 
         except Exception as e:
             db.session.rollback()

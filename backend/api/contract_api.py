@@ -2500,11 +2500,16 @@ def renew_contract_api(contract_id):
         # 2. 在同一事务中，同步生成初始账单并处理自动续约
         engine = BillingEngine()
 
-        # 月嫂合同续约优化：自动确认上户日期后生成账单
+        # 月嫂续约：按默认/实际上户日期生成账单（之后可在详情页改上户日并重建）
         if isinstance(renewed_contract, MaternityNurseContract):
             if renewed_contract.actual_onboarding_date:
-                current_app.logger.info(f"为月嫂续约合同 {renewed_contract.id} (已确认上户日期: {renewed_contract.actual_onboarding_date}) 同步生成初始账单...")
-                engine.generate_all_bills_for_contract(renewed_contract.id, force_recalculate=True)
+                current_app.logger.info(
+                    f"为月嫂续约合同 {renewed_contract.id} "
+                    f"(上户日期: {renewed_contract.actual_onboarding_date}) 同步生成初始账单..."
+                )
+                engine.regenerate_maternity_bills_from_onboarding(
+                    renewed_contract.id, force_recalculate=True
+                )
                 current_app.logger.info(f"月嫂合同 {renewed_contract.id} 的初始账单已生成。")
             else:
                 current_app.logger.info(f"月嫂合同 {renewed_contract.id} 尚未确认上户日期,跳过账单生成。")
@@ -2634,8 +2639,18 @@ def change_contract_api(contract_id):
         before_snapshot = snapshot_contract(old_contract)
         changed_contract = contract_service.change_contract(str(contract_id), data)
 
-        # Optional: trigger background tasks if needed, like for the new contract's bills
-        trigger_initial_bill_generation_task.delay(str(changed_contract.id))
+        # 月嫂变更：若已有上户日期，同步按上户日生成账单；否则走通用异步任务
+        if isinstance(changed_contract, MaternityNurseContract) and changed_contract.actual_onboarding_date:
+            engine = BillingEngine()
+            current_app.logger.info(
+                f"为月嫂变更合同 {changed_contract.id} "
+                f"(上户日期: {changed_contract.actual_onboarding_date}) 同步生成初始账单..."
+            )
+            engine.regenerate_maternity_bills_from_onboarding(
+                changed_contract.id, force_recalculate=True
+            )
+        else:
+            trigger_initial_bill_generation_task.delay(str(changed_contract.id))
 
         # --- 在这里添加下面这行 ---
         old_contract_after = db.session.get(BaseContract, str(contract_id))

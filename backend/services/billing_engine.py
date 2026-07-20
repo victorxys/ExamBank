@@ -19,6 +19,7 @@ from backend.models import (
     CustomerBill,
     EmployeePayroll,
     FinancialAdjustment,
+    FinancialActivityLog,
     AdjustmentType,
     SubstituteRecord,
     PaymentRecord,
@@ -511,6 +512,122 @@ class BillingEngine:
         # For now, we just log that it's being processed.
         current_app.logger.info(
             f"      [FORMAL CALC] 正式合同 {contract.id} 的账单计算逻辑待实现。"
+        )
+
+    def purge_maternity_non_substitute_billing_cycles(self, contract_id: str) -> dict:
+        """
+        清除月嫂合同的非替班账单/工资单/考勤周期，保留：
+        - 替班账单与替班工资单
+        - 挂在合同上的 PENDING 调整项（如续签/变更转入的保证金冲抵）
+        用于实际上户日期变更后，按新上户日作为首个账单周期起点重新核算。
+        """
+        contract_id = str(contract_id)
+        bill_ids = [
+            row[0]
+            for row in CustomerBill.query.with_entities(CustomerBill.id)
+            .filter(
+                CustomerBill.contract_id == contract_id,
+                CustomerBill.is_substitute_bill.is_(False),
+            )
+            .all()
+        ]
+        payroll_ids = [
+            row[0]
+            for row in EmployeePayroll.query.with_entities(EmployeePayroll.id)
+            .filter(
+                EmployeePayroll.contract_id == contract_id,
+                EmployeePayroll.is_substitute_payroll.is_(False),
+            )
+            .all()
+        ]
+
+        current_app.logger.info(
+            f"[MN Reset] 清理合同 {contract_id} 非替班账单 {len(bill_ids)} 张、工资单 {len(payroll_ids)} 张"
+        )
+
+        if bill_ids:
+            FinancialActivityLog.query.filter(
+                FinancialActivityLog.customer_bill_id.in_(bill_ids)
+            ).delete(synchronize_session=False)
+            PaymentRecord.query.filter(
+                PaymentRecord.customer_bill_id.in_(bill_ids)
+            ).delete(synchronize_session=False)
+            FinancialAdjustment.query.filter(
+                FinancialAdjustment.customer_bill_id.in_(bill_ids)
+            ).delete(synchronize_session=False)
+            CustomerBill.query.filter(CustomerBill.id.in_(bill_ids)).delete(
+                synchronize_session=False
+            )
+
+        if payroll_ids:
+            FinancialActivityLog.query.filter(
+                FinancialActivityLog.employee_payroll_id.in_(payroll_ids)
+            ).delete(synchronize_session=False)
+            PayoutRecord.query.filter(
+                PayoutRecord.employee_payroll_id.in_(payroll_ids)
+            ).delete(synchronize_session=False)
+            FinancialAdjustment.query.filter(
+                FinancialAdjustment.employee_payroll_id.in_(payroll_ids)
+            ).delete(synchronize_session=False)
+            EmployeePayroll.query.filter(EmployeePayroll.id.in_(payroll_ids)).delete(
+                synchronize_session=False
+            )
+
+        # 主合同考勤记录（按合同维度，不含独立替班单）
+        AttendanceRecord.query.filter_by(contract_id=contract_id).delete(
+            synchronize_session=False
+        )
+        AttendanceForm.query.filter_by(contract_id=contract_id).delete(
+            synchronize_session=False
+        )
+
+        # 账单删除后，把仍挂在已删账单上的合同级调整项解绑，保持 PENDING 以便重新挂到首期
+        # （上面已按 bill 删除了挂在账单上的调整项；这里处理 status=BILLED 且被误挂的 contract 级项）
+        pending_contract_adjs = FinancialAdjustment.query.filter(
+            FinancialAdjustment.contract_id == contract_id,
+            FinancialAdjustment.customer_bill_id.isnot(None),
+        ).all()
+        for adj in pending_contract_adjs:
+            # 若关联账单已不存在，解绑以便重新入账
+            if adj.customer_bill_id and not db.session.get(CustomerBill, adj.customer_bill_id):
+                adj.customer_bill_id = None
+                if adj.status == "BILLED":
+                    adj.status = "PENDING"
+
+        db.session.flush()
+        return {"deleted_bills": len(bill_ids), "deleted_payrolls": len(payroll_ids)}
+
+    def regenerate_maternity_bills_from_onboarding(
+        self, contract_id, force_recalculate=True
+    ):
+        """
+        以实际上户日期为第一个账单周期起点，清除旧周期后重新生成月嫂全周期账单。
+        """
+        contract_poly = db.with_polymorphic(BaseContract, "*")
+        contract = (
+            db.session.query(contract_poly)
+            .filter(BaseContract.id == str(contract_id))
+            .first()
+        )
+        if not contract or not isinstance(contract, MaternityNurseContract):
+            current_app.logger.error(
+                f"[MN Reset] 合同 {contract_id} 不是月嫂合同，跳过重建。"
+            )
+            return
+
+        if not contract.actual_onboarding_date:
+            current_app.logger.error(
+                f"[MN Reset] 合同 {contract_id} 缺少实际上户日期，跳过重建。"
+            )
+            return
+
+        purge_stats = self.purge_maternity_non_substitute_billing_cycles(str(contract.id))
+        current_app.logger.info(
+            f"[MN Reset] 合同 {contract.id} 已清理旧周期: {purge_stats}，"
+            f"将从 {contract.actual_onboarding_date} 起重新生成账单。"
+        )
+        self.generate_all_bills_for_contract(
+            str(contract.id), force_recalculate=force_recalculate
         )
 
     def generate_all_bills_for_contract(self, contract_id, force_recalculate=True):

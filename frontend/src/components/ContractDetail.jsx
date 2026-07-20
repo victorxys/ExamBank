@@ -831,9 +831,26 @@ const ContractDetail = () => {
     //     </Grid>
     // ) : null;
 
-    const handleOpenOnboardingDialog = (contract) => {
-        setContractToSetDate(contract);
-        const defaultDate = contract.provisional_start_date ? new Date(contract.provisional_start_date) : new Date();
+    const isMaternityRenewOrChange = (c) => {
+        if (!c || c.contract_type_value !== 'maternity_nurse') return false;
+        return Boolean(
+            c.previous_contract_id
+            || c.source === 'renewal'
+            || c.source === 'change'
+        );
+    };
+
+    const handleOpenOnboardingDialog = (targetContract, { isReset = false } = {}) => {
+        setContractToSetDate(targetContract);
+        // 重新设置时优先用当前实际上户日期；首次设置用预产期/合同开始日
+        let defaultDate = new Date();
+        if (isReset && targetContract.actual_onboarding_date) {
+            defaultDate = new Date(targetContract.actual_onboarding_date);
+        } else if (targetContract.provisional_start_date) {
+            defaultDate = new Date(targetContract.provisional_start_date);
+        } else if (targetContract.start_date) {
+            defaultDate = new Date(targetContract.start_date);
+        }
         setNewOnboardingDate(defaultDate);
         setOnboardingDialogOpen(true);
     };
@@ -848,19 +865,28 @@ const ContractDetail = () => {
             setAlert({ open: true, message: '请选择一个有效的日期', severity: 'warning' });
             return;
         }
+        const isReset = Boolean(contractToSetDate.actual_onboarding_date);
         try {
-            // 第一步：更新实际上户日期
-            await api.put(`/billing/contracts/${contractToSetDate.id}`, {
+            // 更新实际上户日期；后端会按新上户日作为首个账单周期起点清理旧账单并重新核算
+            const response = await api.put(`/billing/contracts/${contractToSetDate.id}`, {
                 actual_onboarding_date: newOnboardingDate.toISOString().split('T')[0]
             });
-            setAlert({ open: true, message: '上户日期已更新，正在为您预生成所有账单...', severity: 'info' });
 
-            // 第二步：触发后台任务，生成所有账单
-            await api.post(`/billing/contracts/${contractToSetDate.id}/generate-all-bills`);
+            // 若后端已同步重建账单则无需再调 generate-all-bills
+            if (!response.data?.regenerated) {
+                setAlert({ open: true, message: '上户日期已更新，正在为您预生成所有账单...', severity: 'info' });
+                await api.post(`/billing/contracts/${contractToSetDate.id}/generate-all-bills`);
+            }
 
-            setAlert({ open: true, message: '所有账单已成功预生成！', severity: 'success' });
+            setAlert({
+                open: true,
+                message: isReset
+                    ? '实际上户日期已更新，账单已按新上户日重新核算！'
+                    : '实际上户日期已设置，账单已预生成！',
+                severity: 'success'
+            });
             handleCloseOnboardingDialog();
-            fetchData(); // 重新加载详情页数据
+            fetchData();
 
         } catch (error) {
             setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
@@ -1200,9 +1226,23 @@ const ContractDetail = () => {
         <Grid item xs={12} sm={6} md={4}>
             <Typography variant="body2" color="text.secondary" gutterBottom>实际上户日期</Typography>
             {contract.actual_onboarding_date ? (
-                <Typography variant="body1" component="div" sx={{ fontWeight: 500 }}>
-                    {formatDate(contract.actual_onboarding_date)}
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Typography variant="body1" component="div" sx={{ fontWeight: 500 }}>
+                        {formatDate(contract.actual_onboarding_date)}
+                    </Typography>
+                    {/* 续签/变更合同允许重新设置上户日并按新日期重建账单 */}
+                    {isMaternityRenewOrChange(contract) && (
+                        <Tooltip title="重新设置实际上户日期（将按新日期重建账单）" arrow>
+                            <IconButton
+                                size="small"
+                                onClick={() => handleOpenOnboardingDialog(contract, { isReset: true })}
+                                sx={{ ml: 0.5 }}
+                            >
+                                <EditIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                </Box>
             ) : (
                 <Tooltip title="点击设置实际上户日期" arrow>
                     <Chip
@@ -1591,7 +1631,7 @@ const ContractDetail = () => {
                         </Box>
                         <Button
                             variant="text"
-                            onClick={() => handleOpenOnboardingDialog(contract)}
+                            onClick={() => handleOpenOnboardingDialog(contract, { isReset: false })}
                             sx={{
                                 backgroundColor: '#ffffff !important',
                                 color: '#f5365c !important',
@@ -2086,12 +2126,29 @@ const ContractDetail = () => {
                     </DialogActions>
                 </Dialog>
                 <Dialog open={onboardingDialogOpen} onClose={handleCloseOnboardingDialog}>
-                    <DialogTitle>设置实际上户日期</DialogTitle>
+                    <DialogTitle>
+                        {contractToSetDate?.actual_onboarding_date ? '重新设置实际上户日期' : '设置实际上户日期'}
+                    </DialogTitle>
                     <DialogContent>
-                        <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
-                            为月嫂合同 <b>{contractToSetDate?.customer_name}({contractToSetDate?.employee_name})</b> 设置实际上户日期。
+                        <Alert
+                            severity={contractToSetDate?.actual_onboarding_date ? 'warning' : 'info'}
+                            sx={{ mt: 1, mb: 2 }}
+                        >
+                            为月嫂合同 <b>{contractToSetDate?.customer_name}({contractToSetDate?.employee_name})</b>
+                            {contractToSetDate?.actual_onboarding_date ? ' 重新设置' : ' 设置'}实际上户日期。
                             <br />
-                            预产期参考: {formatDate(contractToSetDate?.provisional_start_date)}
+                            {contractToSetDate?.provisional_start_date && (
+                                <>预产期参考: {formatDate(contractToSetDate?.provisional_start_date)}<br /></>
+                            )}
+                            合同开始日参考: {formatDate(contractToSetDate?.start_date)}
+                            {contractToSetDate?.actual_onboarding_date && (
+                                <>
+                                    <br />
+                                    当前上户日: {formatDate(contractToSetDate?.actual_onboarding_date)}
+                                    <br />
+                                    <b>保存后将以新上户日作为首个账单周期起点，清理旧周期账单并重新核算。</b>
+                                </>
+                            )}
                         </Alert>
                         <DatePicker
                             label="实际上户日期"
@@ -2102,7 +2159,9 @@ const ContractDetail = () => {
                     </DialogContent>
                     <DialogActions>
                         <Button onClick={handleCloseOnboardingDialog}>取消</Button>
-                        <Button onClick={handleSaveOnboardingDate} variant="contained">保存并生成账单</Button>
+                        <Button onClick={handleSaveOnboardingDate} variant="contained">
+                            {contractToSetDate?.actual_onboarding_date ? '保存并重新核算账单' : '保存并生成账单'}
+                        </Button>
                     </DialogActions>
                 </Dialog>
                 <Dialog open={infoDialogOpen} onClose={() => setInfoDialogOpen(false)}>
