@@ -2189,8 +2189,10 @@ def _maternity_contract_needs_onboarding_todo(contract) -> bool:
         if contract.status not in ("active", "pending", "finished", "completed", "terminated"):
             return False
     start = to_date_value(contract.start_date)
-    # 合同尚未到开始日太久之前的不打扰（可提前 7 天进入待办）
-    if start and start > date.today() + timedelta(days=7):
+    provisional = to_date_value(getattr(contract, "provisional_start_date", None))
+    # 未到预产期/合同开始日不打扰（与仪表盘核心待办一致）
+    ready_from = provisional or start
+    if ready_from and ready_from > date.today():
         return False
     # cutoff：合同开始日或今天需在 cutoff 之后
     anchor = start or date.today()
