@@ -327,15 +327,20 @@ const DashboardPage = () => {
     const openMaternityAttendance = (item) => {
         if (!item) return;
         // 待确认上户：跳转合同详情，运营可查看/设置上户日
-        if (item.status === 'need_onboarding' || !item.form_id) {
+        if (item.status === 'need_onboarding') {
             if (item.contract_id) {
                 navigate(`/contract/detail/${item.contract_id}`);
             }
             return;
         }
-        const token = item.form_id || item.employee_access_token;
+        // 有表用 form_id；无表（仅有上户日占位）用员工 token + 周期，进入考勤页自动建表
+        const token = item.form_id || item.employee_access_token || item.employee_id;
         if (!token) {
-            setAlert({ open: true, message: '暂无可用考勤链接', severity: 'warning' });
+            if (item.contract_id) {
+                navigate(`/contract/detail/${item.contract_id}`);
+            } else {
+                setAlert({ open: true, message: '暂无可用考勤链接', severity: 'warning' });
+            }
             return;
         }
         const params = new URLSearchParams();
@@ -347,6 +352,7 @@ const DashboardPage = () => {
             }
             params.set('cycleStart', item.cycle_start_date);
         }
+        if (item.cycle_end_date) params.set('cycleEnd', item.cycle_end_date);
         if (item.contract_id) params.set('contractId', item.contract_id);
         const qs = params.toString();
         // 新窗口打开，便于运营边看列表边跟进
