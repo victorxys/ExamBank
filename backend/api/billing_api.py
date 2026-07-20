@@ -34,6 +34,7 @@ from backend.models import (
     MaternityNurseContract,
     NannyTrialContract,
     AttendanceRecord,
+    AttendanceForm,
     CustomerBill,
     EmployeePayroll,
     FinancialAdjustment,
@@ -3287,10 +3288,141 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
             "amount": f"{(p.total_due - p.total_paid).quantize(D('0.01'))}"
         } for p in pending_payments_query.all()]
 
+        # --- 待确认月嫂考勤（运营提醒员工填写/客户签署）---
+        # 与小程序待办 cutoff 对齐，避免历史噪声
+        maternity_todo_cutoff = date(2026, 6, 1)
+        status_label_map = {
+            "need_onboarding": "待确认上户",
+            "draft": "待员工填写",
+            "employee_confirmed": "待客户签署",
+        }
+        pending_maternity_attendance = []
+        seen_keys = set()
+
+        # 1) 已有考勤表：draft / employee_confirmed
+        maternity_forms = (
+            AttendanceForm.query.options(
+                joinedload(AttendanceForm.contract).joinedload(BaseContract.service_personnel)
+            )
+            .join(BaseContract, AttendanceForm.contract_id == BaseContract.id)
+            .filter(
+                BaseContract.type.in_(["maternity_nurse", "月嫂合同", "月嫂正式合同"]),
+                AttendanceForm.status.in_(["draft", "employee_confirmed"]),
+                func.date(AttendanceForm.cycle_start_date) >= maternity_todo_cutoff,
+            )
+            .order_by(AttendanceForm.cycle_start_date.desc())
+            .limit(100)
+            .all()
+        )
+        for form in maternity_forms:
+            contract = form.contract
+            if not contract:
+                continue
+            key = f"form:{form.id}"
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
+            cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
+            employee_name = (
+                contract.service_personnel.name
+                if contract.service_personnel
+                else "未知员工"
+            )
+            pending_maternity_attendance.append({
+                "id": str(form.id),
+                "form_id": str(form.id),
+                "contract_id": str(contract.id),
+                "employee_id": str(form.employee_id) if form.employee_id else None,
+                "employee_name": employee_name,
+                "customer_name": contract.customer_name or "",
+                "status": form.status,
+                "status_label": status_label_map.get(form.status, form.status),
+                "cycle_start_date": cycle_start.isoformat() if cycle_start else None,
+                "cycle_end_date": cycle_end.isoformat() if cycle_end else None,
+                "employee_access_token": form.employee_access_token or str(form.employee_id or ""),
+                "customer_signature_token": form.customer_signature_token,
+                "has_customer_signed": form.status in ("customer_signed", "synced"),
+                "updated_at": form.updated_at.isoformat() if form.updated_at else None,
+            })
+
+        # 2) 活跃月嫂合同尚无实际上户日（先确认上户才能出考勤）
+        missing_onboarding_contracts = (
+            MaternityNurseContract.query.options(
+                joinedload(MaternityNurseContract.service_personnel)
+            )
+            .filter(
+                MaternityNurseContract.status.in_(["active", "pending"]),
+                MaternityNurseContract.actual_onboarding_date.is_(None),
+                or_(
+                    MaternityNurseContract.start_date.is_(None),
+                    func.date(MaternityNurseContract.start_date) >= maternity_todo_cutoff,
+                    func.date(MaternityNurseContract.start_date)
+                    >= today - timedelta(days=60),
+                ),
+            )
+            .order_by(MaternityNurseContract.start_date.desc())
+            .limit(50)
+            .all()
+        )
+        for contract in missing_onboarding_contracts:
+            key = f"onboarding:{contract.id}"
+            if key in seen_keys:
+                continue
+            # 若已有同合同 draft 表单则不再重复占位
+            if any(
+                item.get("contract_id") == str(contract.id)
+                for item in pending_maternity_attendance
+            ):
+                continue
+            seen_keys.add(key)
+            start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
+            end = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
+            employee_name = (
+                contract.service_personnel.name
+                if contract.service_personnel
+                else "未知员工"
+            )
+            pending_maternity_attendance.append({
+                "id": f"need-onboarding-{contract.id}",
+                "form_id": None,
+                "contract_id": str(contract.id),
+                "employee_id": str(contract.service_personnel_id) if contract.service_personnel_id else None,
+                "employee_name": employee_name,
+                "customer_name": contract.customer_name or "",
+                "status": "need_onboarding",
+                "status_label": status_label_map["need_onboarding"],
+                "cycle_start_date": start.isoformat() if start else None,
+                "cycle_end_date": end.isoformat() if end else None,
+                "employee_access_token": str(contract.service_personnel_id or ""),
+                "customer_signature_token": None,
+                "has_customer_signed": False,
+                "updated_at": None,
+            })
+
+        # 待办列表：表单优先按状态（待签署 > 待填写），再按周期新到旧
+        status_rank = {"employee_confirmed": 0, "draft": 1, "need_onboarding": 2}
+        pending_maternity_attendance.sort(
+            key=lambda x: (
+                status_rank.get(x.get("status"), 9),
+                x.get("cycle_start_date") or "",
+            ),
+            reverse=False,
+        )
+        # cycle_start 新的在前：再按日期降序微调
+        pending_maternity_attendance.sort(
+            key=lambda x: (
+                status_rank.get(x.get("status"), 9),
+                -(int((x.get("cycle_start_date") or "0000-00-00").replace("-", "") or 0)),
+            )
+        )
+
         todo_lists = {
             "expiring_contracts": expiring_contracts,
             "approaching_provisional": upcoming_maternity_contracts,
-            "pending_payments": pending_payments
+            "pending_payments": pending_payments,
+            "pending_maternity_attendance": pending_maternity_attendance,
+            "pending_maternity_attendance_count": len(pending_maternity_attendance),
         }
 
         # === 3. 应收款构成 (Receivables Summary for This Year) (V2 - 修正版) ===
