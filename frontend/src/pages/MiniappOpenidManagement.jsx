@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
@@ -35,6 +36,7 @@ import {
 } from '@mui/icons-material';
 import PageHeader from '../components/PageHeader';
 import { useToast } from '../components/ui/use-toast';
+import api from '../api/axios';
 import {
   createMiniappDebugAccess,
   deleteMiniappDebugAccess,
@@ -103,6 +105,11 @@ export default function MiniappOpenidManagement() {
     expires_in_minutes: 120,
     reason: '',
   });
+  const [targetOptions, setTargetOptions] = useState([]);
+  const [selectedTarget, setSelectedTarget] = useState(null);
+  const [targetInputValue, setTargetInputValue] = useState('');
+  const [loadingTargets, setLoadingTargets] = useState(false);
+  const targetSearchTimeout = useRef(null);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -187,7 +194,49 @@ export default function MiniappOpenidManagement() {
     }
   }, [toast]);
 
+  const searchTargets = useCallback((query, role) => {
+    if (targetSearchTimeout.current) {
+      clearTimeout(targetSearchTimeout.current);
+    }
+
+    const trimmed = (query || '').trim();
+    if (trimmed.length < 1) {
+      setTargetOptions([]);
+      setLoadingTargets(false);
+      return;
+    }
+
+    setLoadingTargets(true);
+    const searchRole = role === 'customer' ? 'customer' : 'service_personnel';
+    targetSearchTimeout.current = setTimeout(async () => {
+      try {
+        const response = await api.get('/contract-parties/search', {
+          params: { search: trimmed, role: searchRole },
+        });
+        setTargetOptions(response.data || []);
+      } catch (err) {
+        console.error('搜索目标人员失败:', err);
+        setTargetOptions([]);
+      } finally {
+        setLoadingTargets(false);
+      }
+    }, 300);
+  }, []);
+
+  useEffect(() => () => {
+    if (targetSearchTimeout.current) {
+      clearTimeout(targetSearchTimeout.current);
+    }
+  }, []);
+
   const openDebugDialog = (account = null) => {
+    const preselected = account?.subject_id
+      ? {
+          id: account.subject_id,
+          name: account.name || '',
+          phone_number: account.phone_number || '',
+        }
+      : null;
     setDebugForm({
       debugger_openid: '',
       role: account?.role || 'employee',
@@ -195,11 +244,29 @@ export default function MiniappOpenidManagement() {
       expires_in_minutes: 120,
       reason: '',
     });
+    setSelectedTarget(preselected);
+    setTargetInputValue(preselected?.name || '');
+    setTargetOptions(preselected ? [preselected] : []);
     setDebugDialogOpen(true);
     fetchDebugAccess(account?.subject_id ? { target_id: account.subject_id } : {});
   };
 
+  const handleDebugRoleChange = (nextRole) => {
+    setDebugForm((prev) => ({ ...prev, role: nextRole, target_id: '' }));
+    setSelectedTarget(null);
+    setTargetInputValue('');
+    setTargetOptions([]);
+  };
+
   const handleCreateDebugAccess = async () => {
+    if (!debugForm.debugger_openid?.trim()) {
+      toast({ title: '创建授权失败', description: '请填写调试人员 OpenID。', variant: 'destructive' });
+      return;
+    }
+    if (!debugForm.target_id) {
+      toast({ title: '创建授权失败', description: '请搜索并选择目标员工/客户。', variant: 'destructive' });
+      return;
+    }
     try {
       await createMiniappDebugAccess(debugForm);
       toast({
@@ -211,7 +278,7 @@ export default function MiniappOpenidManagement() {
     } catch (err) {
       toast({
         title: '创建授权失败',
-        description: err.response?.data?.error || '请检查 OpenID 和目标ID。',
+        description: err.response?.data?.error || '请检查 OpenID 和目标人员。',
         variant: 'destructive',
       });
     }
@@ -410,7 +477,7 @@ export default function MiniappOpenidManagement() {
                 <Select
                   value={debugForm.role}
                   label="角色"
-                  onChange={(event) => setDebugForm((prev) => ({ ...prev, role: event.target.value }))}
+                  onChange={(event) => handleDebugRoleChange(event.target.value)}
                 >
                   <MenuItem value="employee">员工</MenuItem>
                   <MenuItem value="customer">客户</MenuItem>
@@ -428,12 +495,75 @@ export default function MiniappOpenidManagement() {
               />
             </Grid>
             <Grid item xs={12}>
-              <TextField
+              <Autocomplete
                 fullWidth
                 size="small"
-                label="目标员工/客户ID"
-                value={debugForm.target_id}
-                onChange={(event) => setDebugForm((prev) => ({ ...prev, target_id: event.target.value.trim() }))}
+                filterOptions={(x) => x}
+                options={targetOptions}
+                loading={loadingTargets}
+                value={selectedTarget}
+                inputValue={targetInputValue}
+                isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                getOptionLabel={(option) => {
+                  if (!option) return '';
+                  if (typeof option === 'string') return option;
+                  const phone = option.phone_number ? ` · ${option.phone_number}` : '';
+                  return `${option.name || ''}${phone}`;
+                }}
+                onChange={(event, newValue) => {
+                  setSelectedTarget(newValue);
+                  setDebugForm((prev) => ({
+                    ...prev,
+                    target_id: newValue?.id || '',
+                  }));
+                  if (newValue?.id) {
+                    fetchDebugAccess({ target_id: newValue.id });
+                  }
+                }}
+                onInputChange={(event, newInputValue, reason) => {
+                  setTargetInputValue(newInputValue);
+                  if (reason === 'input') {
+                    searchTargets(newInputValue, debugForm.role);
+                  }
+                  if (reason === 'clear') {
+                    setSelectedTarget(null);
+                    setDebugForm((prev) => ({ ...prev, target_id: '' }));
+                    setTargetOptions([]);
+                  }
+                }}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} key={option.id}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                        {option.name || '-'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                        {option.phone_number || '无手机号'} · ID: {option.id}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label={debugForm.role === 'customer' ? '搜索目标客户' : '搜索目标员工'}
+                    placeholder="输入姓名或拼音模糊检索"
+                    helperText={
+                      debugForm.target_id
+                        ? `已选择 ID：${debugForm.target_id}`
+                        : '选择后自动带出 ID，无需手工填写'
+                    }
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingTargets ? <CircularProgress color="inherit" size={18} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
               />
             </Grid>
             <Grid item xs={12}>

@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Paper, Box, Typography, Grid, CircularProgress, List, ListItem,ListItemText, ListItemIcon, Divider, Chip, Button,Tooltip, Stack, Dialog, DialogTitle, DialogContent, DialogActions, Alert, TextField, MenuItem
+    Paper, Box, Typography, Grid, CircularProgress, List, ListItem,ListItemText, ListItemIcon, Divider, Chip, Button,Tooltip, Stack, Dialog, DialogTitle, DialogContent, DialogActions, Alert, TextField, MenuItem,
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
 import {
     AccountBalanceWallet as AccountBalanceWalletIcon,
@@ -15,7 +16,9 @@ import {
     Badge as BadgeIcon,
     PieChart as PieChartIcon,
     CheckCircle as CheckCircleIcon,
-    Cancel as CancelIcon
+    Cancel as CancelIcon,
+    OpenInNew as OpenInNewIcon,
+    EventNote as EventNoteIcon,
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -38,20 +41,64 @@ const KpiCard = ({ icon, title, value, subtitle, color }) => {
         emerald: theme.palette.success,
         amber: theme.palette.warning,
         sky: theme.palette.info,
+        error: theme.palette.error,
+        warning: theme.palette.warning,
     };
     const selectedColor = colorMap[color] || theme.palette.primary;
 
     return (
-        <Paper elevation={2} sx={{ p: 3, borderRadius: 4, display: 'flex', alignItems: 'center', transition: 'all 0.3s', '&:hover': { transform: 'translateY(-5px)', boxShadow: 6 } }}>
-            <Box sx={{ p: 2, bgcolor: selectedColor.light, borderRadius: '50%', display: 'flex', alignItems: 'center',justifyContent: 'center' }}>
+        <Paper
+            elevation={2}
+            sx={{
+                p: { xs: 2, md: 1.75 },
+                borderRadius: 3,
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                minWidth: 0,
+                transition: 'all 0.3s',
+                '&:hover': { transform: 'translateY(-3px)', boxShadow: 6 },
+            }}
+        >
+            <Box
+                sx={{
+                    p: 1.25,
+                    bgcolor: selectedColor.light,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                }}
+            >
                 {icon}
             </Box>
-            <Box ml={3}>
-                <Typography variant="body2" color="text.secondary">{title}</Typography>
-                <Typography variant="h5" component="p" sx={{ fontWeight: 'bold' }}>
+            <Box ml={1.5} minWidth={0} flex={1}>
+                <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    noWrap
+                    title={typeof title === 'string' ? title : undefined}
+                >
+                    {title}
+                </Typography>
+                <Typography
+                    variant="h6"
+                    component="p"
+                    sx={{
+                        fontWeight: 'bold',
+                        lineHeight: 1.25,
+                        wordBreak: 'break-word',
+                        fontSize: { xs: '1.1rem', md: '1rem', lg: '1.15rem' },
+                    }}
+                >
                     {value}
                 </Typography>
-                {subtitle && <Typography variant="caption" color="text.secondary">{subtitle}</Typography>}
+                {subtitle && (
+                    <Typography variant="caption" color="text.secondary" noWrap display="block" title={subtitle}>
+                        {subtitle}
+                    </Typography>
+                )}
             </Box>
         </Paper>
     );
@@ -59,25 +106,38 @@ const KpiCard = ({ icon, title, value, subtitle, color }) => {
 
 // 待办事项列表项组件 (修改)
 const TodoListItem = ({ primary, secondary, amount, amountColor, type, onClick}) => {
-    const getIcon = () => {
-        switch(type) {
-            case 'expiring': return <EventBusyIcon color="warning" />;
-            case 'approaching': return <EventIcon color="info" />;
-            case 'payment': return <AccountBalanceWalletIcon color="error" />;
-            default: return <AssignmentIcon color="primary" />;
-        }
+    const iconStyles = {
+        expiring: { icon: <EventBusyIcon sx={{ fontSize: 20, color: '#b45309' }} />, bg: '#fef3c7' },
+        approaching: { icon: <EventIcon sx={{ fontSize: 20, color: '#0369a1' }} />, bg: '#e0f2fe' },
+        payment: { icon: <AccountBalanceWalletIcon sx={{ fontSize: 20, color: '#b91c1c' }} />, bg: '#fee2e2' },
+        maternity_attendance: { icon: <EventNoteIcon sx={{ fontSize: 20, color: '#0f766e' }} />, bg: '#ccfbf1' },
+        default: { icon: <AssignmentIcon sx={{ fontSize: 20, color: '#4f46e5' }} />, bg: '#e0e7ff' },
     };
+    const style = iconStyles[type] || iconStyles.default;
     return (
-        <ListItem button onClick={onClick} sx={{ borderRadius: 2, '&:hover': {bgcolor: 'action.hover' } }}>
-            <ListItemIcon sx={{ minWidth: 40 }}>
-                {getIcon()}
+        <ListItem button onClick={onClick} sx={{ borderRadius: 2, px: 1, '&:hover': {bgcolor: 'action.hover' } }}>
+            <ListItemIcon sx={{ minWidth: 44 }}>
+                <Box
+                    sx={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: '10px',
+                        bgcolor: style.bg,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                    }}
+                >
+                    {style.icon}
+                </Box>
             </ListItemIcon>
             <ListItemText
                 primary={<Typography variant="body1" sx={{ fontWeight: 500 }}>{primary}</Typography>}
                 secondary={secondary}
             />
             {amount && <Typography variant="body1" sx={{ fontWeight: 'bold', color: amountColor || 'text.primary' }}>{`¥${amount}`}</Typography>}
-            <ArrowForwardIcon sx={{ ml: 2, color: 'text.disabled' }} />
+            <ArrowForwardIcon sx={{ ml: 1, color: 'text.disabled', fontSize: 18 }} />
         </ListItem>
     );
 };
@@ -186,7 +246,10 @@ const DashboardPage = () => {
     const [terminationDate, setTerminationDate] = useState(null);
     const [contractToProcess, setContractToProcess] = useState(null);
     // --- 逻辑结束 ---
-    
+
+    // 待确认月嫂考勤弹窗
+    const [maternityAttendanceDialogOpen, setMaternityAttendanceDialogOpen] = useState(false);
+
 
     const formatDate = (isoString) => {
         if (!isoString) return '—';
@@ -259,6 +322,43 @@ const DashboardPage = () => {
             navigate(`/contract/detail/${formalContractId}`);
         }
     });
+
+    /** 打开 Web 版考勤（管理端只读/可查看填写与签署） */
+    const openMaternityAttendance = (item) => {
+        if (!item) return;
+        // 待确认上户：跳转合同详情，运营可查看/设置上户日
+        if (item.status === 'need_onboarding' || !item.form_id) {
+            if (item.contract_id) {
+                navigate(`/contract/detail/${item.contract_id}`);
+            }
+            return;
+        }
+        const token = item.form_id || item.employee_access_token;
+        if (!token) {
+            setAlert({ open: true, message: '暂无可用考勤链接', severity: 'warning' });
+            return;
+        }
+        const params = new URLSearchParams();
+        if (item.cycle_start_date) {
+            const d = new Date(item.cycle_start_date);
+            if (!Number.isNaN(d.getTime())) {
+                params.set('year', String(d.getFullYear()));
+                params.set('month', String(d.getMonth() + 1));
+            }
+            params.set('cycleStart', item.cycle_start_date);
+        }
+        if (item.contract_id) params.set('contractId', item.contract_id);
+        const qs = params.toString();
+        // 新窗口打开，便于运营边看列表边跟进
+        window.open(`/attendance-admin/${token}${qs ? `?${qs}` : ''}`, '_blank');
+    };
+
+    const maternityStatusChipColor = (status) => {
+        if (status === 'employee_confirmed') return 'warning';
+        if (status === 'draft') return 'info';
+        if (status === 'need_onboarding') return 'error';
+        return 'default';
+    };
 
     // --- 弹窗相关的处理函数 ---
     const handleOpenTerminationDialog = (contract) => {
@@ -399,25 +499,46 @@ const DashboardPage = () => {
             <AlertMessage open={alert.open} message={alert.message}severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open:false}))} />
             <PageHeader title="运营仪表盘" description={`数据更新于 ${new Date().toLocaleDateString('zh-CN')} ${new Date().toLocaleTimeString('zh-CN')}`} />
 
-            <Grid container spacing={3} mb={4}>
-                <Grid item xs={12} sm={6} md={3}><KpiCard icon={<TrendingUpIcon sx={{ fontSize: 32 }} />} title="年度管理费" value={`已收:¥${parseFloat(data.kpis.monthly_management_fee_received).toLocaleString()}`} subtitle={`应收:¥${parseFloat(data.kpis.monthly_management_fee_total).toLocaleString()}`} color="indigo" /></Grid>
-                {/* <Grid item xs={12} sm={6} md={3}><KpiCard icon={<GroupsIcon sx={{ fontSize: 32 }} />} title="活跃客户数"value={data.kpis.active_contracts_count} color="sky" /></Grid> */}
-                <Grid item xs={12} sm={6} md={3}><KpiCard icon={<BadgeIcon sx={{ fontSize: 32 }} />} title="在户员工数"value={data.kpis.active_employees_count} color="amber" /></Grid>
-                {/* --- 【新增的待收定金卡片】 --- */}
-                <Grid item xs={12} sm={6} md={3}>
-                    {/* 用一个带 onClick 事件的 Box 包裹，使其可点击 */}
-                    <Box onClick={() => navigate('/contracts/all?deposit_status=unpaid')}sx={{ cursor: 'pointer' }}>
+            {/* 5 个 KPI：md+ 等宽一行不换行；xs 单列 / sm 双列 */}
+            <Grid
+                container
+                spacing={2}
+                mb={4}
+                sx={{
+                    flexWrap: { xs: 'wrap', md: 'nowrap' },
+                }}
+            >
+                <Grid item xs={12} sm={6} md sx={{ minWidth: 0, flex: { md: '1 1 0' }, maxWidth: { md: 'none' } }}>
+                    <KpiCard icon={<TrendingUpIcon sx={{ fontSize: 28 }} />} title="年度管理费" value={`已收:¥${parseFloat(data.kpis.monthly_management_fee_received).toLocaleString()}`} subtitle={`应收:¥${parseFloat(data.kpis.monthly_management_fee_total).toLocaleString()}`} color="indigo" />
+                </Grid>
+                <Grid item xs={12} sm={6} md sx={{ minWidth: 0, flex: { md: '1 1 0' }, maxWidth: { md: 'none' } }}>
+                    <KpiCard icon={<BadgeIcon sx={{ fontSize: 28 }} />} title="在户员工数" value={data.kpis.active_employees_count} color="amber" />
+                </Grid>
+                <Grid item xs={12} sm={6} md sx={{ minWidth: 0, flex: { md: '1 1 0' }, maxWidth: { md: 'none' } }}>
+                    <Box onClick={() => navigate('/contracts/all?deposit_status=unpaid')} sx={{ cursor: 'pointer', height: '100%' }}>
                         <KpiCard
-                            icon={<AccountBalanceWalletIcon sx={{ fontSize: 32 }} />}
+                            icon={<AccountBalanceWalletIcon sx={{ fontSize: 28 }} />}
                             title="待收定金"
                             value={data.kpis.pending_deposit_count}
                             subtitle="点击查看详情"
-                            color="error" // 使用醒目的颜色
+                            color="error"
                         />
                     </Box>
                 </Grid>
-                {/* --- 新增结束 --- */}
-                <Grid item xs={12} sm={6} md={3}><KpiCard icon={<EventBusyIcon sx={{ fontSize: 32 }} />} title="即将到期合同"value={data.todo_lists.expiring_contracts.length} subtitle="30天内" color="warning" /></Grid>
+                <Grid item xs={12} sm={6} md sx={{ minWidth: 0, flex: { md: '1 1 0' }, maxWidth: { md: 'none' } }}>
+                    <KpiCard icon={<EventBusyIcon sx={{ fontSize: 28 }} />} title="即将到期合同" value={data.todo_lists.expiring_contracts.length} subtitle="30天内" color="warning" />
+                </Grid>
+                <Grid item xs={12} sm={6} md sx={{ minWidth: 0, flex: { md: '1 1 0' }, maxWidth: { md: 'none' } }}>
+                    <Box onClick={() => setMaternityAttendanceDialogOpen(true)} sx={{ cursor: 'pointer', height: '100%' }}>
+                        <KpiCard
+                            icon={<EventNoteIcon sx={{ fontSize: 28, color: '#0f766e' }} />}
+                            title="待确认月嫂考勤"
+                            value={(data.todo_lists.pending_maternity_attendance || []).length}
+                            subtitle="点击查看填写/签署情况"
+                            color="sky"
+                        />
+                    </Box>
+                </Grid>
             </Grid>
 
             <Grid container spacing={3}>
@@ -438,10 +559,64 @@ const DashboardPage = () => {
                     <Paper elevation={2} sx={{ p: 3, borderRadius: 4 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold' }}gutterBottom>核心待办事项</Typography>
                         <Grid container spacing={3}>
-                            <Grid item xs={12} md={4}>
+                            {/* 第一位：待确认月嫂考勤 */}
+                            <Grid item xs={12} md={3}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                        <Box
+                                            sx={{
+                                                width: 28,
+                                                height: 28,
+                                                borderRadius: '8px',
+                                                bgcolor: '#ccfbf1',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}
+                                        >
+                                            <EventNoteIcon sx={{ fontSize: 18, color: '#0f766e' }} />
+                                        </Box>
+                                        <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 700 }}>
+                                            待确认月嫂考勤
+                                        </Typography>
+                                        {(data.todo_lists.pending_maternity_attendance || []).length > 0 && (
+                                            <Chip
+                                                size="small"
+                                                label={(data.todo_lists.pending_maternity_attendance || []).length}
+                                                sx={{
+                                                    height: 20,
+                                                    fontWeight: 700,
+                                                    bgcolor: '#0f766e',
+                                                    color: '#fff',
+                                                }}
+                                            />
+                                        )}
+                                    </Box>
+                                    {(data.todo_lists.pending_maternity_attendance || []).length > 0 && (
+                                        <Button size="small" onClick={() => setMaternityAttendanceDialogOpen(true)}>
+                                            全部
+                                        </Button>
+                                    )}
+                                </Box>
+                                <List dense>
+                                    {(data.todo_lists.pending_maternity_attendance || []).slice(0, 5).map(item => (
+                                        <TodoListItem
+                                            key={'mat-att-' + item.id}
+                                            onClick={() => openMaternityAttendance(item)}
+                                            type="maternity_attendance"
+                                            primary={`${item.customer_name} / ${item.employee_name}`}
+                                            secondary={`${item.status_label}${item.cycle_start_date ? ` · ${item.cycle_start_date}~${item.cycle_end_date || ''}` : ''}`}
+                                        />
+                                    ))}
+                                    {(data.todo_lists.pending_maternity_attendance || []).length === 0 && (
+                                        <Typography variant="body2" color="text.disabled" sx={{ px: 2, py: 1 }}>暂无</Typography>
+                                    )}
+                                </List>
+                            </Grid>
+                            <Grid item xs={12} md={3}>
                                 <Typography variant="subtitle2" color="text.secondary">临近预产期 (14天内)</Typography>
                                 <List dense>
-                                    {data.todo_lists.approaching_provisional.map(c => (
+                                    {(data.todo_lists.approaching_provisional || []).map(c => (
                                         <TodoListItem
                                             key={'approaching-' + c.id}
                                             onClick={() => navigate(`/contract/detail/${c.id}`)}
@@ -450,12 +625,15 @@ const DashboardPage = () => {
                                             secondary={`预产期: ${c.provisional_start_date} (${c.days_until}天后)`}
                                         />
                                     ))}
+                                    {(data.todo_lists.approaching_provisional || []).length === 0 && (
+                                        <Typography variant="body2" color="text.disabled" sx={{ px: 2, py: 1 }}>暂无</Typography>
+                                    )}
                                 </List>
                             </Grid>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={3}>
                                 <Typography variant="subtitle2" color="text.secondary">本月待收管理费</Typography>
                                 <List dense>
-                                    {data.todo_lists.pending_payments.map(p => (
+                                    {(data.todo_lists.pending_payments || []).map(p => (
                                         <TodoListItem
                                             key={'payment-' + p.bill_id}
                                             onClick={() => handleBillClick(p.bill_id)}
@@ -466,12 +644,15 @@ const DashboardPage = () => {
                                             amountColor="error.main"
                                         />
                                     ))}
+                                    {(data.todo_lists.pending_payments || []).length === 0 && (
+                                        <Typography variant="body2" color="text.disabled" sx={{ px: 2, py: 1 }}>暂无</Typography>
+                                    )}
                                 </List>
                             </Grid>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={3}>
                                 <Typography variant="subtitle2" color="text.secondary">即将到期合同 (30天内)</Typography>
                                 <List dense>
-                                    {data.todo_lists.expiring_contracts.map(c=> (
+                                    {(data.todo_lists.expiring_contracts || []).map(c=> (
                                         <TodoListItem
                                             key={'expiring-' + c.id}
                                             onClick={() => navigate(`/contract/detail/${c.id}`)}
@@ -480,6 +661,9 @@ const DashboardPage = () => {
                                             secondary={`${c.expires_in_days}天后到期 (${c.end_date})`}
                                         />
                                     ))}
+                                    {(data.todo_lists.expiring_contracts || []).length === 0 && (
+                                        <Typography variant="body2" color="text.disabled" sx={{ px: 2, py: 1 }}>暂无</Typography>
+                                    )}
                                 </List>
                             </Grid>
                                 {pendingTrials.length > 0 && (
@@ -534,6 +718,83 @@ const DashboardPage = () => {
                     </Paper>
                 </Grid>
             </Grid>
+            {/* 待确认月嫂考勤详情弹窗 */}
+            <Dialog
+                open={maternityAttendanceDialogOpen}
+                onClose={() => setMaternityAttendanceDialogOpen(false)}
+                fullWidth
+                maxWidth="md"
+            >
+                <DialogTitle>
+                    待确认月嫂考勤
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        用于运营跟进：提醒月嫂填写/提交考勤，并跟进客户签署。点击「查看考勤」打开 Web 考勤页。
+                    </Typography>
+                </DialogTitle>
+                <DialogContent dividers>
+                    {(data?.todo_lists?.pending_maternity_attendance || []).length === 0 ? (
+                        <Alert severity="success">当前没有待确认的月嫂考勤。</Alert>
+                    ) : (
+                        <TableContainer>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>客户</TableCell>
+                                        <TableCell>员工</TableCell>
+                                        <TableCell>考勤周期</TableCell>
+                                        <TableCell>状态</TableCell>
+                                        <TableCell align="right">操作</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {(data.todo_lists.pending_maternity_attendance || []).map((item) => (
+                                        <TableRow key={item.id} hover>
+                                            <TableCell>{item.customer_name || '—'}</TableCell>
+                                            <TableCell>{item.employee_name || '—'}</TableCell>
+                                            <TableCell>
+                                                {item.cycle_start_date
+                                                    ? `${item.cycle_start_date} ~ ${item.cycle_end_date || '—'}`
+                                                    : '—'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    size="small"
+                                                    color={maternityStatusChipColor(item.status)}
+                                                    label={item.status_label || item.status}
+                                                />
+                                            </TableCell>
+                                            <TableCell align="right">
+                                                <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        onClick={() => item.contract_id && navigate(`/contract/detail/${item.contract_id}`)}
+                                                    >
+                                                        合同
+                                                    </Button>
+                                                    <Button
+                                                        size="small"
+                                                        variant="contained"
+                                                        endIcon={<OpenInNewIcon fontSize="small" />}
+                                                        onClick={() => openMaternityAttendance(item)}
+                                                    >
+                                                        {item.status === 'need_onboarding' ? '去处理上户' : '查看考勤'}
+                                                    </Button>
+                                                </Stack>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => navigate('/attendance-management')}>打开考勤管理</Button>
+                    <Button onClick={() => setMaternityAttendanceDialogOpen(false)} variant="contained">关闭</Button>
+                </DialogActions>
+            </Dialog>
+
             {/* --- 5. 在这里添加弹窗组件的渲染 --- */}
             {isModalOpen && (
                 <FinancialManagementModal
