@@ -19,17 +19,21 @@
     <view class="empty-desc">当前月份没有需要填写的考勤。</view>
   </view>
 
-  <block wx:for="{{forms}}" wx:key="id">
+  <block wx:for="{{forms}}" wx:key="list_key">
     <view class="attendance-card">
       <view class="card-head">
         <view class="card-main">
-          <view class="customer-name">客户：{{item.customer_name || '客户'}}</view>
-          <view class="date-range">服务期间：{{item.date_range}}</view>
+          <view class="customer-name">
+            客户：{{item.customer_name || '客户'}}
+            <text wx:if="{{item.is_maternity}}" class="maternity-tag">月嫂·26天</text>
+          </view>
+          <view class="date-range">{{item.period_label}}：{{item.date_range}}</view>
+          <view wx:if="{{item.needs_onboarding_date}}" class="onboarding-hint">请先确认实际上户日期</view>
         </view>
         <view class="status-pill {{item.status_class}}">{{item.status_text}}</view>
       </view>
 
-      <view class="stats-row">
+      <view wx:if="{{!item.needs_onboarding_date}}" class="stats-row">
         <view class="stat-box work">
           <view class="stat-value">{{item.stats.work_days_text || '0'}}</view>
           <view class="stat-label">出勤</view>
@@ -44,7 +48,17 @@
         </view>
       </view>
 
-      <button class="primary-btn" data-id="{{item.id}}" bindtap="goFill">
+      <button
+        class="primary-btn"
+        data-id="{{item.id}}"
+        data-contract-id="{{item.contract_id}}"
+        data-employee-id="{{item.employee_id}}"
+        data-cycle-start="{{item.cycle_start_date}}"
+        data-year="{{item.year || item.actual_year}}"
+        data-month="{{item.month || item.actual_month}}"
+        data-needs-onboarding="{{item.needs_onboarding_date}}"
+        bindtap="goFill"
+      >
         <image class="btn-icon" src="/assets/ui/icons/attendance_fill.svg" mode="aspectFit" />
         <text>{{item.button_text}}</text>
       </button>

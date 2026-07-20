@@ -376,10 +376,22 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
     """
     规范化自动补齐加班数据，避免历史表把月末补齐块按整天入库导致工资多算。
     返回 (normalized_data, changed)。
+
+    月嫂合同为 26 天结算周期，不进行「超过 26 天自动补齐加班」。
     """
     data = deepcopy(form.form_data or {})
     overtime_records = data.get("overtime_records") or []
     if not allow_create_missing_auto and not overtime_records:
+        return data, False
+
+    # 月嫂：清除历史遗留的 is_auto 加班块，且不创建新的自动补齐
+    contract = getattr(form, "contract", None)
+    contract_type = getattr(contract, "type", None) if contract else None
+    if contract_type in ("maternity_nurse", "月嫂合同", "月嫂正式合同"):
+        cleaned = [r for r in overtime_records if not r.get("is_auto")]
+        if cleaned != overtime_records:
+            data["overtime_records"] = cleaned
+            return data, True
         return data, False
 
     cycle_start = _parse_date(form.cycle_start_date)
@@ -756,9 +768,13 @@ def sync_attendance_to_record(attendance_form_id):
     else:
         total_days_worked = Decimal(base_work_days) - rest_days - leave_days - onboarding_days
     
-    # 【关键修复】基础劳务天数（出勤天数）单月最高不超过26天
-    # 超过的部分在前端会被自动转换为 overtime_days 加班，防止在计算账单时被计算两遍
-    if total_days_worked > Decimal('26'):
+    is_maternity = bool(
+        contract
+        and getattr(contract, "type", None) in ("maternity_nurse", "月嫂合同", "月嫂正式合同")
+    )
+
+    # 育儿嫂：单月最高不超过26天（超出部分前端自动转加班）。月嫂按真实 26 天周期计，不强制截断为自然月逻辑。
+    if not is_maternity and total_days_worked > Decimal('26'):
         total_days_worked = Decimal('26')
     if total_days_worked < Decimal('0'):
         current_app.logger.warning(
@@ -811,6 +827,7 @@ def sync_attendance_to_record(attendance_form_id):
         "out_of_country_days": float(out_of_country_days),
         "onboarding_days": float(onboarding_days),
         "offboarding_day_work": float(offboarding_day_work),  # 下户日实际出勤天数
+        "is_maternity_cycle": is_maternity,
         "raw_data": data
     }
     
@@ -833,17 +850,17 @@ def sync_attendance_to_record(attendance_form_id):
     current_app.logger.info(f"[ATTENDANCE_SYNC] AttendanceForm 状态已更新为 synced")
     
     # 6. 触发工资单重算
-    # BillingEngine.calculate_for_month 需要 year, month
-    year = form.cycle_start_date.year
-    month = form.cycle_start_date.month
+    # 育儿嫂：按自然月（cycle_start 所在月）
+    # 月嫂：账单结算月按周期结束日所在月，并传入 cycle_start 精确定位账单
+    settlement_date = cycle_end if is_maternity else cycle_start
+    year = settlement_date.year
+    month = settlement_date.month
     
-    current_app.logger.info(f"[ATTENDANCE_SYNC] 准备触发账单重算: contract_id={form.contract_id}, year={year}, month={month}, 出勤天数={total_days_worked}天")
+    current_app.logger.info(
+        f"[ATTENDANCE_SYNC] 准备触发账单重算: contract_id={form.contract_id}, "
+        f"year={year}, month={month}, is_maternity={is_maternity}, 出勤天数={total_days_worked}天"
+    )
     
-    # 注意: calculate_for_month 是同步还是异步? 
-    # 如果是耗时操作，建议异步。但在 sync_service 中，我们可能希望立即看到结果?
-    # 之前的 billing_api 是用 task.delay()。
-    # 这里我们直接调用 Engine? 或者调用 Task?
-    # 为了简化，直接调用 Engine，因为这是由用户提交触发的单一操作。
     try:
         engine = BillingEngine()
         # 【关键修复】传入出勤天数（合同有效天数 - 休息 - 请假 - 上户 + 下户调整）
@@ -855,14 +872,18 @@ def sync_attendance_to_record(attendance_form_id):
             if cycle_start <= termination_date <= cycle_end:
                 end_date_override = termination_date
 
-        engine.calculate_for_month(
-            year, 
-            month, 
-            contract_id=form.contract_id, 
-            force_recalculate=True,
-            actual_work_days_override=float(total_days_worked),  # 传入出勤天数（从考勤表计算）
-            end_date_override=end_date_override,
-        )
+        calc_kwargs = {
+            "year": year,
+            "month": month,
+            "contract_id": form.contract_id,
+            "force_recalculate": True,
+            "actual_work_days_override": float(total_days_worked),
+            "end_date_override": end_date_override,
+        }
+        if is_maternity:
+            calc_kwargs["cycle_start_date_override"] = cycle_start
+
+        engine.calculate_for_month(**calc_kwargs)
         # 【关键修复】显式提交事务，确保账单更新保存到数据库
         db.session.commit()
         current_app.logger.info(f"[ATTENDANCE_SYNC] 账单重算完成并已提交，使用出勤天数: {total_days_worked}天")

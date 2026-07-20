@@ -160,10 +160,33 @@ function daysInMonth(year, month) {
   return new Date(year, month, 0).getDate();
 }
 
-function buildMonthDays(cycleStart, cycleEnd) {
+function isMaternityForm(form = {}) {
+  return Boolean(
+    form.is_maternity
+    || form.attendance_cycle_type === 'maternity_26d'
+    || form.contract_info?.is_maternity
+    || form.contract_info?.type === 'maternity_nurse'
+  );
+}
+
+function buildMonthDays(cycleStart, cycleEnd, form = null) {
   const start = parseDate(cycleStart);
   const days = [];
   if (!start) return days;
+
+  // 月嫂：按 26 天周期完整展示（可跨自然月）
+  if (isMaternityForm(form) && cycleEnd) {
+    const end = parseDate(cycleEnd);
+    if (!end) return days;
+    let current = new Date(start);
+    while (current <= end) {
+      days.push(new Date(current));
+      current = addDays(current, 1);
+    }
+    return days;
+  }
+
+  // 育儿嫂：展示 cycle_start 所在自然月
   let current = new Date(start.getFullYear(), start.getMonth(), 1);
   const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
   while (current <= end) {
@@ -677,22 +700,46 @@ function upsertRecord(attendanceData, record) {
   return next;
 }
 
-function isDateDisabled(date, contractInfo) {
-  if (!contractInfo) return false;
+function isDateDisabled(date, contractInfo, form = null) {
+  if (!contractInfo && !form) return false;
   const target = parseDate(date);
   if (!target) return false;
-  const start = parseDate(contractInfo.start_date);
-  if (start && target < start) return true;
 
-  const endSource = resolveContractEndDate(contractInfo);
-  if (contractInfo.is_monthly_auto_renew && contractInfo.status === 'active' && !endSource) return false;
+  // 月嫂：限制在当前 26 天周期内
+  if (isMaternityForm(form) && form?.cycle_start_date && form?.cycle_end_date) {
+    const cycleStart = parseDate(form.cycle_start_date);
+    const cycleEnd = parseDate(form.cycle_end_date);
+    if (cycleStart && target < cycleStart) return true;
+    if (cycleEnd && target > cycleEnd) return true;
+  }
+
+  const serviceStart = parseDate(
+    contractInfo?.actual_onboarding_date
+    || contractInfo?.effective_start_date
+    || contractInfo?.start_date
+  );
+  if (serviceStart && target < serviceStart) return true;
+
+  const endSource = resolveContractEndDate(contractInfo)
+    || contractInfo?.expected_offboarding_date
+    || contractInfo?.attendance_end_date;
+  if (contractInfo?.is_monthly_auto_renew && contractInfo.status === 'active' && !endSource) return false;
   const end = parseDate(endSource);
   return Boolean(end && target > end);
 }
 
 function isFirstMonth(form) {
   const contractInfo = form?.contract_info || {};
-  if (!contractInfo.start_date || !form?.cycle_start_date) return false;
+  if (!form?.cycle_start_date) return false;
+
+  // 月嫂：首期 = 周期起点等于实际上户日
+  if (isMaternityForm(form)) {
+    const onboarding = parseDate(contractInfo.actual_onboarding_date || contractInfo.start_date);
+    const cycleStart = parseDate(form.cycle_start_date);
+    return Boolean(onboarding && cycleStart && formatDate(onboarding) === formatDate(cycleStart));
+  }
+
+  if (!contractInfo.start_date) return false;
   const start = parseDate(contractInfo.start_date);
   const cycleStart = parseDate(form.cycle_start_date);
   return Boolean(start && cycleStart && start > cycleStart);
@@ -706,7 +753,15 @@ function isLastMonth(form) {
   const contractInfo = form?.contract_info || {};
   if (!form?.cycle_end_date) return false;
   const cycleEnd = parseDate(form.cycle_end_date);
-  const end = parseDate(getContractEndDate(contractInfo));
+  const end = parseDate(
+    getContractEndDate(contractInfo)
+    || contractInfo.expected_offboarding_date
+    || contractInfo.attendance_end_date
+  );
+  // 月嫂：周期结束日等于服务结束日 → 末期
+  if (isMaternityForm(form)) {
+    return Boolean(end && cycleEnd && formatDate(end) === formatDate(cycleEnd));
+  }
   return Boolean(end && cycleEnd && end < cycleEnd);
 }
 
@@ -745,8 +800,8 @@ function isHistoricalView(form, selectedYear, selectedMonth, now = new Date()) {
   return true;
 }
 
-function getValidDaysCount(monthDays, contractInfo) {
-  return monthDays.filter((day) => !isDateDisabled(day, contractInfo)).length;
+function getValidDaysCount(monthDays, contractInfo, form = null) {
+  return monthDays.filter((day) => !isDateDisabled(day, contractInfo, form)).length;
 }
 
 function calculateStats(attendanceData, monthDays, form, holidays = {}) {
@@ -755,7 +810,8 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
   const cycleStart = parseDate(form?.cycle_start_date);
   const cycleEnd = parseDate(form?.cycle_end_date);
   const contractInfo = normalizeContractInfoForAttendance(form, normalized);
-  const validDays = getValidDaysCount(monthDays, contractInfo);
+  const maternity = isMaternityForm(form);
+  const validDays = getValidDaysCount(monthDays, contractInfo, form);
   let totalLeaveDays = 0;
   let totalManualOvertimeDays = 0;
   let autoOvertimeDays = 0;
@@ -820,9 +876,13 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
   const offboardingAdjustment = calculateOffboardingAdjustment(normalized, form);
 
   const totalWorkBeforeCap = validDays - onboardingDays + offboardingAdjustment - totalLeaveDays;
-  const recalculatedAuto = Math.max(0, totalWorkBeforeCap - 26 - manualNormalOvertimeDays);
-  const totalWorkDays = Math.min(26, totalWorkBeforeCap);
-  const totalOvertimeDays = totalManualOvertimeDays + (autoOvertimeDays > 0 ? recalculatedAuto : autoOvertimeDays);
+  // 月嫂不做「超过 26 天自动加班」，出勤按真实周期天数
+  const recalculatedAuto = maternity
+    ? 0
+    : Math.max(0, totalWorkBeforeCap - 26 - manualNormalOvertimeDays);
+  const totalWorkDays = maternity ? totalWorkBeforeCap : Math.min(26, totalWorkBeforeCap);
+  const effectiveAuto = maternity ? 0 : (autoOvertimeDays > 0 ? recalculatedAuto : autoOvertimeDays);
+  const totalOvertimeDays = totalManualOvertimeDays + effectiveAuto;
 
   return {
     workDays: totalWorkDays,
@@ -830,7 +890,8 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
     overtimeDays: totalOvertimeDays,
     holidayOvertimeDays,
     normalOvertimeDays: Math.max(0, totalOvertimeDays - holidayOvertimeDays),
-    autoOvertimeDays: autoOvertimeDays > 0 ? recalculatedAuto : 0,
+    autoOvertimeDays: effectiveAuto,
+    isMaternity: maternity,
     workDaysText: formatDays(totalWorkDays),
     leaveDaysText: formatDays(totalLeaveDays),
     overtimeDaysText: formatDays(totalOvertimeDays),
@@ -839,13 +900,13 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
     overtimeDaysHoursText: formatDaysHours(totalOvertimeDays),
     holidayOvertimeDaysText: formatDays(holidayOvertimeDays),
     normalOvertimeDaysText: formatDays(Math.max(0, totalOvertimeDays - holidayOvertimeDays)),
-    autoOvertimeDaysText: formatDays(autoOvertimeDays > 0 ? recalculatedAuto : 0)
+    autoOvertimeDaysText: formatDays(effectiveAuto)
   };
 }
 
 function buildCalendar(form, attendanceData, holidays = {}) {
   const holidayData = mergeHolidays(holidays, form?.actual_year || form?.year);
-  const monthDays = buildMonthDays(form?.cycle_start_date, form?.cycle_end_date);
+  const monthDays = buildMonthDays(form?.cycle_start_date, form?.cycle_end_date, form);
   const contractInfo = normalizeContractInfoForAttendance(form, attendanceData);
   const first = monthDays[0];
   const leadingBlanks = first ? (first.getDay() === 0 ? 6 : first.getDay() - 1) : 0;
@@ -855,7 +916,7 @@ function buildCalendar(form, attendanceData, holidays = {}) {
   monthDays.forEach((day) => {
     const dateStr = formatDate(day);
     const display = getDayDisplay(dateStr, attendanceData);
-    const disabled = isDateDisabled(day, contractInfo);
+    const disabled = isDateDisabled(day, contractInfo, form);
     const weekday = day.getDay();
     const holidayLabel = getHolidayLabel(day, holidayData);
     const isHoliday = holidayLabel?.type === 'holiday';
@@ -903,7 +964,10 @@ function buildCalendar(form, attendanceData, holidays = {}) {
 function buildSpecialRecords(attendanceData, form) {
   const normalized = normalizeAttendanceData(attendanceData);
   const cycleStart = parseDate(form?.cycle_start_date);
-  const cycleEnd = cycleStart ? new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, 0) : null;
+  // 月嫂用真实周期结束日；育儿嫂用自然月末
+  const cycleEnd = isMaternityForm(form)
+    ? parseDate(form?.cycle_end_date)
+    : (cycleStart ? new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, 0) : null);
   return flattenRecords(normalized)
     .filter((record) => record.type !== 'normal')
     .filter((record) => {
@@ -951,13 +1015,19 @@ function buildSpecialRecords(attendanceData, form) {
 }
 
 function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays = {}) {
+  // 月嫂 26 天结算：不做「超过 26 天自动补齐加班」
+  if (isMaternityForm(form)) {
+    const cleaned = normalizeAttendanceData(attendanceData);
+    cleaned.overtime_records = (cleaned.overtime_records || []).filter((record) => !record.is_auto);
+    return { data: cleaned, converted: false, overtimeDays: 0 };
+  }
   const data = normalizeAttendanceData(attendanceData);
   data.overtime_records = (data.overtime_records || []).filter((record) => !record.is_auto);
   const holidayData = mergeHolidays(holidays, form?.actual_year || form?.year);
   const contractInfo = normalizeContractInfoForAttendance(form, data);
   const cycleStart = parseDate(form?.cycle_start_date);
   const cycleEnd = parseDate(form?.cycle_end_date);
-  const validDays = getValidDaysCount(monthDays, contractInfo);
+  const validDays = getValidDaysCount(monthDays, contractInfo, form);
   let leaveDays = 0;
   let normalOvertimeDays = 0;
 
@@ -1019,7 +1089,7 @@ function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays =
   });
 
   const available = monthDays
-    .filter((day) => !isDateDisabled(day, contractInfo) && !occupied.has(formatDate(day)))
+    .filter((day) => !isDateDisabled(day, contractInfo, form) && !occupied.has(formatDate(day)))
     .slice(-daysToConvert)
     .sort((a, b) => a - b);
 
@@ -1147,6 +1217,7 @@ module.exports = {
   diffDays,
   sameDay,
   daysInMonth,
+  isMaternityForm,
   buildMonthDays,
   calculateTotalDuration,
   formatDuration,

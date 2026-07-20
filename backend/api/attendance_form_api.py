@@ -1,7 +1,20 @@
 from flask import Blueprint, jsonify, request, current_app, render_template, make_response
-from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, AttendanceRecord, NannyContract
+from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, AttendanceRecord, NannyContract, MaternityNurseContract
 from backend.services.attendance_sync_service import sync_attendance_to_record, normalize_auto_overtime_form_data
 from backend.services.billing_engine import BillingEngine
+from backend.services.maternity_attendance_service import (
+    is_maternity_contract,
+    get_maternity_service_start,
+    get_maternity_service_end,
+    list_maternity_attendance_cycles,
+    maternity_cycles_overlapping_month,
+    pick_default_maternity_cycle_for_month,
+    find_maternity_cycle_for_reference,
+    is_first_maternity_cycle,
+    is_last_maternity_cycle,
+    maternity_onboarding_required_payload,
+    MATERNITY_CYCLE_DAYS,
+)
 import uuid
 import time
 import urllib.parse
@@ -23,9 +36,22 @@ _MINIAPP_ACCESS_TOKEN_CACHE = {
 }
 
 
-def _attendance_form_for_cycle_query(employee_id, contract_id, cycle_start):
+def _attendance_form_for_cycle_query(employee_id, contract_id, cycle_start, exact=False):
+    """
+    查找考勤表。
+    - exact=False（育儿嫂默认）：同一自然月内 cycle_start 落在该月的表
+    - exact=True（月嫂 26 天周期）：精确匹配 cycle_start 当天
+    """
     cycle_start_date = cycle_start.date() if isinstance(cycle_start, datetime) else cycle_start
     cycle_start_dt = datetime.combine(cycle_start_date, datetime.min.time())
+    if exact:
+        cycle_start_end = cycle_start_dt + timedelta(days=1)
+        return AttendanceForm.query.filter(
+            AttendanceForm.employee_id == employee_id,
+            AttendanceForm.contract_id == contract_id,
+            AttendanceForm.cycle_start_date >= cycle_start_dt,
+            AttendanceForm.cycle_start_date < cycle_start_end,
+        )
     next_cycle_start_dt = cycle_start_dt + relativedelta(months=1)
     return AttendanceForm.query.filter(
         AttendanceForm.employee_id == employee_id,
@@ -33,6 +59,222 @@ def _attendance_form_for_cycle_query(employee_id, contract_id, cycle_start):
         AttendanceForm.cycle_start_date >= cycle_start_dt,
         AttendanceForm.cycle_start_date < next_cycle_start_dt,
     )
+
+
+def _find_attendance_form_for_cycle(employee_id, contract_id, cycle_start, contract=None):
+    """按合同类型查找：月嫂精确匹配周期起点，育儿嫂按自然月。"""
+    exact = is_maternity_contract(contract) if contract is not None else False
+    if contract is None:
+        contract = db.session.get(BaseContract, str(contract_id))
+        exact = is_maternity_contract(contract)
+    return (
+        _attendance_form_for_cycle_query(employee_id, contract_id, cycle_start, exact=exact)
+        .order_by(
+            db.case((AttendanceForm.status.in_(("customer_signed", "synced")), 0), else_=1),
+            AttendanceForm.updated_at.desc().nullslast(),
+            AttendanceForm.created_at.desc().nullslast(),
+        )
+        .first()
+    )
+
+
+def _onboarding_time_str_from_contract(contract) -> str:
+    """
+    从合同 actual_onboarding_date（DateTime）提取上户时刻 HH:MM。
+    仅日期、无有效时刻（00:00:00）时返回空串，避免误用午夜。
+    """
+    if not contract:
+        return ""
+    raw = getattr(contract, "actual_onboarding_date", None)
+    if not isinstance(raw, datetime):
+        return ""
+    t = raw.time() if hasattr(raw, "time") else None
+    if not t:
+        return ""
+    if t.hour == 0 and t.minute == 0 and t.second == 0 and t.microsecond == 0:
+        return ""
+    return f"{t.hour:02d}:{t.minute:02d}"
+
+
+def reconcile_maternity_onboarding_from_contract(form, contract=None) -> bool:
+    """
+    将月嫂首期考勤「上户」记录与合同实际上户日期/时刻对齐：
+    - 日期 = actual_onboarding_date 的日期
+    - 若记录 startTime 为空，用合同中的上户时刻回填
+    """
+    if not form:
+        return False
+    contract = contract or form.contract
+    if not is_maternity_contract(contract):
+        return False
+    onboarding_date = get_maternity_service_start(contract)
+    if not onboarding_date:
+        return False
+    # 仅首期周期需要上户记录
+    if not is_first_maternity_cycle(contract, form.cycle_start_date):
+        return False
+
+    form_data, changed = _ensure_attendance_record_keys(form.form_data or {})
+    onboarding_records = list(form_data.get("onboarding_records") or [])
+    date_str = onboarding_date.isoformat()
+    time_str = _onboarding_time_str_from_contract(contract)
+
+    matching = next((r for r in onboarding_records if r.get("date") == date_str), None)
+    if not matching:
+        # 也匹配错误日期的首条上户记录，纠正到合同上户日
+        matching = next((r for r in onboarding_records if r.get("type") == "onboarding"), None)
+
+    if matching:
+        if matching.get("date") != date_str:
+            matching["date"] = date_str
+            changed = True
+        if matching.get("type") != "onboarding":
+            matching["type"] = "onboarding"
+            changed = True
+        if not matching.get("startTime") and time_str:
+            matching["startTime"] = time_str
+            changed = True
+        # 有到达时间则补齐 endTime=24:00（上户日当日不算出勤，时间轴到 24:00）
+        if matching.get("startTime") and not (matching.get("endTime") or "").strip():
+            matching["endTime"] = "24:00"
+            changed = True
+        if str(matching.get("source_contract_id") or "") != str(contract.id):
+            matching["source_contract_id"] = str(contract.id)
+            matching["source_contract_type"] = getattr(contract, "type", None)
+            changed = True
+    else:
+        onboarding_records.append({
+            "date": date_str,
+            "type": "onboarding",
+            "label": "上户",
+            "source_contract_id": str(contract.id),
+            "source_contract_type": getattr(contract, "type", None),
+            "startTime": time_str,
+            "endTime": "24:00" if time_str else "",
+            "hours": 0,
+            "minutes": 0,
+            "daysOffset": 0,
+        })
+        changed = True
+
+    if changed:
+        form_data["onboarding_records"] = onboarding_records
+        form.form_data = form_data
+        flag_modified(form, "form_data")
+        db.session.add(form)
+    return changed
+
+
+def _build_maternity_initial_form_data(contract, cycle_start, cycle_end):
+    """初始化月嫂考勤表：首期带上户记录，末期带下户记录。
+
+    月嫂每个合同以上户日重新起算 26 天周期，首期始终需要上户时刻
+    （与育儿嫂「续签不算上户」不同）。
+    上户时刻优先复用合同 actual_onboarding_date 中的时间。
+    """
+    initial_form_data = {
+        "rest_records": [],
+        "leave_records": [],
+        "overtime_records": [],
+        "out_of_beijing_records": [],
+        "out_of_country_records": [],
+        "paid_leave_records": [],
+        "onboarding_records": [],
+        "offboarding_records": [],
+    }
+    onboarding_start = get_maternity_service_start(contract)
+    if onboarding_start and is_first_maternity_cycle(contract, cycle_start):
+        initial_form_data["onboarding_records"].append(
+            {
+                "date": onboarding_start.isoformat(),
+                "type": "onboarding",
+                "startTime": _onboarding_time_str_from_contract(contract),
+                "endTime": "24:00" if _onboarding_time_str_from_contract(contract) else "",
+                "hours": 0,
+                "minutes": 0,
+                "daysOffset": 0,
+                "source_contract_id": str(contract.id) if getattr(contract, "id", None) else None,
+                "source_contract_type": getattr(contract, "type", None),
+            }
+        )
+    contract_end = get_maternity_service_end(contract)
+    if (
+        contract_end
+        and is_last_maternity_cycle(contract, cycle_end)
+        and not has_following_contract(contract)
+    ):
+        initial_form_data["offboarding_records"].append(
+            {
+                "date": contract_end.isoformat(),
+                "type": "offboarding",
+                "startTime": "",
+                "endTime": "",
+                "hours": 0,
+                "minutes": 0,
+                "daysOffset": 0,
+            }
+        )
+    return initial_form_data
+
+
+def reconcile_maternity_form_cycle(form, contract=None):
+    """
+    将已存在的月嫂考勤表起止日对齐到标准算法：
+    - 首期 27 自然日（上户日+26）
+    - 非首期 26 自然日
+    返回是否修改。
+    """
+    if not form:
+        return False
+    contract = contract or form.contract
+    if not is_maternity_contract(contract):
+        return False
+    if not get_maternity_service_start(contract):
+        return False
+
+    form_start = to_date_value(form.cycle_start_date)
+    if not form_start:
+        return False
+
+    for cs, ce in list_maternity_attendance_cycles(contract):
+        if cs == form_start:
+            current_end = to_date_value(form.cycle_end_date)
+            if current_end != ce:
+                form.cycle_end_date = ce
+                db.session.add(form)
+                return True
+            return False
+
+    # 找不到匹配周期时，不强制改写起点（可能是历史脏数据）
+    return False
+
+
+def _ensure_or_create_maternity_form(employee_id, contract, cycle_start, cycle_end):
+    """获取或创建指定 26 天周期的月嫂考勤表。"""
+    existing = _find_attendance_form_for_cycle(
+        employee_id, contract.id, cycle_start, contract=contract
+    )
+    if existing:
+        # 对齐 cycle_end（防止历史脏数据，如非首期误存 27 天）
+        existing_end = to_date_value(existing.cycle_end_date)
+        if existing_end != cycle_end:
+            existing.cycle_end_date = cycle_end
+            db.session.add(existing)
+        return existing, False
+
+    form = AttendanceForm(
+        contract_id=contract.id,
+        employee_id=employee_id,
+        cycle_start_date=cycle_start,
+        cycle_end_date=cycle_end,
+        employee_access_token=str(employee_id),
+        customer_signature_token=str(uuid.uuid4()),
+        form_data=_build_maternity_initial_form_data(contract, cycle_start, cycle_end),
+        status="draft",
+    )
+    db.session.add(form)
+    db.session.flush()
+    return form, True
 
 
 def _reconcile_signed_attendance_form_status(form):
@@ -175,6 +417,11 @@ def get_attendance_contract_end_date(contract):
         return None
     if contract.status == 'terminated' and contract.termination_date:
         return to_date_value(contract.termination_date)
+    # 月嫂优先预计下户日
+    if is_maternity_contract(contract):
+        expected_off = to_date_value(getattr(contract, "expected_offboarding_date", None))
+        if expected_off:
+            return expected_off
     return to_date_value(contract.end_date)
 
 
@@ -364,6 +611,11 @@ def ensure_attendance_form_onboarding_record(form, contract=None, effective_star
     onboarding_date_str = onboarding_date.isoformat()
     onboarding_label = '试工上户' if getattr(first_contract, 'type', None) == 'nanny_trial' else '上户'
 
+    # 月嫂：上户时刻优先复用合同实际上户 DateTime
+    contract_onboarding_time = ""
+    if is_maternity_contract(first_contract or contract):
+        contract_onboarding_time = _onboarding_time_str_from_contract(first_contract or contract)
+
     matching_record = next((item for item in onboarding_records if item.get('date') == onboarding_date_str), None)
     if matching_record:
         if matching_record.get('type') != 'onboarding':
@@ -376,6 +628,12 @@ def ensure_attendance_form_onboarding_record(form, contract=None, effective_star
             matching_record['source_contract_id'] = str(first_contract.id)
             matching_record['source_contract_type'] = first_contract.type
             changed = True
+        if not matching_record.get('startTime') and contract_onboarding_time:
+            matching_record['startTime'] = contract_onboarding_time
+            changed = True
+        if matching_record.get('startTime') and not (matching_record.get('endTime') or '').strip():
+            matching_record['endTime'] = '24:00'
+            changed = True
     else:
         onboarding_records.append({
             'date': onboarding_date_str,
@@ -383,8 +641,8 @@ def ensure_attendance_form_onboarding_record(form, contract=None, effective_star
             'label': onboarding_label,
             'source_contract_id': str(first_contract.id) if first_contract else str(contract.id),
             'source_contract_type': first_contract.type if first_contract else contract.type,
-            'startTime': '',
-            'endTime': '',
+            'startTime': contract_onboarding_time or '',
+            'endTime': '24:00' if contract_onboarding_time else '',
             'hours': 0,
             'minutes': 0,
             'daysOffset': 0,
@@ -452,16 +710,34 @@ def remove_out_of_contract_onboarding_records(form, contract=None, effective_sta
     return changed
 
 
+def _normalize_onboarding_end_times(form_data):
+    """上户只填到达时间；规范化时补 endTime=24:00，供校验与展示一致。"""
+    if not isinstance(form_data, dict):
+        return form_data, False
+    records = form_data.get("onboarding_records") or []
+    changed = False
+    for record in records:
+        start = (record.get("startTime") or "").strip()
+        end = (record.get("endTime") or "").strip()
+        if start and not end:
+            record["endTime"] = "24:00"
+            changed = True
+    return form_data, changed
+
+
 def validate_required_onboarding_times(form_data, cycle_start, cycle_end, contract=None, effective_start_date=None, effective_end_date=None):
+    """上户必填「到达时间」startTime；endTime 业务上固定到 24:00，不单独要求用户填写。"""
     errors = []
     effective_start = to_date_value(effective_start_date) or cycle_start
     effective_end = to_date_value(effective_end_date) or cycle_end
+    # 先规范化，避免仅缺 endTime 被误判
+    form_data, _ = _normalize_onboarding_end_times(form_data or {})
     for record in (form_data or {}).get('onboarding_records') or []:
         raw_date = record.get('date')
         if not raw_date:
             continue
         try:
-            onboarding_date = datetime.fromisoformat(str(raw_date)).date()
+            onboarding_date = datetime.fromisoformat(str(raw_date)[:10]).date()
         except (TypeError, ValueError):
             continue
         if not (cycle_start <= onboarding_date <= cycle_end):
@@ -471,7 +747,8 @@ def validate_required_onboarding_times(form_data, cycle_start, cycle_end, contra
         if not _onboarding_belongs_to_contract(record, contract):
             continue
         label = record.get('label') or '上户'
-        if not record.get('startTime') or not record.get('endTime'):
+        # 仅校验到达时间
+        if not (record.get('startTime') or '').strip():
             errors.append(f"{label}日 {onboarding_date.strftime('%m月%d日')} 的具体时间未填写")
     return errors
 
@@ -922,6 +1199,10 @@ def get_attendance_form_by_token(employee_token):
                     status_reconciled = _reconcile_signed_attendance_form_status(existing_form)
                     ensure_confirmed_auto_overtime_for_response(existing_form)
                     contract = existing_form.contract
+                    cycle_fixed = reconcile_maternity_form_cycle(existing_form, contract)
+                    onboarding_from_contract = reconcile_maternity_onboarding_from_contract(
+                        existing_form, contract
+                    )
                     cycle_start = existing_form.cycle_start_date
                     cycle_end = existing_form.cycle_end_date
                     if isinstance(cycle_start, datetime):
@@ -938,11 +1219,15 @@ def get_attendance_form_by_token(employee_token):
                     result = form_to_dict(existing_form, effective_start, effective_end)
                     result['actual_year'] = cycle_start.year
                     result['actual_month'] = cycle_start.month
+                    if is_maternity_contract(contract):
+                        result['is_maternity'] = True
+                        result['attendance_cycle_type'] = 'maternity_26d'
+                        result['maternity_cycle_days'] = MATERNITY_CYCLE_DAYS
                     
                     if effective_end is None and result.get('contract_info'):
                         result['contract_info']['status'] = 'active'
                         result['contract_info']['is_monthly_auto_renew'] = True
-                    if status_reconciled:
+                    if status_reconciled or cycle_fixed or onboarding_from_contract:
                         db.session.commit()
                     return jsonify(result)
         except ValueError:
@@ -1103,8 +1388,76 @@ def get_attendance_form_by_token(employee_token):
                     }), 404
             
             return jsonify({"error": "未找到该员工的合同"}), 404
+
+        # ===== 月嫂：26 天考勤周期 =====
+        if is_maternity_contract(contract):
+            if not get_maternity_service_start(contract):
+                payload = maternity_onboarding_required_payload(contract)
+                return jsonify(payload), 409
+
+            # 允许用 cycleStart 精确定位某一 26 天周期
+            cycle_start_param = request.args.get("cycleStart") or request.args.get("cycle_start")
+            maternity_cycle = None
+            if cycle_start_param:
+                try:
+                    wanted = date.fromisoformat(str(cycle_start_param)[:10])
+                    for cs, ce in list_maternity_attendance_cycles(contract):
+                        if cs == wanted:
+                            maternity_cycle = (cs, ce)
+                            break
+                except ValueError:
+                    maternity_cycle = None
+            if not maternity_cycle:
+                maternity_cycle = pick_default_maternity_cycle_for_month(
+                    contract, cycle_start.year, cycle_start.month
+                )
+            if not maternity_cycle:
+                maternity_cycle = find_maternity_cycle_for_reference(contract, date.today())
+            if not maternity_cycle:
+                return jsonify({"error": "无法计算月嫂考勤周期，请检查上户/下户日期"}), 400
+
+            m_cycle_start, m_cycle_end = maternity_cycle
+            # 月嫂有效窗口：合并同客户/家庭续签合同
+            effective_start, effective_end = resolve_effective_attendance_window_for_contract(
+                employee.id, m_cycle_start, m_cycle_end, contract
+            )
+            existing_form, created = _ensure_or_create_maternity_form(
+                employee.id, contract, m_cycle_start, m_cycle_end
+            )
+            status_reconciled = _reconcile_signed_attendance_form_status(existing_form)
+            # 月嫂不做育儿嫂自动补齐加班
+            cleaned_onboarding = remove_out_of_contract_onboarding_records(
+                existing_form, contract, effective_start, effective_end or m_cycle_end
+            )
+            onboarding_reconciled = ensure_attendance_form_onboarding_record(
+                existing_form, contract, effective_start, effective_end or m_cycle_end
+            )
+            # 复用合同实际上户日期/时刻到首期「上户」记录
+            onboarding_from_contract = reconcile_maternity_onboarding_from_contract(
+                existing_form, contract
+            )
+            if created or status_reconciled or cleaned_onboarding or onboarding_reconciled or onboarding_from_contract:
+                db.session.commit()
+
+            result = form_to_dict(existing_form, effective_start, effective_end)
+            result["actual_year"] = m_cycle_start.year
+            result["actual_month"] = m_cycle_start.month
+            result["is_maternity"] = True
+            result["attendance_cycle_type"] = "maternity_26d"
+            result["maternity_cycle_days"] = MATERNITY_CYCLE_DAYS
+            result["available_maternity_cycles"] = [
+                {
+                    "cycle_start_date": cs.isoformat(),
+                    "cycle_end_date": ce.isoformat(),
+                    "label": f"{cs.isoformat()} ~ {ce.isoformat()}",
+                }
+                for cs, ce in list_maternity_attendance_cycles(contract)
+            ]
+            if effective_end is None and result.get("contract_info"):
+                result["contract_info"]["status"] = "active"
+            return jsonify(result)
         
-        # 5. 检查是否已经存在该员工该合同该周期的表单
+        # 5. 检查是否已经存在该员工该合同该周期的表单（育儿嫂：自然月）
         existing_form = (
             _attendance_form_for_cycle_query(employee.id, contract.id, cycle_start)
             .order_by(
@@ -1315,6 +1668,192 @@ def get_attendance_form_by_token(employee_token):
         current_app.logger.error(f"获取考勤表失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
 
+
+@attendance_form_bp.route('/maternity/<uuid:contract_id>/onboarding-date', methods=['POST'])
+def set_maternity_onboarding_date_for_attendance(contract_id):
+    """
+    考勤侧确认月嫂实际上户日期与时刻（与考勤「上户」精度一致：日期 + 半小时）。
+    写入合同后，按 26 天周期生成首期考勤表，并预填上户时间。
+    """
+    try:
+        data = request.get_json() or {}
+        onboarding_str = data.get("actual_onboarding_date") or data.get("onboarding_date")
+        if not onboarding_str:
+            return jsonify({"error": "请提供实际上户日期 actual_onboarding_date"}), 400
+
+        try:
+            onboarding_date = date.fromisoformat(str(onboarding_str)[:10])
+        except ValueError:
+            return jsonify({"error": "日期格式无效，请使用 YYYY-MM-DD"}), 400
+
+        # 上户时刻：HH:MM，半小时步长；缺省 09:00
+        onboarding_time = (data.get("onboarding_time") or data.get("actual_onboarding_time") or "09:00").strip()
+        try:
+            th, tm = [int(x) for x in onboarding_time.split(":")[:2]]
+            if th < 0 or th > 23 or tm not in (0, 30):
+                # 允许 24:00 以外的半小时；若非整半小时则四舍五入到最近半小时
+                if tm not in (0, 30):
+                    if tm < 15:
+                        tm = 0
+                    elif tm < 45:
+                        tm = 30
+                    else:
+                        th = min(th + 1, 23)
+                        tm = 0
+            onboarding_time = f"{th:02d}:{tm:02d}"
+            onboard_time_obj = datetime.strptime(onboarding_time, "%H:%M").time()
+        except (ValueError, TypeError):
+            return jsonify({"error": "上户时间格式无效，请使用 HH:MM（半小时步长）"}), 400
+
+        contract = db.session.get(MaternityNurseContract, str(contract_id))
+        if not contract:
+            # 多态兜底
+            contract = db.session.get(BaseContract, str(contract_id))
+            if not is_maternity_contract(contract):
+                return jsonify({"error": "仅月嫂合同可设置实际上户日期"}), 400
+
+        contract_start = to_date_value(contract.start_date)
+        contract_end = get_maternity_service_end(contract) or to_date_value(contract.end_date)
+        if contract_start and onboarding_date < contract_start:
+            return jsonify({
+                "error": f"上户日期不能早于合同开始日 {contract_start.isoformat()}"
+            }), 400
+        if contract_end and onboarding_date > contract_end:
+            return jsonify({
+                "error": f"上户日期不能晚于合同结束日 {contract_end.isoformat()}"
+            }), 400
+
+        old_onboarding = to_date_value(getattr(contract, "actual_onboarding_date", None))
+        # 合同字段存日期+时刻，与考勤上户精度一致
+        contract.actual_onboarding_date = datetime.combine(onboarding_date, onboard_time_obj)
+
+        # 若无预计下户日，按合同起止时长从新上户日推算
+        if not getattr(contract, "expected_offboarding_date", None) and contract_start and contract_end:
+            duration_days = (contract_end - contract_start).days
+            contract.expected_offboarding_date = datetime.combine(
+                onboarding_date + timedelta(days=duration_days),
+                datetime.min.time(),
+            )
+        elif not getattr(contract, "expected_offboarding_date", None) and contract_end:
+            # 保持原 end_date 作为下户日
+            contract.expected_offboarding_date = datetime.combine(contract_end, datetime.min.time())
+
+        if contract.status in (None, "pending"):
+            contract.status = "active"
+
+        db.session.add(contract)
+        db.session.flush()
+
+        # 生成首期考勤表，并预填上户时刻
+        first_cycle = find_maternity_cycle_for_reference(contract, onboarding_date)
+        form_id = None
+        if first_cycle and contract.service_personnel_id:
+            form, _ = _ensure_or_create_maternity_form(
+                contract.service_personnel_id,
+                contract,
+                first_cycle[0],
+                first_cycle[1],
+            )
+            form_data = form.form_data or {}
+            form_data, _ = _ensure_attendance_record_keys(form_data)
+            onboarding_records = form_data.get("onboarding_records") or []
+            date_str = onboarding_date.isoformat()
+            matched = False
+            for rec in onboarding_records:
+                if rec.get("date") == date_str or not rec.get("date"):
+                    rec["date"] = date_str
+                    rec["type"] = "onboarding"
+                    rec["startTime"] = onboarding_time
+                    rec["endTime"] = rec.get("endTime") or ""
+                    matched = True
+                    break
+            if not matched:
+                onboarding_records.append({
+                    "date": date_str,
+                    "type": "onboarding",
+                    "startTime": onboarding_time,
+                    "endTime": "",
+                    "hours": 0,
+                    "minutes": 0,
+                    "daysOffset": 0,
+                    "source_contract_type": getattr(contract, "type", None),
+                })
+            form_data["onboarding_records"] = onboarding_records
+            form.form_data = form_data
+            flag_modified(form, "form_data")
+            db.session.add(form)
+            form_id = str(form.id)
+
+        # 当期（含今日）考勤周期：若与首期不同则同步建表，便于待处理展示当期
+        current_cycle = find_maternity_cycle_for_reference(contract, date.today())
+        if not current_cycle:
+            current_cycle = first_cycle
+        current_form_id = form_id
+        if (
+            current_cycle
+            and contract.service_personnel_id
+            and first_cycle
+            and current_cycle[0] != first_cycle[0]
+        ):
+            current_form, _ = _ensure_or_create_maternity_form(
+                contract.service_personnel_id,
+                contract,
+                current_cycle[0],
+                current_cycle[1],
+            )
+            current_form_id = str(current_form.id)
+
+        # 按新上户日重建账单周期（首个账单周期起点 = 实际上户日）
+        bills_regenerated = False
+        try:
+            engine = BillingEngine()
+            engine.regenerate_maternity_bills_from_onboarding(
+                str(contract.id), force_recalculate=True
+            )
+            bills_regenerated = True
+            current_app.logger.info(
+                f"[MaternityAttendance] 合同 {contract_id} 已按上户日 {onboarding_date} 重建账单"
+            )
+        except Exception as bill_err:
+            current_app.logger.error(
+                f"[MaternityAttendance] 重建账单失败 contract={contract_id}: {bill_err}",
+                exc_info=True,
+            )
+
+        db.session.commit()
+        current_app.logger.info(
+            f"[MaternityAttendance] 合同 {contract_id} 上户日 "
+            f"{old_onboarding} -> {onboarding_date} {onboarding_time}, "
+            f"first_form={form_id}, current_form={current_form_id}, "
+            f"bills_regenerated={bills_regenerated}"
+        )
+
+        return jsonify({
+            "message": "实际上户日期已确认",
+            "contract_id": str(contract.id),
+            "actual_onboarding_date": onboarding_date.isoformat(),
+            "onboarding_time": onboarding_time,
+            "expected_offboarding_date": (
+                to_date_value(contract.expected_offboarding_date).isoformat()
+                if contract.expected_offboarding_date
+                else None
+            ),
+            "first_cycle_start": first_cycle[0].isoformat() if first_cycle else None,
+            "first_cycle_end": first_cycle[1].isoformat() if first_cycle else None,
+            "current_cycle_start": current_cycle[0].isoformat() if current_cycle else None,
+            "current_cycle_end": current_cycle[1].isoformat() if current_cycle else None,
+            "form_id": current_form_id or form_id,
+            "bills_regenerated": bills_regenerated,
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(
+            f"设置月嫂上户日期失败 contract={contract_id}: {e}", exc_info=True
+        )
+        return jsonify({"error": "设置上户日期失败"}), 500
+
+
 @attendance_form_bp.route('/by-token/<employee_token>', methods=['PUT'])
 def update_attendance_form(employee_token):
     """更新考勤表数据"""
@@ -1383,34 +1922,51 @@ def update_attendance_form(employee_token):
                 form_data = normalized_form_data
             # 验证"上户"和"下户"记录的时间是否已填写
             validation_errors = []
-            
-            # 转换合同日期为 date 类型
-            contract_start = None
-            if contract and contract.start_date:
-                contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
-            
-            # 检查是否为合同开始月
+            current_form_data = form_data if form_data else form.form_data or {}
+            current_form_data, end_normed = _normalize_onboarding_end_times(current_form_data)
+            if end_normed:
+                form.form_data = current_form_data
+                form_data = current_form_data
+                flag_modified(form, "form_data")
+
+            # 月嫂：上户锚点为实际上户日；育儿嫂：合同开始日
+            if is_maternity_contract(contract):
+                onboarding_anchor = get_maternity_service_start(contract)
+            else:
+                onboarding_anchor = None
+                if contract and contract.start_date:
+                    onboarding_anchor = (
+                        contract.start_date.date()
+                        if isinstance(contract.start_date, datetime)
+                        else contract.start_date
+                    )
+
+            # 检查是否为合同上户周期
             # 注意：如果是续约合同（同一客户/家庭的连续服务），则不需要上户记录
-            if contract_start and cycle_start <= contract_start <= cycle_end:
-                # 检查是否是续约合同
+            if onboarding_anchor and cycle_start <= onboarding_anchor <= cycle_end:
                 if not is_continuous_service(contract):
-                    # 不是续约合同，需要验证上户记录
-                    current_form_data = form_data if form_data else form.form_data or {}
                     onboarding_records = current_form_data.get('onboarding_records', [])
-                    contract_start_str = contract_start.isoformat()
-                    current_app.logger.info(f"[验证] 合同开始日: {contract_start_str}, 上户记录: {onboarding_records}")
-                    onboarding_record = next((r for r in onboarding_records if r.get('date') == contract_start_str), None)
-                    
+                    onboarding_str = onboarding_anchor.isoformat()
+                    current_app.logger.info(f"[验证] 上户日: {onboarding_str}, 上户记录: {onboarding_records}")
+                    onboarding_record = next(
+                        (r for r in onboarding_records if r.get('date') == onboarding_str),
+                        None,
+                    )
+
                     if not onboarding_record:
-                        validation_errors.append(f"合同开始日 {contract_start.strftime('%m月%d日')} 需要填写「上户」记录")
-                    elif not onboarding_record.get('startTime') or not onboarding_record.get('endTime'):
-                        validation_errors.append(f"上户日 {contract_start.strftime('%m月%d日')} 的具体时间未填写")
+                        validation_errors.append(
+                            f"上户日 {onboarding_anchor.strftime('%m月%d日')} 需要填写「上户」记录"
+                        )
+                    elif not (onboarding_record.get('startTime') or '').strip():
+                        validation_errors.append(
+                            f"上户日 {onboarding_anchor.strftime('%m月%d日')} 的具体时间未填写"
+                        )
                 else:
-                    current_app.logger.info(f"[验证] 续约合同，跳过上户记录验证: {contract_start}")
+                    current_app.logger.info(f"[验证] 续约合同，跳过上户记录验证: {onboarding_anchor}")
 
             validation_errors.extend(
                 validate_required_onboarding_times(
-                    form_data if form_data else form.form_data or {},
+                    current_form_data,
                     cycle_start,
                     cycle_end,
                     contract,
@@ -1426,14 +1982,16 @@ def update_attendance_form(employee_token):
                 # 检查是否有续约合同
                 if not has_following_contract(contract):
                     # 没有续约合同，需要验证下户记录
-                    current_form_data = form_data if form_data else form.form_data or {}
                     offboarding_records = current_form_data.get('offboarding_records', [])
                     contract_end_str = contract_end_date.isoformat()
                     offboarding_record = next((r for r in offboarding_records if r.get('date') == contract_end_str), None)
                     
                     if not offboarding_record:
                         validation_errors.append(f"合同结束日 {contract_end_date.strftime('%m月%d日')} 需要填写「下户」记录")
-                    elif not offboarding_record.get('startTime') or not offboarding_record.get('endTime'):
+                    elif not (
+                        (offboarding_record.get('endTime') or '').strip()
+                        or (offboarding_record.get('startTime') or '').strip()
+                    ):
                         validation_errors.append(f"下户日 {contract_end_date.strftime('%m月%d日')} 的具体时间未填写")
                 else:
                     current_app.logger.info(f"[验证] 有续约合同，跳过下户记录验证: {contract_end_date}")
@@ -1948,7 +2506,51 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
             "termination_date": form.contract.termination_date.isoformat() if form.contract and form.contract.termination_date else None,
             # 是否为自动月签合同（NannyContract 特有字段）
             "is_monthly_auto_renew": getattr(form.contract, 'is_monthly_auto_renew', False) if form.contract else False,
+            # 月嫂标识与实际上户日
+            "is_maternity": is_maternity_contract(form.contract) if form.contract else False,
+            # 实际上户日期/时刻仅月嫂合同有业务含义；育儿嫂仍靠考勤表人工填上户时间
+            "actual_onboarding_date": (
+                to_date_value(getattr(form.contract, "actual_onboarding_date", None)).isoformat()
+                if form.contract
+                and is_maternity_contract(form.contract)
+                and getattr(form.contract, "actual_onboarding_date", None)
+                else None
+            ),
+            "actual_onboarding_time": (
+                _onboarding_time_str_from_contract(form.contract)
+                if form.contract and is_maternity_contract(form.contract)
+                else None
+            ) or None,
+            "expected_offboarding_date": (
+                to_date_value(getattr(form.contract, "expected_offboarding_date", None)).isoformat()
+                if form.contract
+                and is_maternity_contract(form.contract)
+                and getattr(form.contract, "expected_offboarding_date", None)
+                else None
+            ),
         },
+        "is_maternity": is_maternity_contract(form.contract) if form.contract else False,
+        "attendance_cycle_type": (
+            "maternity_26d" if is_maternity_contract(form.contract) else "calendar_month"
+        ),
+        "maternity_cycle_days": (
+            MATERNITY_CYCLE_DAYS if is_maternity_contract(form.contract) else None
+        ),
+        "available_maternity_cycles": (
+            [
+                {
+                    "cycle_start_date": cs.isoformat(),
+                    "cycle_end_date": ce.isoformat(),
+                    "label": f"{cs.isoformat()} ~ {ce.isoformat()}",
+                    "is_first": is_first_maternity_cycle(form.contract, cs),
+                    "is_last": is_last_maternity_cycle(form.contract, ce),
+                }
+                for cs, ce in list_maternity_attendance_cycles(form.contract)
+            ]
+            if is_maternity_contract(form.contract)
+            and get_maternity_service_start(form.contract)
+            else []
+        ),
         # 【家庭信息】
         "family_info": {
             "customers": family_customers
@@ -2510,8 +3112,13 @@ def get_employee_attendance_forms(employee_token):
                     contracts = current_month_contracts
         
         # 2. 按家庭ID分组合同，同一客户的多个合同（如续签）合并为一个考勤表
+        # 月嫂与育儿嫂可并存于同一员工：分别处理
         family_groups = {}
+        maternity_contracts = []
         for contract in contracts:
+            if is_maternity_contract(contract):
+                maternity_contracts.append(contract)
+                continue
             if contract.family_id:
                 family_key = f"family_{contract.family_id}"
             else:
@@ -2579,6 +3186,8 @@ def get_employee_attendance_forms(employee_token):
                 "family_customers": family_customers,
                 "service_period": f"{service_start.isoformat()} to {service_end.isoformat()}",
                 "status": existing_form.status,
+                "is_maternity": False,
+                "attendance_cycle_type": "calendar_month",
                 "miniapp": _attendance_miniapp_entry(
                     str(employee_id),
                     cycle_start.year,
@@ -2587,6 +3196,89 @@ def get_employee_attendance_forms(employee_token):
                 ),
                 "client_sign_url": f"/attendance-sign/{existing_form.customer_signature_token}" if existing_form.customer_signature_token else None
             })
+
+        # 3b. 月嫂：同一自然月可能对应多个 26 天周期，分别列出；同客户/家庭续签合并到主合同
+        maternity_family_groups = {}
+        for contract in maternity_contracts:
+            if contract.family_id:
+                family_key = f"maternity_family_{contract.family_id}"
+            else:
+                family_key = f"maternity_customer_{contract.customer_name}"
+            maternity_family_groups.setdefault(family_key, []).append(contract)
+
+        for family_key, family_contracts in maternity_family_groups.items():
+            primary_contract = next(
+                (c for c in family_contracts if c.status == "active"),
+                max(family_contracts, key=lambda x: x.start_date),
+            )
+            family_customers = []
+            seen_names = set()
+            for c in family_contracts:
+                if c.customer_name and c.customer_name not in seen_names:
+                    family_customers.append(c.customer_name)
+                    seen_names.add(c.customer_name)
+
+            if not get_maternity_service_start(primary_contract):
+                # 无上户日：仍返回一条占位，前端引导选择上户日
+                service_start = to_date_value(primary_contract.start_date)
+                service_end = get_maternity_service_end(primary_contract) or service_start
+                attendance_forms.append({
+                    "form_id": None,
+                    "form_token": str(employee_id),
+                    "contract_id": str(primary_contract.id),
+                    "family_customers": family_customers,
+                    "service_period": f"{service_start.isoformat()} to {service_end.isoformat()}",
+                    "status": "need_onboarding_date",
+                    "is_maternity": True,
+                    "attendance_cycle_type": "maternity_26d",
+                    "needs_onboarding_date": True,
+                    "miniapp": _attendance_miniapp_entry(
+                        str(employee_id),
+                        cycle_start.year,
+                        cycle_start.month,
+                        str(primary_contract.id),
+                    ),
+                    "client_sign_url": None,
+                })
+                continue
+
+            cycles = maternity_cycles_overlapping_month(
+                primary_contract, cycle_start.year, cycle_start.month
+            )
+            # 若该月无交集，仍用默认周期（可能跨月边界）
+            if not cycles:
+                default_cycle = pick_default_maternity_cycle_for_month(
+                    primary_contract, cycle_start.year, cycle_start.month
+                )
+                cycles = [default_cycle] if default_cycle else []
+
+            for m_start, m_end in cycles:
+                existing_form, _created = _ensure_or_create_maternity_form(
+                    employee_id, primary_contract, m_start, m_end
+                )
+                attendance_forms.append({
+                    "form_id": str(existing_form.id),
+                    "form_token": existing_form.employee_access_token,
+                    "contract_id": str(primary_contract.id),
+                    "family_customers": family_customers,
+                    "service_period": f"{m_start.isoformat()} to {m_end.isoformat()}",
+                    "cycle_start_date": m_start.isoformat(),
+                    "cycle_end_date": m_end.isoformat(),
+                    "status": existing_form.status,
+                    "is_maternity": True,
+                    "attendance_cycle_type": "maternity_26d",
+                    "miniapp": _attendance_miniapp_entry(
+                        str(employee_id),
+                        m_start.year,
+                        m_start.month,
+                        str(primary_contract.id),
+                    ),
+                    "client_sign_url": (
+                        f"/attendance-sign/{existing_form.customer_signature_token}"
+                        if existing_form.customer_signature_token
+                        else None
+                    ),
+                })
         
         db.session.commit()
         

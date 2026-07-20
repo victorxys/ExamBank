@@ -172,3 +172,21 @@
   height: 36rpx;
   flex: none;
 }
+
+.maternity-tag {
+  margin-left: 10rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 999rpx;
+  background: #cffafe;
+  color: #0e7490;
+  font-size: 20rpx;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.onboarding-hint {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #d97706;
+  font-weight: 600;
+}
