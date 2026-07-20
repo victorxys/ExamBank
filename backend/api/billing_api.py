@@ -93,6 +93,223 @@ from backend.services.maternity_attendance_service import (
 D = decimal.Decimal
 
 
+def _to_money(value) -> D:
+    if value is None:
+        return D(0)
+    try:
+        return D(str(value))
+    except Exception:
+        return D(0)
+
+
+def _sum_bills_management_fee(bill_ids) -> D:
+    """账单 calculation_details.management_fee 合计（育儿嫂/月嫂统一字段）。"""
+    if not bill_ids:
+        return D(0)
+    total = db.session.query(
+        func.sum(CustomerBill.calculation_details["management_fee"].as_float())
+    ).filter(
+        CustomerBill.id.in_(bill_ids),
+        CustomerBill.calculation_details.has_key("management_fee"),
+    ).scalar()
+    return _to_money(total)
+
+
+def _payroll_ids_for_bills(bill_ids):
+    if not bill_ids:
+        return []
+    rows = (
+        db.session.query(EmployeePayroll.id)
+        .join(
+            CustomerBill,
+            and_(
+                EmployeePayroll.contract_id == CustomerBill.contract_id,
+                EmployeePayroll.cycle_start_date == CustomerBill.cycle_start_date,
+                EmployeePayroll.is_substitute_payroll == CustomerBill.is_substitute_bill,
+            ),
+        )
+        .filter(CustomerBill.id.in_(bill_ids))
+        .all()
+    )
+    return [row[0] for row in rows]
+
+
+def _iter_adjustments_for_bills(bill_ids, payroll_ids=None):
+    """拉取账单 + 关联工资单上的财务调整项。"""
+    if not bill_ids:
+        return []
+    if payroll_ids is None:
+        payroll_ids = _payroll_ids_for_bills(bill_ids)
+    conditions = [FinancialAdjustment.customer_bill_id.in_(bill_ids)]
+    if payroll_ids:
+        conditions.append(FinancialAdjustment.employee_payroll_id.in_(payroll_ids))
+    return (
+        FinancialAdjustment.query.filter(or_(*conditions))
+        .with_entities(
+            FinancialAdjustment.adjustment_type,
+            FinancialAdjustment.amount,
+            FinancialAdjustment.description,
+            FinancialAdjustment.customer_bill_id,
+            FinancialAdjustment.employee_payroll_id,
+        )
+        .all()
+    )
+
+
+def _classify_receivable_adjustments(adjustments):
+    """
+    按业务口径拆分应收相关调整项：
+    - 定金 / 介绍费 → 应收
+    - 客户增款 → 应收（保证金描述单独归保证金，避免双计）
+    - 客户减款 → 冲减应收（保证金退款单独归保证金净额）
+    - 纯返佣 EMPLOYEE_COMMISSION → 管理费 & 应收
+    - EMPLOYEE_DECREASE → 不计入应收/管理费（只用于抵扣员工工资）
+    """
+    buckets = {
+        "deposit": D(0),
+        "introduction_fee": D(0),
+        "customer_increase": D(0),
+        "customer_decrease": D(0),
+        "security_deposit": D(0),  # 净额：收取为正、退款为负
+        "employee_commission": D(0),
+    }
+    for adj in adjustments:
+        amount = _to_money(adj.amount)
+        desc = adj.description or ""
+        adj_type = adj.adjustment_type
+
+        # 保证金优先按描述归类，避免同时进「客户增/减款」造成双计
+        if "保证金退款" in desc:
+            buckets["security_deposit"] -= amount
+            continue
+        if "保证金" in desc:
+            if adj_type == AdjustmentType.CUSTOMER_DECREASE:
+                buckets["security_deposit"] -= amount
+            else:
+                buckets["security_deposit"] += amount
+            continue
+
+        if adj_type == AdjustmentType.DEPOSIT:
+            buckets["deposit"] += amount
+        elif adj_type == AdjustmentType.INTRODUCTION_FEE:
+            buckets["introduction_fee"] += amount
+        elif adj_type == AdjustmentType.CUSTOMER_INCREASE:
+            buckets["customer_increase"] += amount
+        elif adj_type == AdjustmentType.CUSTOMER_DECREASE:
+            buckets["customer_decrease"] += amount
+        elif adj_type == AdjustmentType.CUSTOMER_DISCOUNT:
+            # 优惠视同冲减应收
+            buckets["customer_decrease"] += amount
+        elif adj_type == AdjustmentType.EMPLOYEE_COMMISSION:
+            buckets["employee_commission"] += amount
+        # EMPLOYEE_DECREASE / 其它类型：不计入应收与管理费汇总
+
+    return buckets
+
+
+def _compute_billing_month_fee_summary(bill_ids):
+    """
+    月度账单管理页顶栏汇总（与导出一致）：
+
+    本月管理费总计 =
+        Σ 账单.management_fee
+      + Σ 纯返佣 EMPLOYEE_COMMISSION
+
+    本月应收款总计（净额）=
+        管理费(账单)
+      + 定金 + 介绍费
+      + 客户增款 + 保证金净额
+      + 纯返佣
+      − 客户减款(含优惠)
+    """
+    empty = {
+        "total_management_fee": D(0),
+        "total_receivable": D(0),
+        "management_fee": D(0),
+        "deposit": D(0),
+        "introduction_fee": D(0),
+        "customer_increase": D(0),
+        "customer_decrease": D(0),
+        "security_deposit": D(0),
+        "employee_commission": D(0),
+    }
+    if not bill_ids:
+        return empty
+
+    management_fee = _sum_bills_management_fee(bill_ids)
+    payroll_ids = _payroll_ids_for_bills(bill_ids)
+    adjustments = _iter_adjustments_for_bills(bill_ids, payroll_ids)
+    buckets = _classify_receivable_adjustments(adjustments)
+
+    total_management_fee = management_fee + buckets["employee_commission"]
+    total_receivable = (
+        management_fee
+        + buckets["deposit"]
+        + buckets["introduction_fee"]
+        + buckets["customer_increase"]
+        + buckets["security_deposit"]
+        + buckets["employee_commission"]
+        - buckets["customer_decrease"]
+    )
+
+    return {
+        "total_management_fee": total_management_fee,
+        "total_receivable": total_receivable,
+        "management_fee": management_fee,
+        **buckets,
+    }
+
+
+def _bill_fee_breakdown(bill, contract=None):
+    """单账单维度的管理费/应收拆分（导出明细用）。"""
+    management_fee = D(0)
+    if bill.calculation_details and bill.calculation_details.get("management_fee") is not None:
+        management_fee = _to_money(bill.calculation_details.get("management_fee"))
+
+    payroll = EmployeePayroll.query.filter_by(
+        contract_id=bill.contract_id,
+        cycle_start_date=bill.cycle_start_date,
+        is_substitute_payroll=bill.is_substitute_bill,
+    ).first()
+
+    customer_adjustments = FinancialAdjustment.query.filter(
+        FinancialAdjustment.customer_bill_id == bill.id
+    ).all()
+    employee_adjustments = []
+    if payroll:
+        employee_adjustments = FinancialAdjustment.query.filter(
+            FinancialAdjustment.employee_payroll_id == payroll.id
+        ).all()
+
+    # 转为与 _classify 兼容的轻量对象
+    class _Adj:
+        def __init__(self, a):
+            self.adjustment_type = a.adjustment_type
+            self.amount = a.amount
+            self.description = a.description
+
+    buckets = _classify_receivable_adjustments(
+        [_Adj(a) for a in (customer_adjustments + employee_adjustments)]
+    )
+    total_management_fee = management_fee + buckets["employee_commission"]
+    total_receivable = (
+        management_fee
+        + buckets["deposit"]
+        + buckets["introduction_fee"]
+        + buckets["customer_increase"]
+        + buckets["security_deposit"]
+        + buckets["employee_commission"]
+        - buckets["customer_decrease"]
+    )
+    return {
+        "management_fee": management_fee,
+        "total_management_fee": total_management_fee,
+        "total_receivable": total_receivable,
+        **buckets,
+        "payroll": payroll,
+    }
+
+
 def _date_only_value(value):
     if value is None:
         return None
@@ -551,79 +768,10 @@ def get_bills():
         filtered_bill_ids = [item[0] for item in filtered_bill_ids_query.all()]
 
 
-        # --- Linus 改造开始：计算新的财务摘要 ---
-        total_management_fee = D(0)
-        total_receivable = D(0)
-        total_deposit = D(0)
-        total_introduction_fee = D(0)
-        total_customer_increase = D(0)
-        total_employee_payable = D(0)
-        total_security_deposit = D(0)
-
-        if filtered_bill_ids:
-            # 1. 先把原始管理费算出来
-            original_management_fee_query = db.session.query(
-                func.sum(CustomerBill.calculation_details['management_fee'].as_float())
-            ).filter(
-                CustomerBill.id.in_(filtered_bill_ids),
-                CustomerBill.calculation_details.has_key('management_fee')
-            )
-            original_total_management_fee =D(original_management_fee_query.scalar() or 0)
-
-            # 2. 找到与这些账单关联的所有薪酬单ID
-            payroll_ids_query = db.session.query(EmployeePayroll.id).join(
-                CustomerBill,
-                and_(
-                    EmployeePayroll.contract_id == CustomerBill.contract_id,
-                    EmployeePayroll.cycle_start_date ==CustomerBill.cycle_start_date,
-                    EmployeePayroll.is_substitute_payroll ==CustomerBill.is_substitute_bill
-                )
-            ).filter(CustomerBill.id.in_(filtered_bill_ids))
-            payroll_ids = [item[0] for item in payroll_ids_query.all()]
-
-            # 3. 一次性查询所有相关的财务调整项
-            adjustments_query = db.session.query(
-                FinancialAdjustment.adjustment_type,
-                FinancialAdjustment.amount,
-                FinancialAdjustment.description
-            ).filter(
-                or_(FinancialAdjustment.customer_bill_id.in_(filtered_bill_ids),
-                    FinancialAdjustment.employee_payroll_id.in_(payroll_ids)
-                )
-            )
-            all_adjustments = adjustments_query.all()
-
-            # 4. 遍历调整项，分类汇总
-            for adj in all_adjustments:
-                if adj.adjustment_type == AdjustmentType.DEPOSIT:
-                    total_deposit += adj.amount
-                elif adj.adjustment_type == AdjustmentType.INTRODUCTION_FEE:
-                    total_introduction_fee += adj.amount
-                elif adj.adjustment_type == AdjustmentType.CUSTOMER_INCREASE:
-                    total_customer_increase += adj.amount
-                elif adj.adjustment_type == AdjustmentType.EMPLOYEE_COMMISSION: # 员工首月10%返佣
-                    total_employee_payable += adj.amount
-
-                # 根据描述文字处理“保证金”
-                if adj.description and '保证金退款' in adj.description:
-                    total_security_deposit -= adj.amount
-                elif adj.description and '保证金' in adj.description:
-                    total_security_deposit += adj.amount
-
-            # 5. 计算最终的指标
-            # 新的管理费总计 = 原管理费 + 员工应缴款
-            total_management_fee = original_total_management_fee +total_employee_payable
-
-            # 应收款总计 = 各分项之和
-            total_receivable = (
-                total_deposit +
-                total_introduction_fee +
-                original_total_management_fee + # 注意：这里用的是【原始】管理费
-                total_customer_increase +
-                total_security_deposit +
-                total_employee_payable
-            )
-        # --- Linus 改造结束 ---
+        # 本月管理费 / 本月应收款（净额）—— 与导出口径一致
+        fee_summary = _compute_billing_month_fee_summary(filtered_bill_ids)
+        total_management_fee = fee_summary["total_management_fee"]
+        total_receivable = fee_summary["total_receivable"]
 
         paginated_results = query.paginate(
             page=page, per_page=per_page, error_out=False
@@ -3782,29 +3930,10 @@ def export_management_fees():
 
         bills_to_export = query.all()
 
-        # --- 核心重构：使用字典列表来存储数据 ---
+        # 口径：账单管理费 + 纯返佣（不含 EMPLOYEE_DECREASE）
         data_rows = []
         for bill, contract in bills_to_export:
-            original_management_fee = D(bill.calculation_details.get('management_fee', 0))
-
-            employee_payable = D(0)
-            payroll = EmployeePayroll.query.filter_by(
-                contract_id=bill.contract_id,
-                cycle_start_date=bill.cycle_start_date,
-                is_substitute_payroll=bill.is_substitute_bill
-            ).first()
-            if payroll:
-                payable_adjustments = FinancialAdjustment.query.filter(
-                    FinancialAdjustment.employee_payroll_id == payroll.id,
-                    FinancialAdjustment.adjustment_type.in_([
-                        AdjustmentType.EMPLOYEE_DECREASE,
-                        AdjustmentType.EMPLOYEE_COMMISSION
-                    ])
-                ).all()
-                if payable_adjustments:
-                    employee_payable = sum(adj.amount for adj in payable_adjustments)
-
-            total_management_fee = original_management_fee + employee_payable
+            breakdown = _bill_fee_breakdown(bill, contract)
 
             employee_name = ""
             if bill.is_substitute_bill:
@@ -3818,17 +3947,15 @@ def export_management_fees():
                 original_employee = contract.service_personnel
                 employee_name = getattr(original_employee, "name", "未知员工")
 
-            # 将计算结果存入字典
             data_rows.append({
                 "customer_name": contract.customer_name,
                 "employee_name": employee_name,
                 "contract_type": get_contract_type_details(contract.type),
-                "original_fee": float(original_management_fee),
-                "employee_payable": float(employee_payable),
-                "total_fee": float(total_management_fee)
+                "original_fee": float(breakdown["management_fee"]),
+                "employee_commission": float(breakdown["employee_commission"]),
+                "total_fee": float(breakdown["total_management_fee"]),
             })
 
-        # --- 核心重构：按字典的 'total_fee' 键进行排序 ---
         data_rows.sort(key=lambda x: x['total_fee'], reverse=True)
 
         # 3. 创建 Excel 工作簿并写入数据
@@ -3836,33 +3963,32 @@ def export_management_fees():
         ws = wb.active
         ws.title = f"{billing_month_str} 管理费明细"
 
-        headers = ["客户姓名", "服务人员", "合同类型", "原始管理费","员工应缴款", "合计管理费"]
+        headers = ["客户姓名", "服务人员", "合同类型", "账单管理费", "纯返佣", "合计管理费"]
         ws.append(headers)
         for cell in ws[1]:
             cell.font = Font(bold=True)
             cell.alignment = Alignment(horizontal="center")
 
-        # --- 核心重构：从字典中按顺序提取值并写入 ---
         for row_dict in data_rows:
             ws.append([
                 row_dict['customer_name'],
                 row_dict['employee_name'],
                 row_dict['contract_type'],
                 row_dict['original_fee'],
-                row_dict['employee_payable'],
-                row_dict['total_fee']
+                row_dict['employee_commission'],
+                row_dict['total_fee'],
             ])
 
-        # 4. 保存到内存并发送 (逻辑不变)
         buffer = io.BytesIO()
         wb.save(buffer)
         buffer.seek(0)
-
+        filename = f"{billing_month_str}_management_fees.xlsx"
         return send_file(
             buffer,
             as_attachment=True,
-            download_name=f"{billing_month_str}_management_fees_v3.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            max_age=0,
         )
 
     except Exception as e:
@@ -5173,47 +5299,10 @@ def export_receivables():
 
         bills_to_export = query.all()
 
-        # --- 核心重构：使用字典列表来存储数据 ---
+        # 口径：管理费 + 定金 + 介绍费 + 客户增款 + 保证金净额 + 纯返佣 − 客户减款
         data_rows = []
         for bill, contract in bills_to_export:
-            management_fee = D(bill.calculation_details.get('management_fee',0) if bill.calculation_details else 0)
-            deposit = D(0)
-            introduction_fee = D(0)
-            customer_increase = D(0)
-            security_deposit = D(0)
-            employee_payable = D(0)
-
-            payroll = EmployeePayroll.query.filter_by(
-                contract_id=bill.contract_id,
-                cycle_start_date=bill.cycle_start_date,
-                is_substitute_payroll=bill.is_substitute_bill
-            ).first()
-
-            customer_adjustments = FinancialAdjustment.query.filter(FinancialAdjustment.customer_bill_id == bill.id).all()
-            employee_adjustments = []
-            if payroll:
-                employee_adjustments = FinancialAdjustment.query.filter(FinancialAdjustment.employee_payroll_id == payroll.id).all()
-
-            adjustments = customer_adjustments + employee_adjustments
-
-            for adj in adjustments:
-                if adj.adjustment_type == AdjustmentType.DEPOSIT:
-                    deposit += adj.amount
-                elif adj.adjustment_type == AdjustmentType.INTRODUCTION_FEE:
-                    introduction_fee += adj.amount
-                elif adj.adjustment_type == AdjustmentType.CUSTOMER_INCREASE:
-                    customer_increase += adj.amount
-                elif adj.adjustment_type == AdjustmentType.EMPLOYEE_DECREASE:
-                    employee_payable += adj.amount
-                elif adj.adjustment_type == AdjustmentType.EMPLOYEE_COMMISSION:
-                    employee_payable += adj.amount
-
-                if adj.description and '保证金退款' in adj.description:
-                    security_deposit -= adj.amount
-                elif adj.description and '保证金' in adj.description:
-                    security_deposit += adj.amount
-
-            total_receivable = management_fee + deposit + introduction_fee +customer_increase + security_deposit + employee_payable
+            breakdown = _bill_fee_breakdown(bill, contract)
 
             employee_name = ""
             if bill.is_substitute_bill:
@@ -5226,20 +5315,21 @@ def export_receivables():
             else:
                 original_employee = contract.service_personnel
                 employee_name = getattr(original_employee, "name", "未知员工")
+
             data_rows.append({
                 "customer_name": contract.customer_name,
                 "employee_name": employee_name,
                 "contract_type": get_contract_type_details(contract.type),
-                "management_fee": float(management_fee),
-                "deposit": float(deposit),
-                "introduction_fee": float(introduction_fee),
-                "customer_increase": float(customer_increase),
-                "security_deposit": float(security_deposit),
-                "employee_payable": float(employee_payable),
-                "total_receivable": float(total_receivable)
+                "management_fee": float(breakdown["management_fee"]),
+                "deposit": float(breakdown["deposit"]),
+                "introduction_fee": float(breakdown["introduction_fee"]),
+                "customer_increase": float(breakdown["customer_increase"]),
+                "customer_decrease": float(breakdown["customer_decrease"]),
+                "security_deposit": float(breakdown["security_deposit"]),
+                "employee_commission": float(breakdown["employee_commission"]),
+                "total_receivable": float(breakdown["total_receivable"]),
             })
 
-        # --- 核心重构：按字典的 'total_receivable' 键进行排序 ---
         data_rows.sort(key=lambda x: x['total_receivable'], reverse=True)
 
         # 3. 创建 Excel 工作簿并写入数据
@@ -5248,15 +5338,14 @@ def export_receivables():
         ws.title = f"{billing_month_str} 应收款明细"
 
         headers = [
-            "客户姓名", "服务人员", "合同类型", "管理费", "定金",
-            "介绍费", "客户增款", "保证金", "员工应缴款", "总计"
+            "客户姓名", "服务人员", "合同类型", "账单管理费", "定金",
+            "介绍费", "客户增款", "客户减款", "保证金(净额)", "纯返佣", "应收合计",
         ]
         ws.append(headers)
         for cell in ws[1]:
             cell.font = Font(bold=True)
             cell.alignment = Alignment(horizontal="center")
 
-        # --- 核心重构：从字典中按顺序提取值并写入 ---
         for row_dict in data_rows:
             ws.append([
                 row_dict['customer_name'],
@@ -5266,9 +5355,10 @@ def export_receivables():
                 row_dict['deposit'],
                 row_dict['introduction_fee'],
                 row_dict['customer_increase'],
+                row_dict['customer_decrease'],
                 row_dict['security_deposit'],
-                row_dict['employee_payable'],
-                row_dict['total_receivable']
+                row_dict['employee_commission'],
+                row_dict['total_receivable'],
             ])
 
         # 4. 保存到内存并发送 (逻辑不变)
@@ -5279,8 +5369,9 @@ def export_receivables():
         return send_file(
             buffer,
             as_attachment=True,
-            download_name=f"{billing_month_str}_receivables_export.xlsx",
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            download_name=f"{billing_month_str}_receivables.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            max_age=0,
         )
 
     except Exception as e:

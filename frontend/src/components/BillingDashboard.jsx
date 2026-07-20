@@ -731,62 +731,110 @@ const BillingDashboard = () => {
         }
     };
     
+    const parseBlobJsonError = async (data) => {
+        if (data?.type && String(data.type).includes('json')) {
+            const text = await data.text();
+            try {
+                return JSON.parse(text).error || '导出失败';
+            } catch (_) {
+                return text?.slice(0, 200) || '导出失败';
+            }
+        }
+        return null;
+    };
+
+    const buildExportParams = () =>
+        new URLSearchParams({
+            billing_month: selectedBillingMonth,
+            ...filters,
+        }).toString();
+
+    /**
+     * 导出 xlsx：
+     * 1) 先在点击手势内弹出「另存为」（适配 Chrome「下载前询问」）
+     * 2) 再请求接口，写入文件
+     * 无需安装第三方库
+     */
+    const exportBillingExcel = async (apiPath, filename) => {
+        let fileHandle = null;
+
+        // 必须在 await 网络请求之前调用，否则 Chrome 会因用户手势丢失而拦截
+        if (typeof window.showSaveFilePicker === 'function') {
+            try {
+                fileHandle = await window.showSaveFilePicker({
+                    suggestedName: filename,
+                    types: [
+                        {
+                            description: 'Excel 文件',
+                            accept: {
+                                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+                            },
+                        },
+                    ],
+                });
+            } catch (err) {
+                if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) {
+                    throw new Error('已取消保存');
+                }
+                console.warn('showSaveFilePicker 不可用，将使用 a[download] 回退:', err);
+                fileHandle = null;
+            }
+        }
+
+        const response = await api.get(`${apiPath}?${buildExportParams()}`, {
+            responseType: 'blob',
+        });
+        const errMsg = await parseBlobJsonError(response.data);
+        if (errMsg) throw new Error(errMsg);
+
+        const blob = new Blob([response.data], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        if (!blob.size) {
+            throw new Error('导出文件为空，请稍后重试');
+        }
+
+        if (fileHandle) {
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            return;
+        }
+
+        // 回退：无 File System Access API 时用传统下载
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+    };
+
     const handleExport = async () => {
         try {
-            // 使用当前的筛选条件构造URL参数
-            const params = new URLSearchParams({
-                billing_month: selectedBillingMonth,
-                ...filters
-            }).toString();
-               
-            const response = await api.get(`/billing/export-management-fees?${params}`, {
-                responseType: 'blob', // 关键：告诉axios期望接收一个二进制对象
-            });
-               
-            // 创建一个隐藏的链接来触发浏览器下载
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            const filename = `${selectedBillingMonth}_本月管理费总计.xlsx`;
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-            link.parentNode.removeChild(link);
-
+            await exportBillingExcel(
+                '/billing/export-management-fees',
+                `${selectedBillingMonth}_本月管理费总计.xlsx`
+            );
+            setAlert({ open: true, message: '管理费明细已保存', severity: 'success' });
         } catch (error) {
+            if (error?.message === '已取消保存') return;
             setAlert({ open: true, message: `导出失败: ${error.message}`, severity: 'error' });
         }
     };
+
     const handleExportReceivables = async () => {
         try {
-            const params = new URLSearchParams({
-                billing_month: selectedBillingMonth,
-                ...filters
-            }).toString();
-
-            const response = await api.get(`/billing/export-receivables?${params}`, {
-                responseType: 'blob',
-            });
-
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            // 从后端响应头获取文件名，如果失败则使用默认名
-            const contentDisposition = response.headers['content-disposition'];
-            let filename = `${selectedBillingMonth}_本月应收款总计(含定金介绍费保证金).xlsx`;
-            if (contentDisposition) {
-                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-                if (filenameMatch && filenameMatch.length > 1) {
-                    filename = decodeURIComponent(filenameMatch[1]);
-                }
-            }
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-            link.parentNode.removeChild(link);
-
+            await exportBillingExcel(
+                '/billing/export-receivables',
+                `${selectedBillingMonth}_本月应收款总计.xlsx`
+            );
+            setAlert({ open: true, message: '应收款明细已保存', severity: 'success' });
         } catch (error) {
-            setAlert({ open: true, message: `导出失败: ${error.message}`,severity: 'error' });
+            if (error?.message === '已取消保存') return;
+            setAlert({ open: true, message: `导出失败: ${error.message}`, severity: 'error' });
         }
     };
 
@@ -850,7 +898,7 @@ const BillingDashboard = () => {
                     >
                         ¥{parseFloat(summary.total_management_fee).toLocaleString('en-US')}
                     </Typography>
-                    <Tooltip title="导出本月管理费明细 (Excel)">
+                    <Tooltip title="导出明细：账单管理费 + 纯返佣（不含员工减款抵扣工资）">
                         <IconButton
                         color="inherit"
                         size="small"
@@ -876,9 +924,8 @@ const BillingDashboard = () => {
                     >
                         ¥{summary.total_receivable ? parseFloat(summary.total_receivable).toLocaleString('en-US') : '0'}
                     </Typography>
-                    {/* 这里为新的导出功能预留一个位置 */}
                     
-                    <Tooltip title="导出本月应收款明细-含管理费、保证金、定金、介绍费 (Excel)">
+                    <Tooltip title="导出明细：管理费+定金+介绍费+客户增款+保证金净额+纯返佣−客户减款（净额应收）">
                     <IconButton color="inherit" size="small"onClick={handleExportReceivables}>
                       <DownloadIcon />
                     </IconButton>
