@@ -1682,10 +1682,21 @@ def _attendance_fill_window(form):
     if not cycle_start or not cycle_end:
         return cycle_start, cycle_end
 
-    start = _contract_attendance_start(contract) or cycle_start
-    end = get_attendance_contract_end_date(contract) or _date_only(contract.end_date) if contract else cycle_end
+    # 同月续签：使用合并后的服务窗口，避免旧合同截断新合同日期
+    effective_start, effective_end = resolve_effective_attendance_window_for_contract(
+        form.employee_id,
+        cycle_start,
+        cycle_end,
+        contract,
+    )
+    start = effective_start or _contract_attendance_start(contract) or cycle_start
+    end = (
+        effective_end
+        if effective_end is not None
+        else (get_attendance_contract_end_date(contract) or (_date_only(contract.end_date) if contract else cycle_end))
+    )
     start = max(cycle_start, start)
-    end = min(cycle_end, end or cycle_end)
+    end = min(cycle_end, end or cycle_end) if end else cycle_end
     return start, end
 
 
@@ -3520,7 +3531,9 @@ def employee_attendance_detail(form_id):
         cycle_end,
         form.contract,
     )
-    effective_end_for_form = get_attendance_contract_end_date(form.contract) or effective_end
+    effective_end_for_form = (
+        effective_end if effective_end is not None else get_attendance_contract_end_date(form.contract)
+    )
     cleaned = remove_out_of_contract_onboarding_records(form, form.contract, effective_start, effective_end_for_form)
     if cleaned or cycle_fixed or onboarding_from_contract:
         db.session.commit()
@@ -3646,7 +3659,9 @@ def employee_attendance_update(form_id):
             cycle_end,
             contract,
         )
-        effective_end_for_form = get_attendance_contract_end_date(contract) or effective_end
+        effective_end_for_form = (
+            effective_end if effective_end is not None else get_attendance_contract_end_date(contract)
+        )
         if remove_out_of_contract_onboarding_records(form, contract, effective_start, effective_end_for_form):
             flag_modified(form, "form_data")
         if ensure_attendance_form_onboarding_record(form, contract, effective_start, effective_end_for_form):
