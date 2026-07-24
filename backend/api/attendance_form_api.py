@@ -560,6 +560,70 @@ def _attendance_family_contracts(employee_id, cycle_start, cycle_end, target_con
     return family_contracts
 
 
+def _primary_attendance_contract(family_contracts, preferred_contract=None):
+    """
+    同客户/家庭同月续签时，考勤主合同优先取 active，否则取开始日最晚的合同。
+    preferred_contract 仅在其仍属于家庭集合时作为兜底，避免始终绑在已结束旧合同上。
+    """
+    if not family_contracts:
+        return preferred_contract
+    primary = next((c for c in family_contracts if c.status == 'active'), None)
+    if primary:
+        return primary
+    return max(
+        family_contracts,
+        key=lambda c: (
+            to_date_value(c.start_date) or date.min,
+            str(getattr(c, 'created_at', None) or ''),
+            str(c.id),
+        ),
+    )
+
+
+def _find_family_attendance_form(employee_id, family_contracts, cycle_start, preferred_contract_id=None):
+    """在同一考勤家庭的多个合同中查找本周期考勤表，优先已签署，其次首选合同，再次最近更新。"""
+    if not family_contracts:
+        return None
+    contract_ids = [c.id for c in family_contracts]
+    cycle_start_date = to_date_value(cycle_start)
+    cycle_start_dt = datetime.combine(cycle_start_date, datetime.min.time())
+    next_cycle_start_dt = cycle_start_dt + relativedelta(months=1)
+    preferred_id = str(preferred_contract_id) if preferred_contract_id else None
+
+    forms = AttendanceForm.query.filter(
+        AttendanceForm.employee_id == employee_id,
+        AttendanceForm.contract_id.in_(contract_ids),
+        AttendanceForm.cycle_start_date >= cycle_start_dt,
+        AttendanceForm.cycle_start_date < next_cycle_start_dt,
+    ).all()
+    if not forms:
+        return None
+
+    def _rank(form):
+        signed_rank = 0 if form.status in ("customer_signed", "synced") else 1
+        preferred_rank = 0 if preferred_id and str(form.contract_id) == preferred_id else 1
+        updated = form.updated_at or form.created_at or datetime.min
+        created = form.created_at or datetime.min
+        return (signed_rank, preferred_rank, -updated.timestamp() if hasattr(updated, "timestamp") else 0, -created.timestamp() if hasattr(created, "timestamp") else 0)
+
+    forms.sort(key=_rank)
+    return forms[0]
+
+
+def _merged_attendance_end_date(form_contract, effective_end_date=None, effective_start_date=None):
+    """
+    计算前端可填报截止日。
+    同月续签合并服务期后，必须以合并后的 effective_end 为准；
+    否则前端会优先读 attendance_end_date，把日历截断在旧合同结束日。
+    """
+    if effective_end_date is not None:
+        return to_date_value(effective_end_date)
+    if effective_start_date is not None:
+        # 显式传入合并窗口且 end 为 None：通常是月签自动续约链，允许无限期填写
+        return None
+    return get_attendance_contract_end_date(form_contract)
+
+
 def _first_attendance_contract(employee_id, cycle_start, cycle_end, target_contract):
     family_contracts = _attendance_family_contracts(employee_id, cycle_start, cycle_end, target_contract)
     candidates = [
@@ -599,6 +663,10 @@ def ensure_attendance_form_onboarding_record(form, contract=None, effective_star
     if not first_contract and effective_start_date:
         onboarding_date = to_date_value(effective_start_date)
         first_contract = contract
+
+    # 续约合同的“本月开始日”不是真正上户日，不能自动插入上户记录
+    if first_contract and is_continuous_service(first_contract):
+        return False
 
     effective_end = to_date_value(effective_end_date) if effective_end_date is not None else None
     if not onboarding_date or not (cycle_start <= onboarding_date <= cycle_end):
@@ -1320,6 +1388,7 @@ def get_attendance_form_by_token(employee_token):
         
         # 优先使用 contractId 参数指定的合同
         target_contract = specified_contract or form_contract
+        family_contracts_for_cycle = []
         
         if target_contract:
             # 使用指定的合同，检查该合同是否在请求的周期内有效
@@ -1347,10 +1416,6 @@ def get_attendance_form_by_token(employee_token):
             current_app.logger.info(f"[DEBUG] 合同有效性检查: actual_start={actual_start}, actual_end={actual_end}, is_monthly={is_monthly}, is_valid={is_valid}")
             
             if is_valid:
-                contract = target_contract
-                effective_start = actual_start
-                effective_end = actual_end
-                
                 # 如果通过 contractId 指定了合同，还需要确保 employee 变量正确设置
                 if specified_contract and not employee:
                     employee = specified_contract.service_personnel
@@ -1362,10 +1427,25 @@ def get_attendance_form_by_token(employee_token):
                     cycle_end,
                     target_contract,
                 )
+                # 同月续签：主合同切到 active/最新，避免仍绑定已结束旧合同导致半个月无法填写
+                family_contracts_for_cycle = _attendance_family_contracts(
+                    employee.id, cycle_start, cycle_end, target_contract
+                )
+                contract = _primary_attendance_contract(
+                    family_contracts_for_cycle, preferred_contract=target_contract
+                )
+                if contract and str(contract.id) != str(target_contract.id):
+                    current_app.logger.info(
+                        f"[DEBUG] 同月续签家庭内升级主合同: {target_contract.id} -> {contract.id}"
+                    )
         
         # 如果没有通过指定合同找到有效合同，使用原来的逻辑查找
         if not contract:
             contract, effective_start, effective_end = find_consecutive_contracts(employee.id, cycle_start, cycle_end)
+            if contract:
+                family_contracts_for_cycle = _attendance_family_contracts(
+                    employee.id, cycle_start, cycle_end, contract
+                )
 
         
         if not contract:
@@ -1457,21 +1537,39 @@ def get_attendance_form_by_token(employee_token):
                 result["contract_info"]["status"] = "active"
             return jsonify(result)
         
-        # 5. 检查是否已经存在该员工该合同该周期的表单（育儿嫂：自然月）
-        existing_form = (
-            _attendance_form_for_cycle_query(employee.id, contract.id, cycle_start)
-            .order_by(
-                db.case((AttendanceForm.status.in_(("customer_signed", "synced")), 0), else_=1),
-                AttendanceForm.updated_at.desc().nullslast(),
-                AttendanceForm.created_at.desc().nullslast(),
+        # 5. 检查是否已经存在该员工该家庭该周期的表单（育儿嫂：自然月）
+        # 同月续签会有多份合同；优先主合同，并兼容旧合同上残留的 draft 表
+        if not family_contracts_for_cycle and contract:
+            family_contracts_for_cycle = _attendance_family_contracts(
+                employee.id, cycle_start, cycle_end, contract
             )
-            .first()
+        existing_form = _find_family_attendance_form(
+            employee.id,
+            family_contracts_for_cycle or [contract],
+            cycle_start,
+            preferred_contract_id=contract.id,
         )
         
         if existing_form:
+            # 若表绑在旧合同上，而主合同已续签为 active，将 draft 表迁到主合同，避免半个月无法填
+            if (
+                contract
+                and str(existing_form.contract_id) != str(contract.id)
+                and existing_form.status in ('draft', 'employee_confirmed')
+            ):
+                current_app.logger.info(
+                    f"[DEBUG] 将考勤表 {existing_form.id} 从合同 {existing_form.contract_id} "
+                    f"迁移到主合同 {contract.id}"
+                )
+                existing_form.contract_id = contract.id
+                existing_form.contract = contract
+
             status_reconciled = _reconcile_signed_attendance_form_status(existing_form)
             reconciled = reconcile_attendance_form_with_contract_end(existing_form)
-            effective_end_for_form = get_attendance_contract_end_date(contract) or effective_end
+            # 合并服务期优先：不可再用单合同截止日覆盖续签后半段
+            effective_end_for_form = (
+                effective_end if effective_end is not None else get_attendance_contract_end_date(contract)
+            )
             cleaned_onboarding = remove_out_of_contract_onboarding_records(
                 existing_form,
                 contract,
@@ -1516,6 +1614,14 @@ def get_attendance_form_by_token(employee_token):
                     })
                     form_data_updated = True
                     current_app.logger.info(f"已存在的考勤表补充上户记录: {contract_start}")
+                elif is_continuous_service(contract) and has_onboarding:
+                    # 清除误加在续约起始日的上户标记
+                    form_data['onboarding_records'] = [
+                        r for r in form_data.get('onboarding_records', [])
+                        if r.get('date') != contract_start_str
+                    ]
+                    form_data_updated = True
+                    current_app.logger.info(f"续约合同清除误加的上户记录: {contract_start}")
 
             # 合并试工/正式合同时，上户记录可能来自前置试工合同。
             # 上面只检查当前合同开始日，这里重新确保合并周期的首个上户日也存在。
@@ -1571,6 +1677,17 @@ def get_attendance_form_by_token(employee_token):
             if effective_end is None and result.get('contract_info'):
                 result['contract_info']['status'] = 'active'
                 result['contract_info']['is_monthly_auto_renew'] = True
+            # 固定期续签：主合同 active 时，保证前端不会因旧 status/end 截断日历
+            elif (
+                result.get('contract_info')
+                and contract
+                and contract.status == 'active'
+                and result['contract_info'].get('status') in ('finished', 'terminated', 'completed')
+            ):
+                result['contract_info']['status'] = 'active'
+                if contract.end_date:
+                    result['contract_info']['end_date'] = contract.end_date.isoformat()
+                result['contract_info']['termination_date'] = None
                 
             return jsonify(result)
 
@@ -1623,7 +1740,7 @@ def get_attendance_form_by_token(employee_token):
             temp_form,
             contract,
             effective_start,
-            get_attendance_contract_end_date(contract) or effective_end,
+            effective_end if effective_end is not None else get_attendance_contract_end_date(contract),
         )
         
         # 判断是否为合同结束月
@@ -1907,7 +2024,9 @@ def update_attendance_form(employee_token):
                 cycle_end,
                 contract,
             )
-            effective_end_for_form = get_attendance_contract_end_date(contract) or effective_end
+            effective_end_for_form = (
+                effective_end if effective_end is not None else get_attendance_contract_end_date(contract)
+            )
             if remove_out_of_contract_onboarding_records(form, contract, effective_start, effective_end_for_form):
                 form_data = form.form_data
             if ensure_attendance_form_onboarding_record(form, contract, effective_start, effective_end_for_form):
@@ -2436,8 +2555,18 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
         effective_start_date,
         effective_end_date
     )
-    attendance_end_date = get_attendance_contract_end_date(form.contract)
-    contract_end_date = form.contract.end_date if form.contract else None
+    # 可填报截止日必须使用合并后的 effective_end；仅取 form.contract 会把同月续签后半段截断
+    attendance_end_date = _merged_attendance_end_date(
+        form.contract,
+        effective_end_date=effective_end_date,
+        effective_start_date=effective_start_date,
+    )
+    # 展示用合同结束日：合并窗口更长时取合并后的结束日，避免前端回退到旧合同 end_date
+    form_contract_end = form.contract.end_date if form.contract else None
+    if display_end_date is not None:
+        contract_end_date = display_end_date
+    else:
+        contract_end_date = form_contract_end
     
     # 【家庭信息】获取同一家庭的所有客户信息
     family_customers = []
