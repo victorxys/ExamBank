@@ -56,7 +56,11 @@ from backend.api.attendance_form_api import (
     to_date_value,
 )
 from backend.api.contract_api import _build_signing_messages_payload, handle_signing_page_action
-from backend.services.attendance_sync_service import normalize_auto_overtime_form_data
+from backend.services.attendance_sync_service import (
+    normalize_auto_overtime_form_data,
+    project_auto_overtime_for_editing,
+    strip_client_derived_auto_overtime,
+)
 from backend.services.maternity_attendance_service import (
     is_maternity_contract,
     get_maternity_service_start,
@@ -1518,6 +1522,15 @@ def _prepare_miniapp_attendance_payload(payload):
         if prepared.get("raw_form_data") is None:
             prepared["raw_form_data"] = prepared.get("form_data") or {}
         prepared["form_data"] = prepared.get("display_form_data") or {}
+    return prepared
+
+
+def _prepare_employee_attendance_payload(payload):
+    prepared = _prepare_miniapp_attendance_payload(payload)
+    if not isinstance(prepared, dict) or prepared.get("status") != "employee_confirmed":
+        return prepared
+    prepared = dict(prepared)
+    prepared["form_data"] = project_auto_overtime_for_editing(prepared.get("form_data"))
     return prepared
 
 
@@ -3538,7 +3551,7 @@ def employee_attendance_detail(form_id):
     if cleaned or cycle_fixed or onboarding_from_contract:
         db.session.commit()
     result = form_to_dict(form, effective_start, effective_end)
-    return jsonify({"success": True, "attendance_form": _prepare_miniapp_attendance_payload(result)})
+    return jsonify({"success": True, "attendance_form": _prepare_employee_attendance_payload(result)})
 
 
 @miniapp_bp.route("/employee/attendance/by-token/<string:employee_token>", methods=["GET"])
@@ -3578,7 +3591,7 @@ def employee_attendance_detail_by_token(employee_token):
             **{k: v for k, v in payload.items() if k not in ("success",)},
         }
         return jsonify(error_body), status_code
-    return jsonify({"success": True, "attendance_form": _prepare_miniapp_attendance_payload(payload)})
+    return jsonify({"success": True, "attendance_form": _prepare_employee_attendance_payload(payload)})
 
 
 @miniapp_bp.route("/employee/attendance/maternity/<uuid:contract_id>/onboarding-date", methods=["POST"])
@@ -3634,7 +3647,7 @@ def employee_attendance_update(form_id):
     action = data.get("action")
     should_apply_auto = action == "confirm" or form.status == "employee_confirmed"
     if form_data is not None:
-        form.form_data = form_data or {}
+        form.form_data = strip_client_derived_auto_overtime(form_data)
         if should_apply_auto and action != "confirm":
             normalized_form_data, normalized = normalize_auto_overtime_form_data(
                 form,
@@ -3642,11 +3655,6 @@ def employee_attendance_update(form_id):
             )
             if normalized:
                 form.form_data = normalized_form_data
-        else:
-            form.form_data["overtime_records"] = [
-                item for item in (form.form_data.get("overtime_records") or [])
-                if not item.get("is_auto")
-            ]
         flag_modified(form, "form_data")
 
     if action == "confirm":
@@ -3767,7 +3775,7 @@ def employee_attendance_update(form_id):
     if effective_end is None and result.get("contract_info"):
         result["contract_info"]["status"] = "active"
         result["contract_info"]["is_monthly_auto_renew"] = True
-    return jsonify({"success": True, "attendance_form": _prepare_miniapp_attendance_payload(result)})
+    return jsonify({"success": True, "attendance_form": _prepare_employee_attendance_payload(result)})
 
 
 @miniapp_bp.route("/attendance/sign/<string:signature_token>", methods=["GET"])

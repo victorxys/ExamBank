@@ -39,6 +39,7 @@ EXPLICIT_STATUTORY_HOLIDAYS = {
     },
 }
 FIXED_STATUTORY_HOLIDAYS = {(1, 1), (5, 1), (5, 2), (5, 3), (10, 1), (10, 2), (10, 3)}
+AUTO_OVERTIME_PROJECTION_KEY = "_auto_overtime_projection"
 
 
 def _parse_date(value):
@@ -281,6 +282,91 @@ def _record_date_range(record):
     return start, date.fromordinal(start.toordinal() + days_offset)
 
 
+def project_auto_overtime_for_editing(form_data):
+    """Expose system overtime as editable daily records without mutating stored data."""
+    data = deepcopy(form_data or {})
+    projected_overtime = []
+    for record in data.get("overtime_records") or []:
+        if not record.get("is_auto"):
+            projected_overtime.append(record)
+            continue
+        start, end = _record_date_range(record)
+        if not start or not end:
+            continue
+        span_days = (end - start).days + 1
+        total_minutes = int(
+            (_record_hours(record) * Decimal(60)).to_integral_value(rounding=ROUND_HALF_UP)
+        )
+        for index in range(span_days):
+            remaining_capacity = (span_days - index - 1) * 24 * 60
+            day_minutes = max(0, min(24 * 60, total_minutes - remaining_capacity))
+            if day_minutes <= 0:
+                continue
+            missing_minutes = 24 * 60 - day_minutes
+            projected_overtime.append({
+                "date": date.fromordinal(start.toordinal() + index).isoformat(),
+                "type": "overtime",
+                "startTime": f"{missing_minutes // 60:02d}:{missing_minutes % 60:02d}",
+                "endTime": "24:00",
+                "hours": day_minutes // 60,
+                "minutes": day_minutes % 60,
+                "daysOffset": 0,
+                AUTO_OVERTIME_PROJECTION_KEY: True,
+            })
+    projected_overtime.sort(key=lambda item: item.get("date", ""))
+    data["overtime_records"] = projected_overtime
+    return data
+
+
+def strip_client_derived_auto_overtime(form_data):
+    """Discard response projections and client-calculated auto overtime before recalculation."""
+    data = deepcopy(form_data or {})
+    data["overtime_records"] = [
+        record
+        for record in data.get("overtime_records") or []
+        if not record.get("is_auto") and not record.get(AUTO_OVERTIME_PROJECTION_KEY)
+    ]
+    return data
+
+
+def _consecutive_date_groups(date_strings):
+    groups = []
+    for value in sorted(set(date_strings)):
+        current = _parse_date(value)
+        if not groups or current.toordinal() != groups[-1][-1].toordinal() + 1:
+            groups.append([current])
+        else:
+            groups[-1].append(current)
+    return groups
+
+
+def _build_auto_overtime_records(auto_dates, auto_minutes):
+    groups = _consecutive_date_groups(auto_dates)
+    if not groups or auto_minutes <= 0:
+        return []
+    total_capacity = sum(len(group) for group in groups) * 24 * 60
+    remaining_minutes = min(auto_minutes, total_capacity)
+    missing_on_first_day = max(0, total_capacity - remaining_minutes)
+    records = []
+    for group_index, group in enumerate(groups):
+        group_capacity = len(group) * 24 * 60
+        group_missing = missing_on_first_day if group_index == 0 else 0
+        group_minutes = max(0, group_capacity - group_missing)
+        if group_minutes <= 0:
+            continue
+        records.append({
+            "date": group[0].isoformat(),
+            "type": "overtime",
+            "startTime": f"{group_missing // 60:02d}:{group_missing % 60:02d}",
+            "endTime": "24:00",
+            "hours": group_minutes // 60,
+            "minutes": group_minutes % 60,
+            "daysOffset": len(group) - 1,
+            "is_auto": True,
+        })
+    return records
+
+
 def _record_covers_day(record, target_date):
     start, end = _record_date_range(record)
     return bool(start and end and start <= target_date <= end)
@@ -461,9 +547,6 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
         return data, False
 
     auto_minutes = int((auto_overtime_days * Decimal(24) * Decimal(60)).to_integral_value(rounding=ROUND_HALF_UP))
-    auto_hours = auto_minutes // 60
-    auto_remaining_minutes = auto_minutes % 60
-
     normalized_overtime = [
         r for r in overtime_records
         if not r.get("is_auto") and r.get("date") not in legacy_auto_date_set
@@ -472,13 +555,16 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
     if auto_minutes > 0:
         auto_dates = sorted(legacy_auto_dates)
         if not auto_dates and existing_auto_records:
-            first_auto = min(existing_auto_records, key=lambda r: r.get("date", "9999-99-99"))
-            first_date = _parse_date(first_auto.get("date"))
-            days_offset = int(existing_auto_records[0].get("daysOffset") or 0)
-            auto_dates = [
-                date.fromordinal(day_ordinal).isoformat()
-                for day_ordinal in range(first_date.toordinal(), first_date.toordinal() + days_offset + 1)
-            ]
+            existing_auto_dates = set()
+            for existing_auto in existing_auto_records:
+                first_date, last_date = _record_date_range(existing_auto)
+                if not first_date or not last_date:
+                    continue
+                existing_auto_dates.update(
+                    date.fromordinal(day_ordinal).isoformat()
+                    for day_ordinal in range(first_date.toordinal(), last_date.toordinal() + 1)
+                )
+            auto_dates = sorted(existing_auto_dates)
         if not auto_dates and allow_create_missing_auto:
             days_to_convert = int((auto_overtime_days).to_integral_value(rounding=ROUND_HALF_UP))
             if Decimal(days_to_convert) < auto_overtime_days:
@@ -489,21 +575,7 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
                 for item in valid_days
                 if item not in occupied_dates
             ][-days_to_convert:]
-        if auto_dates:
-            max_minutes = len(auto_dates) * 24 * 60
-            missing_minutes_on_first_day = max(0, max_minutes - auto_minutes)
-            start_hour = missing_minutes_on_first_day // 60
-            start_minute = missing_minutes_on_first_day % 60
-            normalized_overtime.append({
-                "date": auto_dates[0],
-                "type": "overtime",
-                "startTime": f"{start_hour:02d}:{start_minute:02d}",
-                "endTime": "24:00",
-                "hours": auto_hours,
-                "minutes": auto_remaining_minutes,
-                "daysOffset": len(auto_dates) - 1,
-                "is_auto": True
-            })
+        normalized_overtime.extend(_build_auto_overtime_records(auto_dates, auto_minutes))
 
     normalized_overtime.sort(key=lambda r: r.get("date", ""))
     data["overtime_records"] = normalized_overtime

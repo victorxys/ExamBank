@@ -1,6 +1,14 @@
 import pytest
 from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, User
+from backend.api.miniapp_api import _prepare_employee_attendance_payload
+from backend.services.attendance_sync_service import (
+    AUTO_OVERTIME_PROJECTION_KEY,
+    normalize_auto_overtime_form_data,
+    strip_client_derived_auto_overtime,
+)
 from datetime import date, datetime
+from decimal import Decimal
+from types import SimpleNamespace
 import uuid
 
 @pytest.fixture
@@ -114,3 +122,127 @@ def test_customer_sign_flow(client, setup_data):
     assert form.status == 'synced' # 应该自动同步
     assert form.synced_to_attendance is True
     assert form.attendance_record_id is not None
+
+
+def test_employee_confirmed_payload_projects_auto_overtime_as_editable_days():
+    payload = {
+        "status": "employee_confirmed",
+        "form_data": {
+            "overtime_records": [{
+                "date": "2025-07-27",
+                "type": "overtime",
+                "startTime": "00:00",
+                "endTime": "24:00",
+                "hours": 120,
+                "minutes": 0,
+                "daysOffset": 4,
+                "is_auto": True,
+            }],
+        },
+    }
+
+    prepared = _prepare_employee_attendance_payload(payload)
+    projected = prepared["form_data"]["overtime_records"]
+
+    assert [item["date"] for item in projected] == [
+        "2025-07-27", "2025-07-28", "2025-07-29", "2025-07-30", "2025-07-31",
+    ]
+    assert all(item[AUTO_OVERTIME_PROJECTION_KEY] is True for item in projected)
+    assert all(not item.get("is_auto") for item in projected)
+    assert payload["form_data"]["overtime_records"][0]["is_auto"] is True
+
+
+def test_customer_signed_payload_keeps_canonical_auto_overtime():
+    payload = {
+        "status": "customer_signed",
+        "form_data": {
+            "overtime_records": [{
+                "date": "2025-07-27",
+                "hours": 120,
+                "minutes": 0,
+                "daysOffset": 4,
+                "is_auto": True,
+            }],
+        },
+    }
+
+    prepared = _prepare_employee_attendance_payload(payload)
+
+    assert prepared["form_data"]["overtime_records"][0]["is_auto"] is True
+    assert AUTO_OVERTIME_PROJECTION_KEY not in prepared["form_data"]["overtime_records"][0]
+
+
+def test_recalculate_auto_overtime_around_partial_rest_day(monkeypatch):
+    monkeypatch.setattr(
+        "backend.services.attendance_sync_service._valid_days_for_cycle",
+        lambda form, cycle_start, cycle_end: [
+            date.fromordinal(cycle_start.toordinal() + offset)
+            for offset in range((cycle_end - cycle_start).days + 1)
+        ],
+    )
+    form = SimpleNamespace(
+        employee_id=uuid.uuid4(),
+        contract_id=uuid.uuid4(),
+        contract=SimpleNamespace(type="nanny"),
+        cycle_start_date=datetime(2025, 7, 1),
+        cycle_end_date=datetime(2025, 7, 31),
+        form_data={
+            "onboarding_records": [{"date": "2025-01-01", "startTime": "00:00"}],
+            "rest_records": [{
+                "date": "2025-07-28",
+                "type": "rest",
+                "startTime": "10:00",
+                "endTime": "12:00",
+                "hours": 2,
+                "minutes": 0,
+                "daysOffset": 0,
+            }],
+            "overtime_records": [
+                {
+                    "date": "2025-07-27",
+                    "hours": 24,
+                    "minutes": 0,
+                    "daysOffset": 0,
+                    AUTO_OVERTIME_PROJECTION_KEY: True,
+                },
+                {
+                    "date": "2025-07-26",
+                    "hours": 22,
+                    "minutes": 0,
+                    "daysOffset": 0,
+                    "is_auto": True,
+                },
+            ],
+        },
+    )
+
+    form.form_data = strip_client_derived_auto_overtime(form.form_data)
+    normalized, changed = normalize_auto_overtime_form_data(
+        form,
+        allow_create_missing_auto=True,
+    )
+
+    assert changed is True
+    auto_records = [item for item in normalized["overtime_records"] if item.get("is_auto")]
+    assert [(item["date"], item["daysOffset"]) for item in auto_records] == [
+        ("2025-07-26", 1),
+        ("2025-07-29", 2),
+    ]
+    assert auto_records[0]["startTime"] == "02:00"
+    total_auto_hours = sum(
+        Decimal(str(item["hours"])) + Decimal(str(item["minutes"])) / Decimal(60)
+        for item in auto_records
+    )
+    assert total_auto_hours == Decimal(118)
+
+    covered_dates = set()
+    for item in auto_records:
+        start = datetime.fromisoformat(item["date"]).date()
+        covered_dates.update(
+            date.fromordinal(start.toordinal() + offset).isoformat()
+            for offset in range(item["daysOffset"] + 1)
+        )
+    assert covered_dates == {
+        "2025-07-26", "2025-07-27", "2025-07-29", "2025-07-30", "2025-07-31",
+    }
+    assert "2025-07-28" not in covered_dates
