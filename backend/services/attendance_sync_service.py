@@ -286,13 +286,16 @@ def project_auto_overtime_for_editing(form_data):
     """Expose system overtime as editable daily records without mutating stored data."""
     data = deepcopy(form_data or {})
     projected_overtime = []
+
     for record in data.get("overtime_records") or []:
         if not record.get("is_auto"):
             projected_overtime.append(record)
             continue
+
         start, end = _record_date_range(record)
         if not start or not end:
             continue
+
         span_days = (end - start).days + 1
         total_minutes = int(
             (_record_hours(record) * Decimal(60)).to_integral_value(rounding=ROUND_HALF_UP)
@@ -313,6 +316,7 @@ def project_auto_overtime_for_editing(form_data):
                 "daysOffset": 0,
                 AUTO_OVERTIME_PROJECTION_KEY: True,
             })
+
     projected_overtime.sort(key=lambda item: item.get("date", ""))
     data["overtime_records"] = projected_overtime
     return data
@@ -344,10 +348,12 @@ def _build_auto_overtime_records(auto_dates, auto_minutes):
     groups = _consecutive_date_groups(auto_dates)
     if not groups or auto_minutes <= 0:
         return []
+
     total_capacity = sum(len(group) for group in groups) * 24 * 60
     remaining_minutes = min(auto_minutes, total_capacity)
     missing_on_first_day = max(0, total_capacity - remaining_minutes)
     records = []
+
     for group_index, group in enumerate(groups):
         group_capacity = len(group) * 24 * 60
         group_missing = missing_on_first_day if group_index == 0 else 0

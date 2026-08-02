@@ -1529,6 +1529,7 @@ def _prepare_employee_attendance_payload(payload):
     prepared = _prepare_miniapp_attendance_payload(payload)
     if not isinstance(prepared, dict) or prepared.get("status") != "employee_confirmed":
         return prepared
+
     prepared = dict(prepared)
     prepared["form_data"] = project_auto_overtime_for_editing(prepared.get("form_data"))
     return prepared
