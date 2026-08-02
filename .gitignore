@@ -256,6 +256,13 @@ debug*
 *.md
 test*
 docs/
+!docs/
+docs/*
+!docs/project_management/
+docs/project_management/*
+!docs/project_management/employee_performance_profile/
+!docs/project_management/employee_performance_profile/requirement_document.md
+!docs/project_management/employee_performance_profile/implementation_plan.md
 microservices/
 software-copyright-redesign/
 

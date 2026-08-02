@@ -782,7 +782,34 @@ Page({
         customer_signature_token: form.customer_signature_token || this.data.customerSignatureToken
       };
       const bottomActions = buildBottomActions(mergedForm, this.data.readOnly, this.data.historicalView);
+      let returnedAttendancePatch = {};
+      if (form.form_data) {
+        const returnedInitialData = normalizeAttendanceData(form.form_data);
+        const returnedInitialCalendar = buildCalendar(mergedForm, returnedInitialData, this.data.holidays || {});
+        const returnedAttendanceData = shouldApplyAutoOvertime(mergedForm)
+          ? normalizeAutoOvertime(returnedInitialData, mergedForm, returnedInitialCalendar.monthDays, this.data.holidays || {})
+          : removeAutoOvertime(returnedInitialData);
+        const returnedCalendar = buildCalendar(mergedForm, returnedAttendanceData, this.data.holidays || {});
+        const returnedStats = calculateStats(
+          returnedAttendanceData,
+          returnedCalendar.monthDays,
+          mergedForm,
+          this.data.holidays || {}
+        );
+        const returnedSpecialRecords = buildSpecialRecords(returnedAttendanceData, mergedForm);
+        returnedAttendancePatch = {
+          attendanceData: returnedAttendanceData,
+          monthDays: returnedCalendar.monthDays.map(formatDate),
+          calendarCells: returnedCalendar.cells,
+          specialRecords: returnedSpecialRecords,
+          showSpecialRecords: returnedSpecialRecords.length > 0,
+          stats: returnedStats,
+          showHolidayOvertimeStat: Number(returnedStats.holidayOvertimeDays || 0) > 0,
+          showAutoBanner: Number(returnedStats.autoOvertimeDays || 0) > 0
+        };
+      }
       this.setData({
+        ...returnedAttendancePatch,
         autoSaveStatus: 'saved',
         saveStateText: '已自动保存',
         saveStateClass: 'save-state ok',
@@ -977,7 +1004,8 @@ Page({
       return;
     }
 
-    let original = findOriginalRecord(this.data.attendanceData, date) || findOriginalRecord(this.data.attendanceData, editDate);
+    let original = findOriginalRecord(this.data.attendanceData, date, requestedType)
+      || findOriginalRecord(this.data.attendanceData, editDate, requestedType);
     let editingDate = editDate;
     if (original && (original.type === 'out_of_beijing' || original.type === 'out_of_country') && original.daysOffset > 0) {
       editingDate = formatDate(addDays(original.date, original.daysOffset));

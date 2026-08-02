@@ -333,37 +333,64 @@ def strip_client_derived_auto_overtime(form_data):
     return data
 
 
-def _consecutive_date_groups(date_strings):
-    groups = []
-    for value in sorted(set(date_strings)):
-        current = _parse_date(value)
-        if not groups or current.toordinal() != groups[-1][-1].toordinal() + 1:
-            groups.append([current])
-        else:
-            groups[-1].append(current)
-    return groups
+def _auto_overtime_capacity_minutes(data, target_date):
+    unavailable_hours = Decimal(0)
+    for key in ("rest_records", "leave_records"):
+        for record in data.get(key) or []:
+            unavailable_hours += _record_hours_in_cycle(record, target_date, target_date)
+    unavailable_minutes = int(
+        (unavailable_hours * Decimal(60)).to_integral_value(rounding=ROUND_HALF_UP)
+    )
+    return max(0, 24 * 60 - min(24 * 60, unavailable_minutes))
 
 
-def _build_auto_overtime_records(auto_dates, auto_minutes):
-    groups = _consecutive_date_groups(auto_dates)
-    if not groups or auto_minutes <= 0:
+def _build_auto_overtime_records(auto_dates, auto_minutes, data=None):
+    parsed_dates = [_parse_date(value) for value in sorted(set(auto_dates))]
+    if not parsed_dates or auto_minutes <= 0:
         return []
 
-    total_capacity = sum(len(group) for group in groups) * 24 * 60
+    capacities = [
+        _auto_overtime_capacity_minutes(data or {}, target_date)
+        for target_date in parsed_dates
+    ]
+    total_capacity = sum(capacities)
     remaining_minutes = min(auto_minutes, total_capacity)
-    missing_on_first_day = max(0, total_capacity - remaining_minutes)
-    records = []
+    minutes_to_remove = max(0, total_capacity - remaining_minutes)
+    allocations = []
+    for target_date, capacity in zip(parsed_dates, capacities):
+        removed = min(capacity, minutes_to_remove)
+        allocations.append((target_date, capacity - removed))
+        minutes_to_remove -= removed
 
-    for group_index, group in enumerate(groups):
-        group_capacity = len(group) * 24 * 60
-        group_missing = missing_on_first_day if group_index == 0 else 0
-        group_minutes = max(0, group_capacity - group_missing)
-        if group_minutes <= 0:
+    groups = []
+    current_group = []
+    for target_date, allocated_minutes in allocations:
+        if allocated_minutes <= 0:
+            if current_group:
+                groups.append(current_group)
+                current_group = []
             continue
+        if (
+            current_group
+            and target_date.toordinal() == current_group[-1][0].toordinal() + 1
+            and allocated_minutes == 24 * 60
+        ):
+            current_group.append((target_date, allocated_minutes))
+        else:
+            if current_group:
+                groups.append(current_group)
+            current_group = [(target_date, allocated_minutes)]
+    if current_group:
+        groups.append(current_group)
+
+    records = []
+    for group in groups:
+        group_minutes = sum(item[1] for item in group)
+        missing_on_first_day = 24 * 60 - group[0][1]
         records.append({
-            "date": group[0].isoformat(),
+            "date": group[0][0].isoformat(),
             "type": "overtime",
-            "startTime": f"{group_missing // 60:02d}:{group_missing % 60:02d}",
+            "startTime": f"{missing_on_first_day // 60:02d}:{missing_on_first_day % 60:02d}",
             "endTime": "24:00",
             "hours": group_minutes // 60,
             "minutes": group_minutes % 60,
@@ -393,6 +420,8 @@ def _record_hours_in_cycle(record, cycle_start, cycle_end):
 def _record_is_holiday_like(record, data, target_date):
     if _is_statutory_holiday(target_date):
         return True
+    if record.get("is_auto"):
+        return False
     for key in ("rest_records", "leave_records"):
         for other_record in data.get(key) or []:
             if other_record is record:
@@ -402,10 +431,11 @@ def _record_is_holiday_like(record, data, target_date):
     return False
 
 
-def _occupied_record_dates(data, legacy_auto_date_set):
+def _occupied_record_dates(data, legacy_auto_date_set, ignored_record_keys=None):
+    ignored_record_keys = set(ignored_record_keys or ())
     occupied_dates = set()
     for key, records in data.items():
-        if not key.endswith("_records") or not isinstance(records, list):
+        if key in ignored_record_keys or not key.endswith("_records") or not isinstance(records, list):
             continue
         for record in records:
             if key == "overtime_records" and (record.get("is_auto") or record.get("date") in legacy_auto_date_set):
@@ -559,8 +589,25 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
     ]
 
     if auto_minutes > 0:
-        auto_dates = sorted(legacy_auto_dates)
-        if not auto_dates and existing_auto_records:
+        auto_dates = []
+        if allow_create_missing_auto:
+            original_auto_slot_days = auto_overtime_days + total_leave_days + manual_normal_overtime_days
+            days_to_convert = int(original_auto_slot_days.to_integral_value(rounding=ROUND_HALF_UP))
+            if Decimal(days_to_convert) < original_auto_slot_days:
+                days_to_convert += 1
+            occupied_dates = _occupied_record_dates(
+                data,
+                legacy_auto_date_set,
+                ignored_record_keys={"rest_records", "leave_records"},
+            )
+            auto_dates = [
+                item.isoformat()
+                for item in valid_days
+                if item not in occupied_dates
+            ][-days_to_convert:]
+        elif legacy_auto_dates:
+            auto_dates = sorted(legacy_auto_dates)
+        elif existing_auto_records:
             existing_auto_dates = set()
             for existing_auto in existing_auto_records:
                 first_date, last_date = _record_date_range(existing_auto)
@@ -571,17 +618,7 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
                     for day_ordinal in range(first_date.toordinal(), last_date.toordinal() + 1)
                 )
             auto_dates = sorted(existing_auto_dates)
-        if not auto_dates and allow_create_missing_auto:
-            days_to_convert = int((auto_overtime_days).to_integral_value(rounding=ROUND_HALF_UP))
-            if Decimal(days_to_convert) < auto_overtime_days:
-                days_to_convert += 1
-            occupied_dates = _occupied_record_dates(data, legacy_auto_date_set)
-            auto_dates = [
-                item.isoformat()
-                for item in valid_days
-                if item not in occupied_dates
-            ][-days_to_convert:]
-        normalized_overtime.extend(_build_auto_overtime_records(auto_dates, auto_minutes))
+        normalized_overtime.extend(_build_auto_overtime_records(auto_dates, auto_minutes, data))
 
     normalized_overtime.sort(key=lambda r: r.get("date", ""))
     data["overtime_records"] = normalized_overtime

@@ -1525,9 +1525,10 @@ def _prepare_miniapp_attendance_payload(payload):
     return prepared
 
 
-def _prepare_employee_attendance_payload(payload):
+def _prepare_attendance_display_payload(payload):
+    """Return the same daily attendance projection to employee and customer pages."""
     prepared = _prepare_miniapp_attendance_payload(payload)
-    if not isinstance(prepared, dict) or prepared.get("status") != "employee_confirmed":
+    if not isinstance(prepared, dict):
         return prepared
 
     prepared = dict(prepared)
@@ -3552,7 +3553,7 @@ def employee_attendance_detail(form_id):
     if cleaned or cycle_fixed or onboarding_from_contract:
         db.session.commit()
     result = form_to_dict(form, effective_start, effective_end)
-    return jsonify({"success": True, "attendance_form": _prepare_employee_attendance_payload(result)})
+    return jsonify({"success": True, "attendance_form": _prepare_attendance_display_payload(result)})
 
 
 @miniapp_bp.route("/employee/attendance/by-token/<string:employee_token>", methods=["GET"])
@@ -3592,7 +3593,7 @@ def employee_attendance_detail_by_token(employee_token):
             **{k: v for k, v in payload.items() if k not in ("success",)},
         }
         return jsonify(error_body), status_code
-    return jsonify({"success": True, "attendance_form": _prepare_employee_attendance_payload(payload)})
+    return jsonify({"success": True, "attendance_form": _prepare_attendance_display_payload(payload)})
 
 
 @miniapp_bp.route("/employee/attendance/maternity/<uuid:contract_id>/onboarding-date", methods=["POST"])
@@ -3776,7 +3777,7 @@ def employee_attendance_update(form_id):
     if effective_end is None and result.get("contract_info"):
         result["contract_info"]["status"] = "active"
         result["contract_info"]["is_monthly_auto_renew"] = True
-    return jsonify({"success": True, "attendance_form": _prepare_employee_attendance_payload(result)})
+    return jsonify({"success": True, "attendance_form": _prepare_attendance_display_payload(result)})
 
 
 @miniapp_bp.route("/attendance/sign/<string:signature_token>", methods=["GET"])
@@ -3812,7 +3813,7 @@ def miniapp_attendance_sign_detail(signature_token):
         return jsonify(
             {
                 "success": True,
-                "attendance_form": _prepare_miniapp_attendance_payload(payload),
+                "attendance_form": _prepare_attendance_display_payload(payload),
                 "auth": _attendance_sign_auth_state(form),
             }
         )
@@ -3827,7 +3828,7 @@ def miniapp_attendance_sign_detail(signature_token):
     return jsonify(
         {
             "success": True,
-            "attendance_form": _prepare_miniapp_attendance_payload(result),
+            "attendance_form": _prepare_attendance_display_payload(result),
             "auth": _attendance_sign_auth_state(form),
         }
     )
