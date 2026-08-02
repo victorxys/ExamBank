@@ -1,8 +1,9 @@
 import pytest
 from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, User
-from backend.api.miniapp_api import _prepare_employee_attendance_payload
+from backend.api.miniapp_api import _prepare_attendance_display_payload
 from backend.services.attendance_sync_service import (
     AUTO_OVERTIME_PROJECTION_KEY,
+    _split_overtime_days_by_holiday,
     normalize_auto_overtime_form_data,
     strip_client_derived_auto_overtime,
 )
@@ -141,7 +142,7 @@ def test_employee_confirmed_payload_projects_auto_overtime_as_editable_days():
         },
     }
 
-    prepared = _prepare_employee_attendance_payload(payload)
+    prepared = _prepare_attendance_display_payload(payload)
     projected = prepared["form_data"]["overtime_records"]
 
     assert [item["date"] for item in projected] == [
@@ -152,7 +153,7 @@ def test_employee_confirmed_payload_projects_auto_overtime_as_editable_days():
     assert payload["form_data"]["overtime_records"][0]["is_auto"] is True
 
 
-def test_customer_signed_payload_keeps_canonical_auto_overtime():
+def test_customer_signed_payload_uses_daily_auto_overtime_projection():
     payload = {
         "status": "customer_signed",
         "form_data": {
@@ -166,13 +167,69 @@ def test_customer_signed_payload_keeps_canonical_auto_overtime():
         },
     }
 
-    prepared = _prepare_employee_attendance_payload(payload)
+    prepared = _prepare_attendance_display_payload(payload)
 
-    assert prepared["form_data"]["overtime_records"][0]["is_auto"] is True
-    assert AUTO_OVERTIME_PROJECTION_KEY not in prepared["form_data"]["overtime_records"][0]
+    assert [item["date"] for item in prepared["form_data"]["overtime_records"]] == [
+        "2025-07-27", "2025-07-28", "2025-07-29", "2025-07-30", "2025-07-31",
+    ]
+    assert all(
+        item[AUTO_OVERTIME_PROJECTION_KEY] is True
+        for item in prepared["form_data"]["overtime_records"]
+    )
 
 
-def test_recalculate_auto_overtime_around_partial_rest_day(monkeypatch):
+def test_attendance_sign_payload_matches_employee_auto_overtime_projection():
+    payload = {
+        "status": "employee_confirmed",
+        "form_data": {
+            "rest_records": [{
+                "date": "2025-07-28",
+                "type": "rest",
+                "startTime": "09:00",
+                "endTime": "18:00",
+                "hours": 9,
+                "minutes": 0,
+                "daysOffset": 0,
+            }],
+            "overtime_records": [
+                {
+                    "date": "2025-07-27",
+                    "type": "overtime",
+                    "startTime": "00:00",
+                    "endTime": "24:00",
+                    "hours": 24,
+                    "minutes": 0,
+                    "daysOffset": 0,
+                    "is_auto": True,
+                },
+                {
+                    "date": "2025-07-28",
+                    "type": "overtime",
+                    "startTime": "09:00",
+                    "endTime": "24:00",
+                    "hours": 87,
+                    "minutes": 0,
+                    "daysOffset": 3,
+                    "is_auto": True,
+                },
+            ],
+        },
+    }
+
+    display_payload = _prepare_attendance_display_payload(payload)
+    projected = display_payload["form_data"]["overtime_records"]
+    assert [(item["date"], item["hours"]) for item in projected] == [
+        ("2025-07-27", 24),
+        ("2025-07-28", 15),
+        ("2025-07-29", 24),
+        ("2025-07-30", 24),
+        ("2025-07-31", 24),
+    ]
+    assert all(item.get(AUTO_OVERTIME_PROJECTION_KEY) is True for item in projected)
+    assert all(item["date"] != "2025-07-26" for item in projected)
+
+
+def test_recalculate_auto_overtime_on_partial_rest_day_without_shifting_date(monkeypatch):
     monkeypatch.setattr(
         "backend.services.attendance_sync_service._valid_days_for_cycle",
         lambda form, cycle_start, cycle_end: [
@@ -191,9 +248,9 @@ def test_recalculate_auto_overtime_around_partial_rest_day(monkeypatch):
             "rest_records": [{
                 "date": "2025-07-28",
                 "type": "rest",
-                "startTime": "10:00",
-                "endTime": "12:00",
-                "hours": 2,
+                "startTime": "09:00",
+                "endTime": "18:00",
+                "hours": 9,
                 "minutes": 0,
                 "daysOffset": 0,
             }],
@@ -225,15 +282,15 @@ def test_recalculate_auto_overtime_around_partial_rest_day(monkeypatch):
     assert changed is True
     auto_records = [item for item in normalized["overtime_records"] if item.get("is_auto")]
     assert [(item["date"], item["daysOffset"]) for item in auto_records] == [
-        ("2025-07-26", 1),
-        ("2025-07-29", 2),
+        ("2025-07-27", 0),
+        ("2025-07-28", 3),
     ]
-    assert auto_records[0]["startTime"] == "02:00"
+    assert auto_records[1]["startTime"] == "09:00"
     total_auto_hours = sum(
         Decimal(str(item["hours"])) + Decimal(str(item["minutes"])) / Decimal(60)
         for item in auto_records
     )
-    assert total_auto_hours == Decimal(118)
+    assert total_auto_hours == Decimal(111)
 
     covered_dates = set()
     for item in auto_records:
@@ -243,6 +300,30 @@ def test_recalculate_auto_overtime_around_partial_rest_day(monkeypatch):
             for offset in range(item["daysOffset"] + 1)
         )
     assert covered_dates == {
-        "2025-07-26", "2025-07-27", "2025-07-29", "2025-07-30", "2025-07-31",
+        "2025-07-27", "2025-07-28", "2025-07-29", "2025-07-30", "2025-07-31",
     }
-    assert "2025-07-28" not in covered_dates
+    assert "2025-07-26" not in covered_dates
+
+    prepared = _prepare_attendance_display_payload({
+        "status": "employee_confirmed",
+        "form_data": normalized,
+    })
+    projected_by_date = {
+        item["date"]: Decimal(str(item["hours"])) + Decimal(str(item["minutes"])) / Decimal(60)
+        for item in prepared["form_data"]["overtime_records"]
+    }
+    assert projected_by_date == {
+        "2025-07-27": Decimal(24),
+        "2025-07-28": Decimal(15),
+        "2025-07-29": Decimal(24),
+        "2025-07-30": Decimal(24),
+        "2025-07-31": Decimal(24),
+    }
+
+    normal_days, holiday_days = _split_overtime_days_by_holiday(
+        normalized,
+        date(2025, 7, 1),
+        date(2025, 7, 31),
+    )
+    assert normal_days == Decimal("4.625")
+    assert holiday_days == Decimal(0)

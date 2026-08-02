@@ -157,6 +157,7 @@
           class="{{item.className}}"
           data-date="{{item.date}}"
           data-edit-date="{{item.editDate}}"
+          data-type="{{item.type}}"
           data-auto="{{item.isAuto}}"
           data-disabled="{{item.disabled}}"
           bindtap="openEdit"
@@ -173,8 +174,8 @@
 
   <view wx:if="{{showSpecialRecords}}" class="detail-card">
     <view class="detail-title">考勤详情</view>
-    <block wx:for="{{specialRecords}}" wx:key="date">
-      <view class="{{item.className}}" data-date="{{item.date}}" data-edit-date="{{item.editDate}}" data-auto="{{item.is_auto}}" bindtap="openEdit">
+    <block wx:for="{{specialRecords}}" wx:key="key">
+      <view class="{{item.className}}" data-date="{{item.date}}" data-edit-date="{{item.editDate}}" data-type="{{item.type}}" data-auto="{{item.is_auto}}" bindtap="openEdit">
         <view class="detail-date">
           <view class="detail-day">{{item.dateText}}</view>
           <view class="detail-type">{{item.typeLabel}}</view>

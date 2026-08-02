@@ -4,7 +4,6 @@ const {
   buildCalendar,
   buildSpecialRecords,
   calculateStats,
-  normalizeAutoOvertime,
   normalizeContractInfoForAttendance,
   normalizeAttendanceData,
   findCoveringRecord,
@@ -166,8 +165,7 @@ Page({
     };
     const initialData = normalizeAttendanceData(form.form_data || {});
     normalizedForm.contract_info = normalizeContractInfoForAttendance(normalizedForm, initialData);
-    const initialCalendar = buildCalendar(normalizedForm, initialData, holidays);
-    const attendanceData = normalizeAutoOvertime(initialData, normalizedForm, initialCalendar.monthDays, holidays);
+    const attendanceData = initialData;
     const calendar = buildCalendar(normalizedForm, attendanceData, holidays);
     const stats = calculateStats(attendanceData, calendar.monthDays, normalizedForm, holidays);
     const specialRecords = buildSpecialRecords(attendanceData, normalizedForm);

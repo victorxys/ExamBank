@@ -33,6 +33,12 @@ const RECORD_KEYS = [
   'offboarding_records'
 ];
 
+const AUTO_OVERTIME_PROJECTION_KEY = '_auto_overtime_projection';
+
+function isSystemAutoOvertime(record = {}) {
+  return Boolean(record.is_auto || record[AUTO_OVERTIME_PROJECTION_KEY]);
+}
+
 const FALLBACK_HOLIDAYS = {
   2025: {
     '01-01': { holiday: true, name: '元旦', wage: 3 },
@@ -251,7 +257,7 @@ function formatRecordDateRange(actualStart, actualEnd) {
 function formatRecordTimeLabel(record, actualStart, actualEnd) {
   if (record.type === 'onboarding') return `${formatMonthDay(actualStart)} ${record.startTime || '待填写'}`;
   if (record.type === 'offboarding') return `${formatMonthDay(actualStart)} ${record.endTime || '待填写'}`;
-  if (record.is_auto || isFullDayRecord(record)) return formatRecordDateRange(actualStart, actualEnd);
+  if (isSystemAutoOvertime(record) || isFullDayRecord(record)) return formatRecordDateRange(actualStart, actualEnd);
   return diffDays(actualEnd, actualStart) > 0
     ? `${formatMonthDay(actualStart)} ${record.startTime || '00:00'} ~ ${formatMonthDay(actualEnd)} ${record.endTime || '24:00'}`
     : `${formatMonthDay(actualStart)} ${record.startTime || '00:00'}~${record.endTime || '24:00'}`;
@@ -464,7 +470,7 @@ function shouldShowAttendanceType(targetDateStr, record) {
   const target = parseDate(targetDateStr);
   if (!start || !target) return false;
   const daysOffset = record.daysOffset || 0;
-  if (record.type === 'overtime' && record.is_auto) return true;
+  if (record.type === 'overtime' && isSystemAutoOvertime(record)) return true;
   if (daysOffset === 0) return true;
 
   const end = addDays(start, daysOffset);
@@ -535,14 +541,15 @@ function flattenRecords(attendanceData = {}) {
   return records;
 }
 
-function findOriginalRecord(attendanceData, date) {
+function findOriginalRecord(attendanceData, date, requestedType = '') {
   const dateStr = formatDate(date);
   let original = null;
   const normalized = normalizeAttendanceData(attendanceData);
   RECORD_KEYS.forEach((key) => {
     (normalized[key] || []).forEach((record) => {
-      if (formatDate(record.date) === dateStr) {
-        original = { ...record, type: record.type || key.replace('_records', '') };
+      const recordType = record.type || key.replace('_records', '');
+      if (formatDate(record.date) === dateStr && (!requestedType || recordType === requestedType)) {
+        original = { ...record, type: recordType };
       }
     });
   });
@@ -839,7 +846,7 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
 
   (normalized.overtime_records || []).forEach((record) => {
     const days = hoursInCycle(record) / 24;
-    if (record.is_auto) {
+    if (isSystemAutoOvertime(record)) {
       autoOvertimeDays += days;
       return;
     }
@@ -921,6 +928,7 @@ function buildCalendar(form, attendanceData, holidays = {}) {
     const holidayLabel = getHolidayLabel(day, holidayData);
     const isHoliday = holidayLabel?.type === 'holiday';
     const isWorkday = holidayLabel?.type === 'workday';
+    const isAutoDisplay = isSystemAutoOvertime(display);
     cells.push({
       key: dateStr,
       date: dateStr,
@@ -934,7 +942,7 @@ function buildCalendar(form, attendanceData, holidays = {}) {
       isWorkday,
       today: dateStr === formatDate(new Date()),
       type: disabled ? 'disabled' : display.type,
-      typeLabel: disabled ? '' : (display.is_auto ? '自动补齐' : display.typeLabel),
+      typeLabel: disabled ? '' : (isAutoDisplay ? '自动补齐' : display.typeLabel),
       tone: disabled ? 'disabled' : display.tone,
       className: [
         'day-cell',
@@ -943,7 +951,7 @@ function buildCalendar(form, attendanceData, holidays = {}) {
         weekday === 0 || weekday === 6 ? 'weekend' : '',
         !disabled && isHoliday && display.type === 'normal' ? 'holiday' : '',
         !disabled && isWorkday ? 'workday' : '',
-        display.type === 'overtime' && display.is_auto ? 'auto-overtime' : '',
+        display.type === 'overtime' && isAutoDisplay ? 'auto-overtime' : '',
         disabled ? 'disabled' : ''
       ].filter(Boolean).join(' '),
       hasPartialNonWork: display.hasPartialNonWork,
@@ -975,14 +983,15 @@ function buildSpecialRecords(attendanceData, form) {
       if (record.type === 'offboarding') return Boolean(record.endTime);
       return true;
     })
-    .map((record) => {
+    .map((record, index) => {
       const start = parseDate(record.date);
       const end = addDays(start, record.daysOffset || 0);
       if (!start || !end || !cycleStart || !cycleEnd || start > cycleEnd || end < cycleStart) return null;
       const actualStart = start < cycleStart ? cycleStart : start;
       const actualEnd = end > cycleEnd ? cycleEnd : end;
       const duration = calculateTotalDuration(record);
-      const typeLabel = record.is_auto ? '自动补齐加班' : (TYPE_MAP[record.type]?.label || '考勤');
+      const isAutoDisplay = isSystemAutoOvertime(record);
+      const typeLabel = isAutoDisplay ? '自动补齐加班' : (TYPE_MAP[record.type]?.label || '考勤');
       const durationHours = record.type === 'onboarding'
         ? Math.max(0, 24 - timeToMinutes(record.startTime, 24 * 60) / 60)
         : record.type === 'offboarding'
@@ -992,6 +1001,7 @@ function buildSpecialRecords(attendanceData, form) {
       const durationHoursText = formatHoursText(durationHours);
       return {
         ...record,
+        key: `${record.type}-${formatDate(record.date)}-${index}`,
         typeLabel,
         timeLabel: formatRecordTimeLabel(record, actualStart, actualEnd),
         detailNote: getSpecialRecordDetailNote(record, form, normalized),
@@ -999,9 +1009,9 @@ function buildSpecialRecords(attendanceData, form) {
         showReturnAttendanceAction: record.type === 'onboarding',
         durationText,
         durationHoursText,
-        showDuration: !record.is_auto,
-        showAutoReason: Boolean(record.is_auto),
-        autoReasonText: record.is_auto ? `补齐${durationText}（${durationHoursText}），因出勤超26天自动折算` : '',
+        showDuration: !isAutoDisplay,
+        showAutoReason: isAutoDisplay,
+        autoReasonText: isAutoDisplay ? `补齐${durationText}（${durationHoursText}），因出勤超26天自动折算` : '',
         tone: TYPE_MAP[record.type]?.tone || 'normal',
         className: `detail-row tone-left-${TYPE_MAP[record.type]?.tone || 'normal'}`,
         dateText: formatMonthDay(record.date),
@@ -1022,6 +1032,8 @@ function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays =
     return { data: cleaned, converted: false, overtimeDays: 0 };
   }
   const data = normalizeAttendanceData(attendanceData);
+  const hasEditableAutoProjection = (data.overtime_records || [])
+    .some((record) => record[AUTO_OVERTIME_PROJECTION_KEY]);
   data.overtime_records = (data.overtime_records || []).filter((record) => !record.is_auto);
   const holidayData = mergeHolidays(holidays, form?.actual_year || form?.year);
   const contractInfo = normalizeContractInfoForAttendance(form, data);
@@ -1081,6 +1093,9 @@ function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays =
   if (currentWorkDays <= 26) return { data, converted: false, overtimeDays: 0 };
 
   const exactDaysToConvert = currentWorkDays - 26;
+  if (hasEditableAutoProjection) {
+    return { data, converted: true, overtimeDays: exactDaysToConvert };
+  }
   const daysToConvert = Math.ceil(exactDaysToConvert);
   const occupied = new Set();
   flattenRecords(data).forEach((record) => {
@@ -1225,6 +1240,7 @@ module.exports = {
   getHolidayInfo,
   getHolidayLabel,
   isStatutoryHoliday,
+  isSystemAutoOvertime,
   getTypeLabel,
   isDateDisabled,
   normalizeContractInfoForAttendance,
