@@ -83,12 +83,14 @@ from backend.services.contract_operation_log_service import (
     get_contract_creation_snapshot,
     snapshot_contract,
 )
-from backend.utils.miniapp_config import get_miniapp_credentials, miniapp_credential_status
 from backend.services.maternity_attendance_service import (
     find_maternity_cycle_for_reference,
     get_maternity_service_start,
     list_maternity_attendance_cycles,
     shift_maternity_contract_dates_from_onboarding,
+)
+from backend.services.payroll_miniapp_link_service import (
+    build_payroll_miniapp_link_payload,
 )
 
 
@@ -338,105 +340,6 @@ def _maternity_todo_focus_cycle(contract, today):
     return find_maternity_cycle_for_reference(contract, today)
 
 billing_bp = Blueprint("billing_api", __name__, url_prefix="/api/billing")
-_MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE = {
-    "appid": "",
-    "access_token": "",
-    "expires_at": 0,
-}
-
-
-def _ensure_payroll_customer_share_token(payroll):
-    if not payroll:
-        return ""
-    if getattr(payroll, "customer_share_token", None):
-        return payroll.customer_share_token
-    while True:
-        token = str(uuid.uuid4())
-        exists = EmployeePayroll.query.filter_by(customer_share_token=token).first()
-        if not exists:
-            payroll.customer_share_token = token
-            return token
-
-
-def _miniapp_payroll_access_token(config=None):
-    now = time.time()
-    appid, secret = get_miniapp_credentials((config or {}).get("appid"))
-    if (
-        _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["appid"] == appid
-        and _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["access_token"]
-        and _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["expires_at"] > now + 60
-    ):
-        return _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["access_token"]
-
-    if not appid or not secret:
-        missing = []
-        if not appid:
-            missing.append("WECHAT_MINIAPP_APPID")
-        if not secret:
-            missing.append("WECHAT_MINIAPP_SECRET")
-        raise RuntimeError(f"未配置 {'/'.join(missing)}")
-
-    response = requests.get(
-        "https://api.weixin.qq.com/cgi-bin/token",
-        params={
-            "grant_type": "client_credential",
-            "appid": appid,
-            "secret": secret,
-        },
-        timeout=(3, 8),
-    )
-    response.raise_for_status()
-    payload = response.json()
-    if payload.get("errcode"):
-        raise RuntimeError(payload.get("errmsg") or "获取小程序 access_token 失败")
-    access_token = payload.get("access_token")
-    if not access_token:
-        raise RuntimeError("微信未返回小程序 access_token")
-
-    _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["appid"] = appid
-    _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["access_token"] = access_token
-    _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE["expires_at"] = now + int(payload.get("expires_in") or 7200)
-    return access_token
-
-
-def _payroll_miniapp_query(payroll, share_token):
-    return {
-        "shareToken": share_token,
-        "payrollId": str(payroll.id),
-        "contractId": str(payroll.contract_id),
-        "year": payroll.year,
-        "month": payroll.month,
-        "source": "billing",
-    }
-
-
-def _generate_payroll_miniapp_url_link(payroll, share_token, config):
-    access_token = _miniapp_payroll_access_token(config)
-    path = "pages/payroll-due/index"
-    query = urllib.parse.urlencode(_payroll_miniapp_query(payroll, share_token))
-    expire_days = max(1, min(int((config or {}).get("expire_days") or 30), 30))
-    expire_time = int(time.time()) + expire_days * 24 * 60 * 60
-    payload = {
-        "path": path,
-        "query": query,
-        "is_expire": True,
-        "expire_type": 0,
-        "expire_time": expire_time,
-        "env_version": (config or {}).get("env_version") or "release",
-    }
-    response = requests.post(
-        f"https://api.weixin.qq.com/wxa/generate_urllink?access_token={access_token}",
-        json=payload,
-        timeout=(3, 8),
-    )
-    response.raise_for_status()
-    data = response.json()
-    if data.get("errcode"):
-        raise RuntimeError(data.get("errmsg") or "生成小程序链接失败")
-    url_link = data.get("url_link")
-    if not url_link:
-        raise RuntimeError("微信未返回小程序 URL Link")
-    return url_link, f"{path}?{query}"
 
 
 def _attendance_total_overtime_days(attendance_record):
@@ -4756,41 +4659,7 @@ def get_payroll_miniapp_link(payroll_id):
     if payroll.is_substitute_payroll:
         return jsonify({"error": "替班工资单暂不支持生成客户小程序确认链接"}), 400
 
-    from backend.api.setting_api import get_or_create_miniapp_signing_config
-
-    config = get_or_create_miniapp_signing_config().value or {}
-    share_token = _ensure_payroll_customer_share_token(payroll)
-    miniapp_path = f"pages/payroll-due/index?{urllib.parse.urlencode(_payroll_miniapp_query(payroll, share_token))}"
-    result = {
-        "success": True,
-        "payroll_id": str(payroll.id),
-        "contract_id": str(payroll.contract_id),
-        "year": payroll.year,
-        "month": payroll.month,
-        "cycle_start_date": payroll.cycle_start_date.isoformat() if payroll.cycle_start_date else None,
-        "cycle_end_date": payroll.cycle_end_date.isoformat() if payroll.cycle_end_date else None,
-        "share_token": share_token,
-        "miniapp_path": miniapp_path,
-        "miniapp_url": "",
-        "miniapp_error": "",
-        "enabled": bool(config.get("enabled")),
-        "env_version": config.get("env_version") or "release",
-        "diagnostics": miniapp_credential_status(config.get("appid")),
-        "title": f"{payroll.contract.customer_name if payroll.contract else '客户'} {payroll.year}年{payroll.month}月应付劳务费",
-    }
-
-    try:
-        if not config.get("enabled"):
-            result["miniapp_error"] = "小程序 URL Link 未启用，请在小程序签署配置中开启。"
-        else:
-            miniapp_url, generated_path = _generate_payroll_miniapp_url_link(payroll, share_token, config)
-            result["miniapp_url"] = miniapp_url
-            result["miniapp_path"] = generated_path or miniapp_path
-    except Exception as exc:
-        current_app.logger.warning("生成工资单小程序 URL Link 失败 payroll_id=%s error=%s", payroll_id, exc)
-        result["miniapp_error"] = str(exc)
-
-    db.session.commit()
+    result = build_payroll_miniapp_link_payload(payroll, commit=True)
     return jsonify(result)
 
 
@@ -5577,7 +5446,7 @@ def serve_financial_record_upload(filename):
 
 
 
-from backend.api.ai_generate import transform_text_with_llm
+from backend.services.dify_beautify_service import beautify_bill_with_dify
 
 @billing_bp.route("/generate_payment_message", methods=["POST"])
 @admin_required
@@ -5599,27 +5468,30 @@ def generate_payment_message():
 @billing_bp.route("/beautify-message", methods=["POST"])
 @admin_required
 def beautify_payment_message():
-    data = request.get_json()
+    """通过 Dify（系统配置的 API 地址 + API Key）美化账单催款文案。"""
+    data = request.get_json() or {}
     company_summary = data.get("company_summary", "")
     employee_summary = data.get("employee_summary", "")
 
     if not company_summary and not employee_summary:
         return jsonify({"error": "没有需要美化的内容"}), 400
 
-    input_text = f"【应付公司款项】\n{company_summary}\n\n【应付员工款项】\n{employee_summary}"
     user_id = get_jwt_identity()
 
     try:
-        beautified_data = transform_text_with_llm(
-            input_text=input_text,
-            prompt_identifier="SimplifiedBill",
-            user_id=user_id
+        beautified_data = beautify_bill_with_dify(
+            company_summary=company_summary,
+            employee_summary=employee_summary,
+            user_id=user_id,
         )
-        # 直接返回LLM生成的JSON对象
         return jsonify(beautified_data)
     except Exception as e:
         current_app.logger.error(f"美化账单信息失败: {e}", exc_info=True)
-        return jsonify({"error": "AI美化失败，请稍后重试"}), 500
+        # 把可诊断的错误信息透出一部分，便于排查配置问题
+        err_msg = str(e) if e else "AI美化失败，请稍后重试"
+        if len(err_msg) > 200:
+            err_msg = err_msg[:200] + "..."
+        return jsonify({"error": f"AI美化失败: {err_msg}"}), 500
 
 @billing_bp.route("/company_bank_accounts", methods=["GET"])
 @admin_required

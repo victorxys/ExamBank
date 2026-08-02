@@ -5,6 +5,10 @@ import decimal
 from flask import current_app
 from sqlalchemy import func
 from backend.models import db, CustomerBill, FinancialAdjustment, AdjustmentType, CompanyBankAccount, PaymentRecord, EmployeePayroll, PayoutRecord, ServicePersonnel
+from backend.services.payroll_miniapp_link_service import (
+    build_payroll_miniapp_link_payload,
+    format_customer_miniapp_link_block,
+)
 
 # 使用 render_template_string 来渲染从文件读取的模板字符串
 from flask import render_template_string
@@ -76,6 +80,15 @@ class PaymentMessageGenerator:
 
         final_company_summary = "\n\n".join(all_company_summaries)
         final_employee_summary = "\n\n".join(all_employee_summaries)
+
+        # 提交生成 share_token / 小程序链接过程中的 DB 变更
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.warning(
+                "催款消息生成后提交小程序 share_token 失败", exc_info=True
+            )
 
         return {
             "company_summary": final_company_summary,
@@ -259,6 +272,33 @@ class PaymentMessageGenerator:
 
         employee_bank_account = self._build_employee_bank_account(employee_name, employee_record)
 
+        # 客户小程序工资单链接（与财务详情「复制链接」同源）
+        customer_miniapp_url = ""
+        customer_miniapp_link_block = ""
+        if payroll and not payroll.is_substitute_payroll:
+            try:
+                link_payload = build_payroll_miniapp_link_payload(
+                    payroll, commit=False
+                )
+                customer_miniapp_url = (link_payload.get("miniapp_url") or "").strip()
+                if customer_miniapp_url:
+                    customer_miniapp_link_block = format_customer_miniapp_link_block(
+                        customer_miniapp_url
+                    )
+                elif link_payload.get("miniapp_error"):
+                    current_app.logger.info(
+                        "催款消息未附带小程序链接 payroll_id=%s: %s",
+                        payroll.id,
+                        link_payload.get("miniapp_error"),
+                    )
+            except Exception as e:
+                current_app.logger.warning(
+                    "催款消息生成小程序链接失败 bill_id=%s: %s",
+                    bill.id,
+                    e,
+                    exc_info=True,
+                )
+
         return {
             "customer_name": bill.contract.customer_name,
             "employee_name": employee_name,
@@ -271,6 +311,8 @@ class PaymentMessageGenerator:
             "payments": customer_payments,
             "total_paid": customer_total_paid,
             "employee_payouts": employee_payouts,
+            "customer_miniapp_url": customer_miniapp_url,
+            "customer_miniapp_link_block": customer_miniapp_link_block,
         }
 
     def _build_employee_bank_account(self, employee_name: str, employee) -> dict:
