@@ -327,6 +327,7 @@ const ContractList = lazy(() => import('./components/ContractList'));
 const ContractDetail = lazy(() => import('./components/ContractDetail')); // 新建合同详情页
 const ConflictCheckerPage = lazy(() => import('./components/ConflictCheckerPage'));
 const NotificationSettings = lazy(() => import('./pages/NotificationSettings'));
+const BillBeautifySettings = lazy(() => import('./pages/BillBeautifySettings'));
 const MonthlyManagementFees = lazy(() => import('./pages/MonthlyManagementFees'));
 const ReconciliationPage = lazy(() => import('./components/ReconciliationPage'));
 const AllBankTransactions = lazy(() => import('./components/AllBankTransactions'));
@@ -391,6 +392,7 @@ function App() {
           <Route path="/admin/miniapp-openids" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MiniappOpenidManagement /> </Suspense>} />} />
           <Route path="/admin/miniapp-signing" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MiniappSigningSettings /> </Suspense>} />} />
           <Route path="/admin/settings/notifications" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <NotificationSettings /> </Suspense>} />} />
+          <Route path="/admin/settings/bill-beautify" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <BillBeautifySettings /> </Suspense>} />} />
           <Route path="/admin/llm/models" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmModelManagement /> </Suspense>} />} />
           <Route path="/admin/llm/api-keys" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmApiKeyManagement /> </Suspense>} />} />
           <Route path="/admin/llm/prompts" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmPromptManagement /> </Suspense>} />} />

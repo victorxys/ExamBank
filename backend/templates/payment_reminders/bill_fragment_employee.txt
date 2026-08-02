@@ -14,3 +14,7 @@
 {% if employee_pending_amount != 0 %}
   待付员工小计: {{ employee_pending_amount | round(2) }}元
 {% endif %}
+
+{% if customer_miniapp_link_block %}
+{{ customer_miniapp_link_block }}
+{% endif %}
