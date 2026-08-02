@@ -238,6 +238,7 @@ scripts/*
 !scripts/normalize_attendance_auto_overtime.py
 !scripts/resync_signed_attendance_forms.py
 !scripts/fix_june_holiday_overtime_billing.py
+!scripts/audit_attendance_billing_consistency.py
 commit_message.txt
 
 design_proposals/
@@ -258,6 +259,7 @@ test*
 docs/
 !docs/
 docs/*
+!docs/attendance_billing_audit.md
 !docs/project_management/
 docs/project_management/*
 !docs/project_management/employee_performance_profile/

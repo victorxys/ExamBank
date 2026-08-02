@@ -1199,6 +1199,12 @@ def ensure_confirmed_auto_overtime(form):
     form.form_data = normalized_form_data
     flag_modified(form, "form_data")
     db.session.commit()
+    if form.status in ('customer_signed', 'synced'):
+        current_app.logger.info(
+            "[ATTENDANCE_AUTO_OVERTIME] 已签考勤发生规范化，重新同步考勤与账单: form_id=%s",
+            form.id,
+        )
+        sync_attendance_to_record(form.id)
     return True
 
 
