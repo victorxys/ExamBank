@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { DatePicker, DateTimePicker } from '@mui/x-date-pickers';
 import { debounce } from 'lodash';
 import api from '../api/axios';
@@ -76,6 +77,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
     const [loadingEmployees, setLoadingEmployees] = useState(false);
     const [checkingEmployeeContracts, setCheckingEmployeeContracts] = useState(false);
     const [employeeContractConflicts, setEmployeeContractConflicts] = useState([]);
+    const [ignoreOngoingContracts, setIgnoreOngoingContracts] = useState(false);
     const [pendingTrialContracts, setPendingTrialContracts] = useState([]);
     const [selectedTrialConversionOption, setSelectedTrialConversionOption] = useState('none');
     const [trialConversionPreview, setTrialConversionPreview] = useState(null);
@@ -122,6 +124,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
             setCustomerOptions([]);
             setEmployeeOptions([]);
             setEmployeeContractConflicts([]);
+            setIgnoreOngoingContracts(false);
             setPendingTrialContracts([]);
             setSelectedTrialConversionOption('none');
             setTrialConversionPreview(null);
@@ -166,6 +169,10 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
             setTrialConversionPreviewError('');
         }
     }, [formData.contract_type]);
+
+    useEffect(() => {
+        setIgnoreOngoingContracts(false);
+    }, [formData.contract_type, formData.service_personnel_id]);
 
     useEffect(() => {
         if (
@@ -506,7 +513,7 @@ ${managementFeeNotePart}`;
             return;
         }
 
-        if (hasOngoingContractConflicts) {
+        if (hasBlockingOngoingContractConflicts) {
             setError("为了避免数据异常，要先终止进行中合同才可以创建新合同。");
             setLoading(false);
             return;
@@ -530,6 +537,11 @@ ${managementFeeNotePart}`;
         }
 
         payload.service_personnel_id = selectedEmployee.id;
+        if (formData.contract_type === 'maternity_nurse' && ignoreOngoingContracts) {
+            payload.ignore_ongoing_contracts = true;
+        } else {
+            delete payload.ignore_ongoing_contracts;
+        }
 
         // 后续的验证逻辑保持不变...
         if (!payload.template_id) {
@@ -840,7 +852,10 @@ ${managementFeeNotePart}`;
     const introFeeHelperText = isTrialContract ? (introFeeValue > 0 ? "已填写介绍费，管理费率为0%" : "未填写介绍费，管理费率为20%") : "";
     const mgmtRateHelperText = isTrialContract ? (introFeeValue > 0 ? "有介绍费时不收取管理费" : "无介绍费时按20%收取") : "";
     const hasOngoingContractConflicts = employeeContractConflicts.length > 0;
-    const createDisabledReason = hasOngoingContractConflicts
+    const canIgnoreOngoingContracts = formData.contract_type === 'maternity_nurse';
+    const hasBlockingOngoingContractConflicts = hasOngoingContractConflicts
+        && !(canIgnoreOngoingContracts && ignoreOngoingContracts);
+    const createDisabledReason = hasBlockingOngoingContractConflicts
         ? "为了避免数据异常，要先终止进行中合同才可以创建新合同"
         : "";
 
@@ -854,9 +869,27 @@ ${managementFeeNotePart}`;
                 },
             }}
         >
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                为了避免数据异常，要先终止进行中合同才可以创建新合同。
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 1, flexWrap: 'wrap' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {canIgnoreOngoingContracts
+                        ? (ignoreOngoingContracts
+                            ? '已确认忽略进行中合同，可以继续创建本月嫂合同。'
+                            : '该服务人员存在进行中合同。月嫂预订档期允许短暂重叠，可确认忽略后继续创建。')
+                        : '为了避免数据异常，要先终止进行中合同才可以创建新合同。'}
+                </Typography>
+                {canIgnoreOngoingContracts && (
+                    <Button
+                        type="button"
+                        size="small"
+                        variant={ignoreOngoingContracts ? 'outlined' : 'contained'}
+                        color={ignoreOngoingContracts ? 'success' : 'warning'}
+                        startIcon={ignoreOngoingContracts ? <CheckCircleOutlineIcon /> : null}
+                        onClick={() => setIgnoreOngoingContracts(prev => !prev)}
+                    >
+                        {ignoreOngoingContracts ? '取消忽略' : '忽略并继续'}
+                    </Button>
+                )}
+            </Box>
             <Paper
                 variant="outlined"
                 sx={{
@@ -1519,7 +1552,7 @@ ${managementFeeNotePart}`;
                             <Button
                                 type="submit"
                                 variant="contained"
-                                disabled={loading || checkingEmployeeContracts || hasOngoingContractConflicts}
+                                disabled={loading || checkingEmployeeContracts || hasBlockingOngoingContractConflicts}
                             >
                                 {loading ? <CircularProgress size={24} /> : (formData.contract_type === 'nanny' && selectedTrialConversionOption !== 'none' ? '创建合同并确认试工成功' : '创建合同')}
                             </Button>

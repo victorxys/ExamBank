@@ -13,7 +13,14 @@ from backend.services.maternity_attendance_service import (
     is_first_maternity_cycle,
     is_last_maternity_cycle,
     maternity_onboarding_required_payload,
+    shift_maternity_contract_dates_from_onboarding,
     MATERNITY_CYCLE_DAYS,
+)
+from backend.services.contract_operation_log_service import (
+    create_contract_operation_log,
+    diff_snapshots,
+    get_contract_creation_snapshot,
+    snapshot_contract,
 )
 import uuid
 import time
@@ -1829,37 +1836,37 @@ def set_maternity_onboarding_date_for_attendance(contract_id):
             if not is_maternity_contract(contract):
                 return jsonify({"error": "仅月嫂合同可设置实际上户日期"}), 400
 
-        contract_start = to_date_value(contract.start_date)
-        contract_end = get_maternity_service_end(contract) or to_date_value(contract.end_date)
-        if contract_start and onboarding_date < contract_start:
-            return jsonify({
-                "error": f"上户日期不能早于合同开始日 {contract_start.isoformat()}"
-            }), 400
-        if contract_end and onboarding_date > contract_end:
-            return jsonify({
-                "error": f"上户日期不能晚于合同结束日 {contract_end.isoformat()}"
-            }), 400
-
+        before_snapshot = snapshot_contract(contract)
         old_onboarding = to_date_value(getattr(contract, "actual_onboarding_date", None))
-        # 合同字段存日期+时刻，与考勤上户精度一致
-        contract.actual_onboarding_date = datetime.combine(onboarding_date, onboard_time_obj)
-
-        # 若无预计下户日，按合同起止时长从新上户日推算
-        if not getattr(contract, "expected_offboarding_date", None) and contract_start and contract_end:
-            duration_days = (contract_end - contract_start).days
-            contract.expected_offboarding_date = datetime.combine(
-                onboarding_date + timedelta(days=duration_days),
-                datetime.min.time(),
-            )
-        elif not getattr(contract, "expected_offboarding_date", None) and contract_end:
-            # 保持原 end_date 作为下户日
-            contract.expected_offboarding_date = datetime.combine(contract_end, datetime.min.time())
+        adjustment = shift_maternity_contract_dates_from_onboarding(
+            contract,
+            datetime.combine(onboarding_date, onboard_time_obj),
+            creation_snapshot=get_contract_creation_snapshot(contract),
+        )
 
         if contract.status in (None, "pending"):
             contract.status = "active"
 
         db.session.add(contract)
         db.session.flush()
+        create_contract_operation_log(
+            contract=contract,
+            action="edit",
+            title="确认月嫂实际上户日期",
+            summary=(
+                f"实际上户日期调整为 {onboarding_date.isoformat()}，"
+                f"合同结束日期自动调整为 {adjustment['adjusted_end_date'].isoformat()}"
+            ),
+            details={
+                "source": "attendance",
+                "original_provisional_start_date": adjustment[
+                    "original_provisional_start_date"
+                ].isoformat(),
+                "original_end_date": adjustment["original_end_date"].isoformat(),
+                "duration_days": adjustment["duration_days"],
+            },
+            changes=diff_snapshots(before_snapshot, snapshot_contract(contract)),
+        )
 
         # 生成首期考勤表，并预填上户时刻
         first_cycle = find_maternity_cycle_for_reference(contract, onboarding_date)
@@ -1955,6 +1962,7 @@ def set_maternity_onboarding_date_for_attendance(contract_id):
                 if contract.expected_offboarding_date
                 else None
             ),
+            "contract_end_date": adjustment["adjusted_end_date"].isoformat(),
             "first_cycle_start": first_cycle[0].isoformat() if first_cycle else None,
             "first_cycle_end": first_cycle[1].isoformat() if first_cycle else None,
             "current_cycle_start": current_cycle[0].isoformat() if current_cycle else None,
