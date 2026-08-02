@@ -68,6 +68,13 @@ _MINIAPP_ACCESS_TOKEN_CACHE = {
 }
 
 
+def _can_ignore_ongoing_employee_contracts(data):
+    return (
+        data.get("contract_type") == "maternity_nurse"
+        and data.get("ignore_ongoing_contracts") is True
+    )
+
+
 def _serialize_employee_ongoing_contract(contract):
     type_choices = {
         "nanny": "育儿嫂合同",
@@ -1154,7 +1161,10 @@ def create_formal_contract():
                 return jsonify({"error": "选择的试工合同已被处理，无法再次确认试工成功"}), 400
 
         ongoing_contracts = _get_employee_ongoing_contracts(str(service_personnel.id))
-        if ongoing_contracts:
+        ignored_ongoing_contracts = bool(
+            ongoing_contracts and _can_ignore_ongoing_employee_contracts(data)
+        )
+        if ongoing_contracts and not ignored_ongoing_contracts:
             return jsonify({
                 "error": "该服务人员存在进行中的合同，请先终止原合同后再创建新合同。",
                 "code": "EMPLOYEE_CONTRACT_CONFLICT",
@@ -1299,6 +1309,9 @@ def create_formal_contract():
                 "customer_name": new_contract.customer_name,
                 "service_personnel_name": service_personnel.name,
                 "requires_signature": data.get("requires_signature"),
+                "ignored_ongoing_contracts": [
+                    str(contract.id) for contract in ongoing_contracts
+                ] if ignored_ongoing_contracts else [],
             },
             changes={"created": {"from": None, "to": snapshot_contract(new_contract)}},
         )

@@ -80,6 +80,7 @@ from backend.services.bank_statement_service import BankStatementService
 from backend.services.contract_operation_log_service import (
     create_contract_operation_log,
     diff_snapshots,
+    get_contract_creation_snapshot,
     snapshot_contract,
 )
 from backend.utils.miniapp_config import get_miniapp_credentials, miniapp_credential_status
@@ -87,6 +88,7 @@ from backend.services.maternity_attendance_service import (
     find_maternity_cycle_for_reference,
     get_maternity_service_start,
     list_maternity_attendance_cycles,
+    shift_maternity_contract_dates_from_onboarding,
 )
 
 
@@ -1079,49 +1081,23 @@ def update_single_contract(contract_id):
 
                     if existing_date != new_onboarding_date.date():
                         current_app.logger.info(f"====合同==== {contract.id} 的实际上户日期从 {existing_date} 更新为 {new_onboarding_date.date()}")
-                        contract.actual_onboarding_date = new_onboarding_date
-
-                        # 服务时长锚点：优先预产期→结束日；否则用合同起止日；再否则用预计下户日
-                        provisional_start_obj = contract.provisional_start_date
-                        provisional_start = provisional_start_obj.date() if isinstance(provisional_start_obj, datetime) else provisional_start_obj
-
-                        start_obj = contract.start_date
-                        start_d = start_obj.date() if isinstance(start_obj, datetime) else start_obj
-
-                        end_obj = contract.end_date
-                        end_d = end_obj.date() if isinstance(end_obj, datetime) else end_obj
-
-                        expected_off_obj = contract.expected_offboarding_date
-                        expected_off_d = expected_off_obj.date() if isinstance(expected_off_obj, datetime) else expected_off_obj
-
-                        duration_start = provisional_start or start_d or existing_date
-                        duration_end = expected_off_d or end_d
-
-                        if duration_start and duration_end and duration_end >= duration_start:
-                            total_days = (duration_end - duration_start).days
-                            new_expected_off = new_onboarding_date + timedelta(days=total_days)
-                        else:
-                            # 默认一个 26 天服务周期
-                            new_expected_off = new_onboarding_date + timedelta(days=26)
-
-                        contract.expected_offboarding_date = new_expected_off
-
-                        # 续签/变更合同：同步合同起止日，使首个账单周期起点与上户日一致
+                        adjustment = shift_maternity_contract_dates_from_onboarding(
+                            contract,
+                            new_onboarding_date,
+                            creation_snapshot=get_contract_creation_snapshot(contract),
+                        )
                         is_renew_or_change = bool(
                             getattr(contract, "previous_contract_id", None)
                             or getattr(contract, "source", None) in ("renewal", "change")
                         )
-                        if is_renew_or_change:
-                            contract.start_date = new_onboarding_date
-                            contract.end_date = new_expected_off
-                            if contract.status in (None, "pending"):
-                                contract.status = "active"
-                            current_app.logger.info(
-                                f"续签/变更月嫂合同 {contract.id}: 同步 start/end 为 "
-                                f"{new_onboarding_date.date()} ~ {new_expected_off.date() if hasattr(new_expected_off, 'date') else new_expected_off}"
-                            )
+                        if is_renew_or_change and contract.status in (None, "pending"):
+                            contract.status = "active"
 
                         log_details['实际上户日期'] = {'from': str(existing_date), 'to': str(new_onboarding_date.date())}
+                        log_details['合同结束日期'] = {
+                            'from': str(before_snapshot.get('end_date')),
+                            'to': adjustment['adjusted_end_date'].isoformat(),
+                        }
                         should_generate_bills = True
                 else:
                     return jsonify({"error": "只有月嫂合同才能设置实际上户日期"}), 400

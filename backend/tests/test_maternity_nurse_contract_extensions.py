@@ -5,6 +5,7 @@
 import pytest
 from datetime import datetime, date, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 from backend.models import (
     db,
     MaternityNurseContract,
@@ -18,6 +19,72 @@ from backend.models import (
 )
 from backend.services.contract_service import ContractService
 from backend.extensions import db as db_ext
+from backend.api.contract_api import _can_ignore_ongoing_employee_contracts
+from backend.services.maternity_attendance_service import (
+    shift_maternity_contract_dates_from_onboarding,
+)
+
+
+def test_onboarding_date_shifts_contract_end_by_creation_period():
+    contract = SimpleNamespace(
+        type="maternity_nurse",
+        provisional_start_date=date(2026, 7, 16),
+        actual_onboarding_date=None,
+        end_date=datetime(2026, 8, 11),
+        expected_offboarding_date=None,
+    )
+
+    result = shift_maternity_contract_dates_from_onboarding(
+        contract,
+        datetime(2026, 7, 20, 9, 30),
+    )
+
+    assert result["duration_days"] == 26
+    assert contract.actual_onboarding_date == datetime(2026, 7, 20, 9, 30)
+    assert contract.end_date == datetime(2026, 8, 15)
+    assert contract.expected_offboarding_date == datetime(2026, 8, 15)
+
+
+def test_repeated_onboarding_change_uses_creation_snapshot_period():
+    contract = SimpleNamespace(
+        type="maternity_nurse",
+        provisional_start_date=date(2026, 7, 16),
+        actual_onboarding_date=None,
+        end_date=datetime(2026, 9, 6),
+        expected_offboarding_date=None,
+    )
+    creation_snapshot = {
+        "provisional_start_date": "2026-07-16",
+        "end_date": "2026-09-06T00:00:00",
+    }
+
+    shift_maternity_contract_dates_from_onboarding(
+        contract,
+        datetime(2026, 7, 20, 9, 0),
+        creation_snapshot=creation_snapshot,
+    )
+    result = shift_maternity_contract_dates_from_onboarding(
+        contract,
+        datetime(2026, 7, 25, 9, 0),
+        creation_snapshot=creation_snapshot,
+    )
+
+    assert result["duration_days"] == 52
+    assert contract.end_date == datetime(2026, 9, 15)
+    assert contract.expected_offboarding_date == datetime(2026, 9, 15)
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected"),
+    [
+        ({"contract_type": "maternity_nurse", "ignore_ongoing_contracts": True}, True),
+        ({"contract_type": "maternity_nurse", "ignore_ongoing_contracts": False}, False),
+        ({"contract_type": "nanny", "ignore_ongoing_contracts": True}, False),
+        ({"contract_type": "nanny_trial", "ignore_ongoing_contracts": True}, False),
+    ],
+)
+def test_only_maternity_contract_can_ignore_ongoing_contracts(payload, expected):
+    assert _can_ignore_ongoing_employee_contracts(payload) is expected
 
 
 @pytest.fixture

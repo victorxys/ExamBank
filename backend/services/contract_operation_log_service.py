@@ -26,6 +26,7 @@ CONTRACT_LOG_FIELDS = (
     "signing_status",
     "actual_onboarding_date",
     "expected_offboarding_date",
+    "provisional_start_date",
     "notes",
 )
 
@@ -62,6 +63,36 @@ def diff_snapshots(before: dict | None, after: dict | None) -> dict:
         if before.get(key) != after.get(key):
             changes[key] = {"from": before.get(key), "to": after.get(key)}
     return changes
+
+
+def get_contract_creation_snapshot(contract: BaseContract | None) -> dict:
+    """读取创建时快照；历史合同则回溯最早字段变更前的值。"""
+    if not contract or not getattr(contract, "id", None):
+        return {}
+    logs = (
+        ContractOperationLog.query.filter_by(contract_id=contract.id, action="create")
+        .order_by(ContractOperationLog.created_at.asc(), ContractOperationLog.id.asc())
+        .all()
+    )
+    if logs:
+        created_change = (logs[0].changes or {}).get("created") or {}
+        snapshot = created_change.get("to")
+        if isinstance(snapshot, dict):
+            return snapshot
+
+    snapshot = {}
+    historical_logs = (
+        ContractOperationLog.query.filter_by(contract_id=contract.id)
+        .order_by(ContractOperationLog.created_at.asc(), ContractOperationLog.id.asc())
+        .all()
+    )
+    for log in historical_logs:
+        changes = log.changes or {}
+        for field in ("provisional_start_date", "end_date"):
+            change = changes.get(field)
+            if field not in snapshot and isinstance(change, dict) and "from" in change:
+                snapshot[field] = change["from"]
+    return snapshot
 
 
 def create_contract_operation_log(

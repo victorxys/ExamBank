@@ -29,6 +29,52 @@ MATERNITY_CONTRACT_TYPES = frozenset(
 )
 
 
+def shift_maternity_contract_dates_from_onboarding(
+    contract,
+    onboarding_value,
+    *,
+    creation_snapshot: Optional[dict] = None,
+) -> dict:
+    """按合同创建时的预产期至结束日周期，平移月嫂合同结束日期。"""
+    if not is_maternity_contract(contract):
+        raise ValueError("仅月嫂合同可按实际上户日期调整合同周期")
+
+    onboarding_date = _to_date(onboarding_value)
+    if not onboarding_date:
+        raise ValueError("实际上户日期无效")
+
+    creation_snapshot = creation_snapshot or {}
+    original_start = _to_date(
+        creation_snapshot.get("provisional_start_date")
+        or getattr(contract, "provisional_start_date", None)
+    )
+    original_end = _to_date(
+        creation_snapshot.get("end_date") or getattr(contract, "end_date", None)
+    )
+    if not original_start or not original_end or original_end < original_start:
+        raise ValueError("合同缺少有效的创建时预产期或合同结束日期")
+
+    duration_days = (original_end - original_start).days
+    adjusted_end = onboarding_date + timedelta(days=duration_days)
+    onboarding_time = (
+        onboarding_value.time()
+        if isinstance(onboarding_value, datetime)
+        else datetime.min.time()
+    )
+
+    contract.actual_onboarding_date = datetime.combine(onboarding_date, onboarding_time)
+    contract.end_date = datetime.combine(adjusted_end, datetime.min.time())
+    contract.expected_offboarding_date = datetime.combine(adjusted_end, datetime.min.time())
+
+    return {
+        "original_provisional_start_date": original_start,
+        "original_end_date": original_end,
+        "duration_days": duration_days,
+        "actual_onboarding_date": onboarding_date,
+        "adjusted_end_date": adjusted_end,
+    }
+
+
 def _to_date(value) -> Optional[date]:
     if value is None:
         return None
