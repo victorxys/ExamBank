@@ -1,4 +1,5 @@
 import pytest
+from backend.api import attendance_form_api
 from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, User
 from backend.api.miniapp_api import _prepare_attendance_display_payload
 from backend.services.attendance_sync_service import (
@@ -11,6 +12,44 @@ from datetime import date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 import uuid
+
+
+def test_confirmed_auto_overtime_change_resyncs_signed_attendance(monkeypatch):
+    form = SimpleNamespace(
+        id=uuid.uuid4(),
+        status="synced",
+        form_data={"overtime_records": []},
+    )
+    commits = []
+    synced_form_ids = []
+
+    monkeypatch.setattr(
+        attendance_form_api,
+        "normalize_auto_overtime_form_data",
+        lambda current_form, allow_create_missing_auto: (
+            {"overtime_records": [{"date": "2026-06-19", "is_auto": True}]},
+            True,
+        ),
+    )
+    monkeypatch.setattr(attendance_form_api, "flag_modified", lambda *args: None)
+    monkeypatch.setattr(
+        attendance_form_api,
+        "current_app",
+        SimpleNamespace(logger=SimpleNamespace(info=lambda *args: None)),
+    )
+    monkeypatch.setattr(attendance_form_api.db.session, "commit", lambda: commits.append(True))
+    monkeypatch.setattr(
+        attendance_form_api,
+        "sync_attendance_to_record",
+        lambda form_id: synced_form_ids.append(form_id),
+    )
+
+    changed = attendance_form_api.ensure_confirmed_auto_overtime(form)
+
+    assert changed is True
+    assert commits == [True]
+    assert synced_form_ids == [form.id]
+
 
 @pytest.fixture
 def setup_data(_app):
