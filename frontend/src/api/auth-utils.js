@@ -84,6 +84,11 @@ export const hasToken = () => {
   return getUserFromToken();
 };
 
+export const canUseWebAttendance = () => {
+  const user = hasToken();
+  return Boolean(user && ['admin', 'teacher'].includes(user.role));
+};
+
 // 检查是否需要刷新Token
 export const shouldRefreshToken = () => {
   const token = getToken();

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { format, parseISO, addDays, setHours, setMinutes, isSameDay, startOfDay, differenceInDays } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import api from '../../api/axios';
@@ -15,6 +15,7 @@ import { useHolidays } from '../../hooks/useHolidays';
 import WechatShare from '../WechatShare';
 import { Calendar } from '../ui/calendar';
 import { zhCN as calendarZhCN } from 'react-day-picker/locale';
+import { canUseWebAttendance } from '../../api/auth-utils';
 
 // Helper function to format duration
 // 兼容两种数据格式：
@@ -322,7 +323,7 @@ const TimePicker = ({ value, onChange, disabled, placeholder = '请选择' }) =>
     );
 };
 
-const AttendanceFillPage = ({ mode = 'employee' }) => {
+const AttendanceFillPageContent = ({ mode = 'employee' }) => {
     const { form_token, token, employee_token } = useParams();
     const navigate = useNavigate();
     const { toast } = useToast();
@@ -3855,6 +3856,17 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             })()}
         </div>
     );
+};
+
+const AttendanceFillPage = ({ mode = 'employee' }) => {
+    const { form_token, token, employee_token } = useParams();
+
+    if (mode === 'employee' && !canUseWebAttendance()) {
+        const attendanceToken = form_token || token || employee_token;
+        return <Navigate to={attendanceToken ? `/attendance/${attendanceToken}` : '/wechat-attendance'} replace />;
+    }
+
+    return <AttendanceFillPageContent mode={mode} />;
 };
 
 export default AttendanceFillPage;

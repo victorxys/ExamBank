@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2, AlertCircle, ExternalLink, Smartphone } from 'lucide-react';
 import api from '../../api/axios';
+import { canUseWebAttendance } from '../../api/auth-utils';
 import { useToast } from '../ui/use-toast';
 import AttendanceSelectionPage from './AttendanceSelectionPage';
 
-const MiniappGuide = ({ employeeName, miniapp, webFallbackPath, title = '请使用小程序填写考勤' }) => {
+const MiniappGuide = ({ employeeName, miniapp, webFallbackPath, allowWebFallback, title = '请使用小程序填写考勤' }) => {
     return (
         <div className="min-h-screen flex items-center justify-center bg-teal-50 p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sm border border-teal-100 text-center">
@@ -38,7 +39,7 @@ const MiniappGuide = ({ employeeName, miniapp, webFallbackPath, title = '请使�
                     </div>
                 )}
 
-                {webFallbackPath && (
+                {allowWebFallback && webFallbackPath && (
                     <button
                         type="button"
                         onClick={() => { window.location.href = webFallbackPath; }}
@@ -60,6 +61,7 @@ const AttendanceRouter = () => {
     const [error, setError] = useState(null);
     const [attendanceData, setAttendanceData] = useState(null);
     const [miniappGuide, setMiniappGuide] = useState(null);
+    const allowWebFallback = canUseWebAttendance();
 
     // 不传递年月参数，让后端自动判断当前月份
     // 这样员工的考勤链接是固定的，不会因为月份变化而改变
@@ -154,6 +156,7 @@ const AttendanceRouter = () => {
                 employeeName={miniappGuide.employee_name}
                 miniapp={miniappGuide.miniapp}
                 webFallbackPath={miniappGuide.web_fallback_path}
+                allowWebFallback={allowWebFallback}
             />
         );
     }
@@ -163,6 +166,7 @@ const AttendanceRouter = () => {
         <AttendanceSelectionPage
             forms={attendanceData.forms || []}
             employeeName={attendanceData.employee_name}
+            allowWebFallback={allowWebFallback}
         />
     );
 };
