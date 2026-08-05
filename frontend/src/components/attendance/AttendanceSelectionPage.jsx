@@ -39,15 +39,17 @@ const StatusBadge = ({ status }) => {
     );
 };
 
-const AttendanceSelectionPage = ({ forms, employeeName }) => {
+const AttendanceSelectionPage = ({ forms, employeeName, allowWebFallback = false }) => {
     const navigate = useNavigate();
 
-    const openMiniappOrFallback = (form) => {
+    const openMiniapp = (form) => {
         if (form.miniapp?.miniapp_url) {
             window.location.href = form.miniapp.miniapp_url;
-            return;
         }
-        navigate(`/attendance-fill/${form.form_id}?contractId=${form.contract_id}`);
+    };
+
+    const openWebFallback = (form) => {
+        navigate(`/attendance-fill/${form.form_token}?contractId=${form.contract_id}`);
     };
 
     return (
@@ -113,11 +115,16 @@ const AttendanceSelectionPage = ({ forms, employeeName }) => {
                             {/* Action Buttons */}
                             <div className="flex gap-3">
                                 <button
-                                    onClick={() => openMiniappOrFallback(form)}
-                                    className="flex-1 bg-teal-600 hover:bg-teal-500 text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                                    onClick={() => openMiniapp(form)}
+                                    disabled={!form.miniapp?.miniapp_url}
+                                    className="flex-1 bg-teal-600 hover:bg-teal-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
                                 >
                                     <FileText className="w-4 h-4" />
-                                    {form.status === 'draft' ? '小程序填写考勤' : '小程序查看/修改'}
+                                    {!form.miniapp?.miniapp_url
+                                        ? '小程序入口暂不可用'
+                                        : form.status === 'draft'
+                                            ? '小程序填写考勤'
+                                            : '小程序查看/修改'}
                                 </button>
                                 
                                 {/* 如果已确认，显示分享按钮 */}
@@ -135,6 +142,16 @@ const AttendanceSelectionPage = ({ forms, employeeName }) => {
                                     </button>
                                 )}
                             </div>
+
+                            {allowWebFallback && (
+                                <button
+                                    type="button"
+                                    onClick={() => openWebFallback(form)}
+                                    className="mt-3 w-full text-sm font-medium text-slate-500 underline underline-offset-4"
+                                >
+                                    临时继续使用 Web 版填写
+                                </button>
+                            )}
                         </div>
                     );
                 })}
