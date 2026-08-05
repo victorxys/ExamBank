@@ -1,6 +1,13 @@
 import pytest
 from backend.api import attendance_form_api
-from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, User
+from backend.models import (
+    db,
+    AttendanceForm,
+    BaseContract,
+    ServicePersonnel,
+    TrialOutcome,
+    User,
+)
 from backend.api.miniapp_api import _prepare_attendance_display_payload
 from backend.services.attendance_sync_service import (
     AUTO_OVERTIME_PROJECTION_KEY,
@@ -12,6 +19,42 @@ from datetime import date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 import uuid
+
+
+def test_trial_conversion_is_continuous_when_service_periods_overlap():
+    trial_id = uuid.uuid4()
+    trial = SimpleNamespace(
+        id=trial_id,
+        type="nanny_trial",
+        trial_outcome=TrialOutcome.SUCCESS,
+        start_date=datetime(2026, 6, 27),
+        end_date=datetime(2026, 7, 4),
+    )
+    formal = SimpleNamespace(
+        source_trial_contract_id=trial_id,
+        start_date=datetime(2026, 6, 27),
+        end_date=datetime(2026, 7, 31),
+    )
+
+    assert attendance_form_api.is_continuous_trial_conversion(trial, formal) is True
+
+
+def test_trial_conversion_is_not_continuous_after_service_gap():
+    trial_id = uuid.uuid4()
+    trial = SimpleNamespace(
+        id=trial_id,
+        type="nanny_trial",
+        trial_outcome=TrialOutcome.SUCCESS,
+        start_date=datetime(2026, 6, 20),
+        end_date=datetime(2026, 6, 27),
+    )
+    formal = SimpleNamespace(
+        source_trial_contract_id=trial_id,
+        start_date=datetime(2026, 7, 1),
+        end_date=datetime(2026, 7, 31),
+    )
+
+    assert attendance_form_api.is_continuous_trial_conversion(trial, formal) is False
 
 
 def test_confirmed_auto_overtime_change_resyncs_signed_attendance(monkeypatch):

@@ -1,5 +1,6 @@
-{# 员工部分账单片段 V2 #}
-{{ customer_name }}——{{ employee_name }} ({{ bill_date_range }}):
+{# 员工部分账单片段 V2：姓名顺序固定为「客户——员工」，应付对象是员工 #}
+客户：{{ customer_name }} / 员工：{{ employee_name }} ({{ bill_date_range }})
+{{ customer_name }}——{{ employee_name }}（客户——员工）:
 {% for item in employee_line_items %}
   - {{ item.name }}: {{ item.description }}
 {% endfor %}

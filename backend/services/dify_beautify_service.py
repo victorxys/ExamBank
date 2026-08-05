@@ -414,6 +414,109 @@ def _normalize_beautified_result(data: dict) -> dict:
     }
 
 
+def _extract_customer_employee_pairs(raw_text: str) -> list[tuple[str, str]]:
+    """
+    从催款原文中解析 (客户, 员工) 对。
+
+    支持：
+    - 「客户——员工 (日期)」历史格式
+    - 「客户：A / 员工：B」显式标注
+    """
+    if not raw_text:
+        return []
+
+    pairs: list[tuple[str, str]] = []
+    seen = set()
+
+    # 显式标注：客户：xx / 员工：yy
+    for m in re.finditer(
+        r"客户[：:]\s*([^\n/|，,]+?)\s*[/|]\s*员工[：:]\s*([^\n(（]+)",
+        raw_text,
+    ):
+        customer = m.group(1).strip()
+        employee = m.group(2).strip()
+        key = (customer, employee)
+        if customer and employee and customer != employee and key not in seen:
+            seen.add(key)
+            pairs.append(key)
+
+    # 兼容：姓名A——姓名B (日期
+    for m in re.finditer(
+        r"(?m)^[ \t]*([^\n—\-]{1,40}?)[ \t]*[—\-]{1,2}[ \t]*([^\n(（]{1,40}?)[ \t]*[(（]",
+        raw_text,
+    ):
+        customer = m.group(1).strip()
+        employee = m.group(2).strip()
+        # 去掉可能的「客户：」「员工：」前缀
+        customer = re.sub(r"^(客户|雇主)[：:\s]*", "", customer).strip()
+        employee = re.sub(r"^(员工|阿姨|服务人员)[：:\s]*", "", employee).strip()
+        key = (customer, employee)
+        if customer and employee and customer != employee and key not in seen:
+            seen.add(key)
+            pairs.append(key)
+
+    # 工资卡户名兜底：若只有一对客户名，户名常为员工
+    if not pairs:
+        bank_holders = re.findall(r"(?m)^[ \t]*户名[：:]\s*([^\n]+)", raw_text)
+        # 无法可靠配对时不猜
+        _ = bank_holders
+
+    return pairs
+
+
+def correct_employee_payee_names(raw_employee_summary: str, beautified: str) -> str:
+    """
+    修正员工侧美化文案中把客户名误写成应付对象的问题。
+
+    规则：原始格式为「客户——员工」；「您应付X」「X“劳务费”」中的 X 应为员工名。
+    """
+    text = beautified or ""
+    if not text:
+        return text
+
+    pairs = _extract_customer_employee_pairs(raw_employee_summary or "")
+    if not pairs:
+        return text
+
+    for customer, employee in pairs:
+        if not customer or not employee or customer == employee:
+            continue
+
+        # 本期小计 / 总计描述
+        replacements = [
+            (f"您应付{customer}", f"您应付{employee}"),
+            (f"应付{customer}", f"应付{employee}"),
+            (f"应退给{customer}", f"应退给{employee}"),  # 极少数错误写法
+            (f"付给{customer}", f"付给{employee}"),
+        ]
+        for old, new in replacements:
+            if old in text:
+                text = text.replace(old, new)
+
+        # 标题：客户“劳务费” → 员工“劳务费”（中英文引号都处理）
+        quote_pairs = [
+            ("“", "”"),
+            ('"', '"'),
+            ("「", "」"),
+        ]
+        for lq, rq in quote_pairs:
+            wrong_title = f"{customer}{lq}劳务费{rq}"
+            right_title = f"{employee}{lq}劳务费{rq}"
+            if wrong_title in text:
+                text = text.replace(wrong_title, right_title)
+            # 半边损坏写法：客户”劳务费“ / 客户"劳务费"
+            for broken in (
+                f"{customer}”劳务费“",
+                f'{customer}"劳务费"',
+                f"{customer}”劳务费”",
+                f"{customer}“劳务费“",
+            ):
+                if broken in text:
+                    text = text.replace(broken, right_title)
+
+    return text
+
+
 def call_dify_chat(
     *,
     api_base_url: str,
@@ -566,6 +669,11 @@ def beautify_bill_with_dify(
         )
 
         parsed = _normalize_beautified_result(_extract_json_object(answer_text))
+        # 修正：员工侧「您应付/劳务费标题」误用客户名 → 改为员工名
+        parsed["employee_beautified"] = correct_employee_payee_names(
+            employee_summary or "",
+            parsed.get("employee_beautified") or "",
+        )
         # 兜底：原文中的小程序/https 链接若被模型丢掉，补回员工美化结果
         parsed["employee_beautified"] = ensure_urls_preserved_in_text(
             employee_summary or "",

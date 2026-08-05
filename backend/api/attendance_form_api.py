@@ -1,5 +1,14 @@
 from flask import Blueprint, jsonify, request, current_app, render_template, make_response
-from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, AttendanceRecord, NannyContract, MaternityNurseContract
+from backend.models import (
+    db,
+    AttendanceForm,
+    BaseContract,
+    ServicePersonnel,
+    AttendanceRecord,
+    NannyContract,
+    MaternityNurseContract,
+    TrialOutcome,
+)
 from backend.services.attendance_sync_service import sync_attendance_to_record, normalize_auto_overtime_form_data
 from backend.services.billing_engine import BillingEngine
 from backend.services.maternity_attendance_service import (
@@ -891,6 +900,38 @@ def calculate_last_month_cycle():
     return last_month_start, last_month_end
 
 
+def is_continuous_trial_conversion(trial_contract, formal_contract):
+    """明确关联的试工转正式合同可重叠，但不能存在超过一天的服务空档。"""
+    if (
+        not trial_contract
+        or not formal_contract
+        or getattr(trial_contract, 'type', None) != 'nanny_trial'
+        or getattr(trial_contract, 'trial_outcome', None) != TrialOutcome.SUCCESS
+        or str(getattr(formal_contract, 'source_trial_contract_id', ''))
+        != str(getattr(trial_contract, 'id', ''))
+    ):
+        return False
+
+    trial_start = (
+        trial_contract.start_date.date()
+        if isinstance(trial_contract.start_date, datetime)
+        else trial_contract.start_date
+    )
+    trial_end = (
+        trial_contract.end_date.date()
+        if isinstance(trial_contract.end_date, datetime)
+        else trial_contract.end_date
+    )
+    formal_start = (
+        formal_contract.start_date.date()
+        if isinstance(formal_contract.start_date, datetime)
+        else formal_contract.start_date
+    )
+    if not trial_start or not trial_end or not formal_start:
+        return False
+    return trial_start <= formal_start and (formal_start - trial_end).days <= 1
+
+
 def is_continuous_service(contract):
     """
     检查当前合同是否是连续服务（续约合同）
@@ -955,6 +996,26 @@ def has_following_contract(contract):
     
     if not contract_end:
         return False
+
+    # 试工转正式允许服务期重叠。此时正式合同开始日早于试工结束日，
+    # 不能套用普通续约只接受 0~1 天正向间隔的判断。
+    if getattr(contract, 'type', None) == 'nanny_trial':
+        converted_contracts = NannyContract.query.filter(
+            NannyContract.source_trial_contract_id == contract.id,
+            NannyContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed'])
+        ).all()
+        for converted in converted_contracts:
+            if is_continuous_trial_conversion(contract, converted):
+                converted_start = (
+                    converted.start_date.date()
+                    if isinstance(converted.start_date, datetime)
+                    else converted.start_date
+                )
+                current_app.logger.info(
+                    f"检测到试工转正式合同: 试工合同 {contract.id} 结束于 {contract_end}, "
+                    f"正式合同 {converted.id} 开始于 {converted_start}"
+                )
+                return True
     
     # 查找同一员工、同一客户/家庭的其他合同
     query = BaseContract.query.filter(
