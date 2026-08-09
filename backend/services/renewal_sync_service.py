@@ -281,6 +281,25 @@ BASE_TRANSFER_TARGET_DESCRIPTION = "[转入]前合同合并转入员工待付工
 OVERTIME_TRANSFER_SOURCE_DESCRIPTION = "[冲抵]续签后补转员工加班费"
 OVERTIME_TRANSFER_TARGET_DESCRIPTION = "[转入]前合同补转员工加班费"
 
+PAYROLL_TRANSFER_DESCRIPTIONS = (
+    BASE_TRANSFER_SOURCE_DESCRIPTION,
+    BASE_TRANSFER_TARGET_DESCRIPTION,
+    OVERTIME_TRANSFER_SOURCE_DESCRIPTION,
+    OVERTIME_TRANSFER_TARGET_DESCRIPTION,
+)
+
+
+def is_month_end_renewal(source_contract, successor) -> bool:
+    """Return True when renewal crosses a natural month boundary."""
+    if not source_contract or not successor:
+        return False
+    successor_start = _to_date(successor.start_date)
+    if not successor_start:
+        return False
+    renewal_end = successor_start - timedelta(days=1)
+    _, last_day = calendar.monthrange(renewal_end.year, renewal_end.month)
+    return renewal_end.day == last_day
+
 
 def _commission_offset_amount(payroll):
     return sum(
@@ -387,6 +406,121 @@ def _first_bill_and_payroll(contract):
     )
 
 
+def cleanup_month_end_renewal_payroll_transfers(
+    source_contract,
+    successor,
+    year,
+    month,
+    *,
+    recalculate=True,
+):
+    """Remove invalid cross-month payroll transfers created by older logic."""
+    if not is_month_end_renewal(source_contract, successor):
+        return 0
+
+    source_bill = CustomerBill.query.filter_by(
+        contract_id=source_contract.id,
+        year=year,
+        month=month,
+        is_substitute_bill=False,
+    ).order_by(CustomerBill.cycle_end_date.desc()).first()
+    if not source_bill:
+        return 0
+
+    source_payroll = EmployeePayroll.query.filter_by(
+        contract_id=source_contract.id,
+        cycle_start_date=source_bill.cycle_start_date,
+        is_substitute_payroll=False,
+    ).first()
+    target_bill = CustomerBill.query.filter_by(
+        contract_id=successor.id,
+        is_substitute_bill=False,
+    ).order_by(CustomerBill.cycle_start_date.asc()).first()
+    target_payroll = None
+    if target_bill:
+        target_payroll = EmployeePayroll.query.filter_by(
+            contract_id=successor.id,
+            cycle_start_date=target_bill.cycle_start_date,
+            is_substitute_payroll=False,
+        ).first()
+
+    payroll_ids = [
+        payroll.id
+        for payroll in (source_payroll, target_payroll)
+        if payroll is not None
+    ]
+    transfer_candidates = []
+    if payroll_ids:
+        transfer_candidates = FinancialAdjustment.query.filter(
+            FinancialAdjustment.employee_payroll_id.in_(payroll_ids),
+            FinancialAdjustment.description.in_(PAYROLL_TRANSFER_DESCRIPTIONS),
+        ).all()
+    source_descriptions = {
+        BASE_TRANSFER_SOURCE_DESCRIPTION,
+        OVERTIME_TRANSFER_SOURCE_DESCRIPTION,
+    }
+    target_descriptions = {
+        BASE_TRANSFER_TARGET_DESCRIPTION,
+        OVERTIME_TRANSFER_TARGET_DESCRIPTION,
+    }
+    transfers = []
+    for adjustment in transfer_candidates:
+        details = adjustment.details or {}
+        linked_bill_id = details.get("linked_bill_id")
+        if (
+            source_payroll
+            and target_bill
+            and adjustment.employee_payroll_id == source_payroll.id
+            and adjustment.description in source_descriptions
+            and (not linked_bill_id or str(linked_bill_id) == str(target_bill.id))
+        ):
+            transfers.append(adjustment)
+        elif (
+            target_payroll
+            and adjustment.employee_payroll_id == target_payroll.id
+            and adjustment.description in target_descriptions
+            and (not linked_bill_id or str(linked_bill_id) == str(source_bill.id))
+        ):
+            transfers.append(adjustment)
+    for adjustment in transfers:
+        db.session.delete(adjustment)
+
+    if transfers:
+        source_bill.is_merged = False
+        db.session.add(source_bill)
+        db.session.flush()
+        current_app.logger.info(
+            "[RenewalPayrollTransfer] 月末续签 %s -> %s，已清理 %s 条错误员工工资转移",
+            source_contract.id,
+            successor.id,
+            len(transfers),
+        )
+
+    if transfers and recalculate:
+        from backend.services.billing_engine import BillingEngine
+
+        engine = BillingEngine()
+        engine.calculate_for_month(
+            source_bill.year,
+            source_bill.month,
+            contract_id=str(source_contract.id),
+            force_recalculate=True,
+            cycle_start_date_override=source_bill.cycle_start_date,
+            end_date_override=source_bill.cycle_end_date,
+        )
+        if target_bill:
+            engine.calculate_for_month(
+                target_bill.year,
+                target_bill.month,
+                contract_id=str(successor.id),
+                force_recalculate=True,
+                cycle_start_date_override=target_bill.cycle_start_date,
+                end_date_override=target_bill.cycle_end_date,
+            )
+
+    return len(transfers)
+
+
 def _find_transfer_adjustment(payroll_id, adjustment_type, description, linked_bill_id):
     query = FinancialAdjustment.query.filter(
         FinancialAdjustment.employee_payroll_id == payroll_id,
@@ -451,6 +585,16 @@ def sync_renewal_payroll_transfer(source_contract_id, year, month, recalculate=T
 
     successor = _find_successor_contract(source_contract)
     if not successor or str(successor.service_personnel_id) != str(source_contract.service_personnel_id):
+        return False
+
+    if is_month_end_renewal(source_contract, successor):
+        cleanup_month_end_renewal_payroll_transfers(
+            source_contract,
+            successor,
+            year,
+            month,
+            recalculate=recalculate,
+        )
         return False
 
     successor_start = _to_date(successor.start_date)
@@ -545,6 +689,16 @@ def sync_renewal_overtime_transfer(source_contract_id, year, month, recalculate=
 
     successor = _find_successor_contract(source_contract)
     if not successor or str(successor.service_personnel_id) != str(source_contract.service_personnel_id):
+        return False
+
+    if is_month_end_renewal(source_contract, successor):
+        cleanup_month_end_renewal_payroll_transfers(
+            source_contract,
+            successor,
+            year,
+            month,
+            recalculate=recalculate,
+        )
         return False
 
     successor_start = _to_date(successor.start_date)
