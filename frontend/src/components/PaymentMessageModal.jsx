@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import {
   Box, Button, Typography, Modal, TextField, DialogActions,
-  Select, MenuItem, FormControl, InputLabel, Grid, CircularProgress, IconButton, Tooltip
+  Select, MenuItem, FormControl, InputLabel, Grid, CircularProgress
 } from '@mui/material';
 import { ContentCopy as ContentCopyIcon } from '@mui/icons-material';
 import api from '../api/axios';
@@ -65,6 +66,8 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
 
   const handleBeautify = async () => {
     const dataToSend = {
+      bill_ids: initialMessage?.bill_ids || [],
+      company_account_id: selectedAccountId || null,
       company_summary: companyMessage,
       employee_summary: employeeMessage,
     };
@@ -194,6 +197,22 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
       </Box>
     </Modal>
   );
+};
+
+PaymentMessageModal.propTypes = {
+  open: PropTypes.bool.isRequired,
+  onClose: PropTypes.func.isRequired,
+  initialMessage: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.shape({
+      company_summary: PropTypes.string,
+      employee_summary: PropTypes.string,
+      bill_ids: PropTypes.arrayOf(
+        PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+      ),
+    }),
+  ]),
+  onAlert: PropTypes.func.isRequired,
 };
 
 export default PaymentMessageModal;
