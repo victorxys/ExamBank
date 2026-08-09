@@ -5446,12 +5446,12 @@ def serve_financial_record_upload(filename):
 
 
 
-from backend.services.dify_beautify_service import beautify_bill_with_dify
+from backend.services.dify_beautify_service import render_beautify_payload
 
 @billing_bp.route("/generate_payment_message", methods=["POST"])
 @admin_required
 def generate_payment_message():
-    data = request.get_json()
+    data = request.get_json() or {}
     bill_ids = data.get("bill_ids")
 
     if not bill_ids:
@@ -5459,51 +5459,46 @@ def generate_payment_message():
 
     try:
         generator = PaymentMessageGenerator()
-        message_data = generator.generate_for_bills(bill_ids)
-        message_data["bill_ids"] = [str(bill_id) for bill_id in bill_ids]
+        beautify_payload = generator.build_beautify_payload(bill_ids)
+        rendered = render_beautify_payload(beautify_payload)
+        db.session.commit()
+        message_data = {
+            "company_summary": rendered["company_beautified"],
+            "employee_summary": rendered["employee_beautified"],
+            "bill_ids": [str(bill_id) for bill_id in bill_ids],
+            "is_formatted": True,
+        }
         return jsonify(message_data)
     except Exception as e:
+        db.session.rollback()
         current_app.logger.error(f"生成催款消息失败: {e}", exc_info=True)
         return jsonify({"error": "生成消息时发生服务器内部错误"}), 500
 
 @billing_bp.route("/beautify-message", methods=["POST"])
 @admin_required
 def beautify_payment_message():
-    """通过 Dify（系统配置的 API 地址 + API Key）美化账单催款文案。"""
+    """根据权威账单数据生成固定格式的催款文案。"""
     data = request.get_json() or {}
-    company_summary = data.get("company_summary", "")
     employee_summary = data.get("employee_summary", "")
     bill_ids = data.get("bill_ids") or []
     company_account_id = data.get("company_account_id")
 
-    if not bill_ids and not company_summary and not employee_summary:
-        return jsonify({"error": "没有需要美化的内容"}), 400
-
-    user_id = get_jwt_identity()
+    if not bill_ids:
+        return jsonify({"error": "缺少 bill_ids 参数"}), 400
 
     try:
-        beautify_payload = None
-        if bill_ids:
-            beautify_payload = PaymentMessageGenerator().build_beautify_payload(
-                bill_ids,
-                company_account_id=company_account_id,
-                source_employee_summary=employee_summary,
-            )
-
-        beautified_data = beautify_bill_with_dify(
-            company_summary=company_summary,
-            employee_summary=employee_summary,
-            beautify_payload=beautify_payload,
-            user_id=user_id,
+        beautify_payload = PaymentMessageGenerator().build_beautify_payload(
+            bill_ids,
+            company_account_id=company_account_id,
+            source_employee_summary=employee_summary,
         )
-        return jsonify(beautified_data)
+        return jsonify(render_beautify_payload(beautify_payload))
     except Exception as e:
-        current_app.logger.error(f"美化账单信息失败: {e}", exc_info=True)
-        # 把可诊断的错误信息透出一部分，便于排查配置问题
-        err_msg = str(e) if e else "AI美化失败，请稍后重试"
+        current_app.logger.error(f"生成规范催款信息失败: {e}", exc_info=True)
+        err_msg = str(e) if e else "生成失败，请稍后重试"
         if len(err_msg) > 200:
             err_msg = err_msg[:200] + "..."
-        return jsonify({"error": f"AI美化失败: {err_msg}"}), 500
+        return jsonify({"error": f"生成规范催款信息失败: {err_msg}"}), 500
 
 @billing_bp.route("/company_bank_accounts", methods=["GET"])
 @admin_required

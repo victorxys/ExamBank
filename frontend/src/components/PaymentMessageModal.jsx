@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import {
   Box, Button, Typography, Modal, TextField, DialogActions,
-  Select, MenuItem, FormControl, InputLabel, Grid, CircularProgress
+  Select, MenuItem, FormControl, InputLabel, Grid
 } from '@mui/material';
 import { ContentCopy as ContentCopyIcon } from '@mui/icons-material';
 import api from '../api/axios';
@@ -13,19 +13,18 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
   const [bankAccounts, setBankAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [isBeautified, setIsBeautified] = useState(false);
-  const [isBeautifying, setIsBeautifying] = useState(false);
   const [isCompanyEditable, setIsCompanyEditable] = useState(true);
   const [isEmployeeEditable, setIsEmployeeEditable] = useState(true);
 
 
   useEffect(() => {
     if (open) {
+      const isFormatted = Boolean(initialMessage?.is_formatted);
       setCompanyMessage(initialMessage?.company_summary || '');
       setEmployeeMessage(initialMessage?.employee_summary || '');
-      setIsBeautified(false);
-      setIsBeautifying(false);
-      setIsCompanyEditable(true);
-      setIsEmployeeEditable(true);
+      setIsBeautified(isFormatted);
+      setIsCompanyEditable(!isFormatted);
+      setIsEmployeeEditable(!isFormatted);
 
 
       api.get('/billing/company_bank_accounts')
@@ -62,36 +61,6 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
             return prevMessage + '\n\n' + newBankInfo;
         }
     });
-  };
-
-  const handleBeautify = async () => {
-    const dataToSend = {
-      bill_ids: initialMessage?.bill_ids || [],
-      company_account_id: selectedAccountId || null,
-      company_summary: companyMessage,
-      employee_summary: employeeMessage,
-    };
-    // console.log("发送给AI美化的内容:", dataToSend);
-
-    setIsBeautifying(true);
-    try {
-      const response = await api.post('/billing/beautify-message', dataToSend);
-      
-      const companyText = response.data.company_beautified?.replace(/```/g, '') || '';
-      const employeeText = response.data.employee_beautified?.replace(/```/g, '') || '';
-
-      setCompanyMessage(companyText);
-      setEmployeeMessage(employeeText);
-      setIsBeautified(true);
-      setIsCompanyEditable(false);
-      setIsEmployeeEditable(false);
-      onAlert('AI美化成功！', 'success');
-    } catch (error) {
-      console.error("AI美化失败:", error);
-      onAlert(error.response?.data?.error || 'AI美化失败，请稍后重试', 'error');
-    } finally {
-      setIsBeautifying(false);
-    }
   };
 
   const handleCopyToClipboard = (text) => {
@@ -137,7 +106,7 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
         
         <Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
           <Grid item xs={12} md={6}>
-            <Typography variant="subtitle1" gutterBottom>{isBeautified ? 'AI美化 (对公部分)' : '对公部分'}</Typography>
+            <Typography variant="subtitle1" gutterBottom>{isBeautified ? '规范格式（对公部分）' : '对公部分'}</Typography>
             <TextField
               multiline
               fullWidth
@@ -162,7 +131,7 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
             </Box>
           </Grid>
           <Grid item xs={12} md={6}>
-            <Typography variant="subtitle1" gutterBottom>{isBeautified ? 'AI美化 (对员工)' : '对员工'}</Typography>
+            <Typography variant="subtitle1" gutterBottom>{isBeautified ? '规范格式（对员工）' : '对员工'}</Typography>
             <TextField
               multiline
               fullWidth
@@ -190,9 +159,6 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
 
         <DialogActions>
           <Button onClick={onClose}>关闭</Button>
-          <Button onClick={handleBeautify} variant="outlined" disabled={isBeautifying || isBeautified}>
-            {isBeautifying ? <CircularProgress size={24} /> : 'AI美化信息'}
-          </Button>
         </DialogActions>
       </Box>
     </Modal>
@@ -210,6 +176,7 @@ PaymentMessageModal.propTypes = {
       bill_ids: PropTypes.arrayOf(
         PropTypes.oneOfType([PropTypes.string, PropTypes.number])
       ),
+      is_formatted: PropTypes.bool,
     }),
   ]),
   onAlert: PropTypes.func.isRequired,

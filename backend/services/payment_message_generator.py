@@ -150,7 +150,7 @@ class PaymentMessageGenerator:
         company_account_id=None,
         source_employee_summary="",
     ) -> dict:
-        """Build the complete, authoritative payload sent to Dify in one request."""
+        """Build the authoritative payload used by the fixed backend renderer."""
         bills = (
             CustomerBill.query.filter(CustomerBill.id.in_(bill_ids))
             .order_by(CustomerBill.cycle_start_date)

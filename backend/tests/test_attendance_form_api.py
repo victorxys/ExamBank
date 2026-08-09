@@ -15,7 +15,10 @@ from backend.services.attendance_sync_service import (
     normalize_auto_overtime_form_data,
     strip_client_derived_auto_overtime,
 )
-from backend.services.dify_beautify_service import enforce_beautify_payload_contract
+from backend.services.dify_beautify_service import (
+    enforce_beautify_payload_contract,
+    render_beautify_payload,
+)
 from backend.services.payment_message_generator import (
     PaymentMessageGenerator,
     _duration_display,
@@ -134,6 +137,18 @@ def test_bill_beautify_falls_back_when_model_rounds_days_and_drops_link():
     )
     assert "费用共30.917天×(10100元÷ 26天) =12010.00元" in result["employee_beautified"]
     assert "12010.00元" in result["employee_beautified"]
+    assert "https://wxmpurl.cn/test-link" in result["employee_beautified"]
+
+
+def test_bill_beautify_payload_is_rendered_deterministically():
+    result = render_beautify_payload(_bill_beautify_payload())
+
+    assert result["company_beautified"] == ""
+    assert (
+        "出勤26天，加班4天22小时（4.917天），休息2小时（0.083天）"
+        in result["employee_beautified"]
+    )
+    assert "费用共30.917天×(10100元÷ 26天) =12010.00元" in result["employee_beautified"]
     assert "https://wxmpurl.cn/test-link" in result["employee_beautified"]
 
 

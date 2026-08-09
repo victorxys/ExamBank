@@ -274,3 +274,4 @@ software-copyright-redesign/
 
 test*.py
 !backend/tests/test_renewal_payroll_transfer.py
+!backend/tests/test_auto_renew_billing_task.py
