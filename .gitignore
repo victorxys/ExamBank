@@ -239,6 +239,7 @@ scripts/*
 !scripts/resync_signed_attendance_forms.py
 !scripts/fix_june_holiday_overtime_billing.py
 !scripts/audit_attendance_billing_consistency.py
+!scripts/cleanup_month_end_renewal_payroll_transfers.py
 commit_message.txt
 
 design_proposals/
@@ -256,6 +257,9 @@ pdf-style.css
 debug*
 *.md
 test*
+!backend/tests/
+backend/tests/*
+!backend/tests/test_renewal_payroll_transfer.py
 docs/
 !docs/
 docs/*
@@ -269,3 +273,4 @@ microservices/
 software-copyright-redesign/
 
 test*.py
+!backend/tests/test_renewal_payroll_transfer.py

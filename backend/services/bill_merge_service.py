@@ -11,6 +11,7 @@ from backend.services.renewal_sync_service import (
     OVERTIME_TRANSFER_TARGET_DESCRIPTION,
     calculate_base_payroll_transfer_amount,
     calculate_overtime_payroll_transfer_amount,
+    is_month_end_renewal,
 )
 
 D = decimal.Decimal
@@ -43,6 +44,8 @@ class BillMergeService:
         target_contract = BaseContract.query.get(target_contract_id)
         if not target_contract:
             raise ValueError("目标合同未找到")
+        if is_month_end_renewal(source_bill.contract, target_contract):
+            raise ValueError("自然月末续签无需合并账单，员工工资应保留在原月份。")
 
         target_bill = CustomerBill.query.filter(
             CustomerBill.contract_id == target_contract_id

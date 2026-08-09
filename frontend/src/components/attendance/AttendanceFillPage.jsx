@@ -41,6 +41,33 @@ const formatDays = (totalDays) => {
     return `${Number(totalDays || 0).toFixed(2)}天`;
 };
 
+// 与小程序 attendance.js 保持一致：汇总仅在存在不足整天的部分时补充易读时长。
+const formatDaysHours = (value) => {
+    const total = Math.max(0, Number(value || 0));
+    const days = Math.floor(total);
+    const hours = (total - days) * 24;
+    const roundedHours = Math.round(hours * 10) / 10;
+    if (roundedHours >= 24 || roundedHours <= 0) return '';
+    const hourText = Math.abs(roundedHours - Math.round(roundedHours)) < 0.05
+        ? String(Math.round(roundedHours))
+        : roundedHours.toFixed(1).replace(/\.0$/, '');
+    if (days <= 0) return `${hourText}小时`;
+    return `${days}天${hourText}小时`;
+};
+
+// 与小程序详情一致：记录时长始终优先显示为“天+小时”。
+const formatHoursText = (hours) => {
+    const total = Math.max(0, Number(hours || 0));
+    const days = Math.floor(total / 24);
+    const remainder = Math.round((total - days * 24) * 10) / 10;
+    if (remainder <= 0) return days > 0 ? `${days}天` : '';
+    const hourText = Math.abs(remainder - Math.round(remainder)) < 0.05
+        ? String(Math.round(remainder))
+        : remainder.toFixed(1).replace(/\.0$/, '');
+    if (days <= 0) return `${hourText}小时`;
+    return `${days}天${hourText}小时`;
+};
+
 const timeToMinutesForDisplay = (time, fallback = 0) => {
     if (!time) return fallback;
     const [rawHours, rawMinutes] = String(time).split(':').map(Number);
@@ -2398,14 +2425,23 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                         <div className="grid grid-cols-3 gap-3 text-center divide-x divide-gray-100">
                             <div>
                                 <div className="text-2xl font-black text-gray-900">{formatDays(totalWorkDays)}</div>
+                                <div className="min-h-4 text-[11px] font-semibold text-gray-500 mt-0.5">
+                                    {formatDaysHours(totalWorkDays)}
+                                </div>
                                 <div className="text-[11px] font-medium text-gray-400 mt-1">出勤(天)</div>
                             </div>
                             <div>
                                 <div className="text-2xl font-black text-orange-500">{formatDays(totalLeaveDays)}</div>
+                                <div className="min-h-4 text-[11px] font-semibold text-orange-500 mt-0.5">
+                                    {formatDaysHours(totalLeaveDays)}
+                                </div>
                                 <div className="text-[11px] font-medium text-gray-400 mt-1">请假/休假</div>
                             </div>
                             <div>
                                 <div className="text-2xl font-black text-green-600">{formatDays(totalOvertimeDays)}</div>
+                                <div className="min-h-4 text-[11px] font-semibold text-green-600 mt-0.5">
+                                    {formatDaysHours(totalOvertimeDays)}
+                                </div>
                                 <div className="text-[11px] font-medium text-gray-400 mt-1">加班(天)</div>
                             </div>
                         </div>
@@ -2655,6 +2691,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                     )
                                     : ((record.hours || 0) + (record.minutes || 0) / 60);
                                 const durationText = formatDuration(detailHours, 0);
+                                const durationHoursText = formatHoursText(detailHours);
                                 const detailNote = getSpecialRecordDetailText(record, formData, attendanceData);
                                 const onboardingAttendanceLink = getOnboardingAttendanceLink(record, formData, attendanceData);
                                 const showReturnAttendanceAction = record.type === 'onboarding' && Boolean(returnAttendanceLink);
@@ -2768,6 +2805,11 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                             <div className="text-sm font-bold text-gray-900">
                                                 {durationText}
                                             </div>
+                                            {durationHoursText && (
+                                                <div className="mt-0.5 text-xs font-semibold text-gray-500">
+                                                    {durationHoursText}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 );
