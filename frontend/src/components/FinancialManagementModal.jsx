@@ -1961,60 +1961,50 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                     <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '8rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
                                         {billingDetails?.display_month ? `${parseInt(billingDetails.display_month.split('-')[1], 10)}月` : ''}
                                     </Box>
-                                    <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
-                                        员工薪酬 ~
-                                        <Typography variant="h5" component="span" color="text.secondary">
-                                            {employeeData?.employee_name || contract?.employee_name}
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap', mb: 0.35 }}>
+                                        <Typography variant="h3" component="div">
+                                            员工薪酬 ~
+                                            <Typography variant="h5" component="span" color="text.secondary">
+                                                {employeeData?.employee_name || contract?.employee_name}
+                                            </Typography>
+                                            {employeeData.calculation_details?.type === 'substitute' && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
                                         </Typography>
-                                        {employeeData.calculation_details?.type === 'substitute' && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
-                                    </Typography>
-                                    {employeeData?.id && (
-                                        <Alert
-                                            severity={payrollMiniappLink?.miniapp_url ? 'success' : 'info'}
-                                            icon={<SmartphoneIcon fontSize="small" />}
-                                            sx={{
-                                                mb: 2,
-                                                py: 0.75,
-                                                '& .MuiAlert-message': { width: '100%' },
-                                            }}
-                                        >
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
-                                                <Box sx={{ minWidth: 0 }}>
-                                                    <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                                                        客户小程序工资单
-                                                    </Typography>
-                                                    <Typography variant="caption" color="text.secondary">
-                                                        运营可先打开查看，再在小程序内分享给客户确认应付劳务费。
-                                                    </Typography>
-                                                    {payrollMiniappLink?.miniapp_error && (
-                                                        <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 0.5 }}>
-                                                            {payrollMiniappLink.miniapp_error}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                                <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-                                                    <Button
-                                                        size="small"
-                                                        variant="outlined"
-                                                        startIcon={isLoadingPayrollMiniappLink ? <CircularProgress size={14} /> : <SmartphoneIcon fontSize="small" />}
-                                                        disabled={isLoadingPayrollMiniappLink}
-                                                        onClick={handleOpenPayrollMiniappLink}
-                                                    >
-                                                        打开小程序
-                                                    </Button>
-                                                    <Button
-                                                        size="small"
-                                                        variant={copiedPayrollMiniappLink ? 'contained' : 'outlined'}
-                                                        startIcon={copiedPayrollMiniappLink ? <CheckCircleIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
-                                                        disabled={isLoadingPayrollMiniappLink}
-                                                        onClick={handleCopyPayrollMiniappLink}
-                                                    >
-                                                        {copiedPayrollMiniappLink ? '已复制' : '复制链接'}
-                                                    </Button>
-                                                </Box>
+                                        {employeeData?.id && (
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                                                <Typography variant="body2" color={payrollMiniappLink?.miniapp_error ? 'warning.main' : 'text.secondary'}>
+                                                    小程序工资单
+                                                </Typography>
+                                                <Tooltip title={payrollMiniappLink?.miniapp_error || '打开客户小程序工资单'}>
+                                                    <span>
+                                                        <Button
+                                                            size="small"
+                                                            variant="outlined"
+                                                            startIcon={isLoadingPayrollMiniappLink ? <CircularProgress size={14} /> : <SmartphoneIcon fontSize="small" />}
+                                                            disabled={isLoadingPayrollMiniappLink}
+                                                            onClick={handleOpenPayrollMiniappLink}
+                                                            sx={{ minWidth: 0, px: 1 }}
+                                                        >
+                                                            打开
+                                                        </Button>
+                                                    </span>
+                                                </Tooltip>
+                                                <Tooltip title={payrollMiniappLink?.miniapp_error || '复制客户小程序工资单链接'}>
+                                                    <span>
+                                                        <Button
+                                                            size="small"
+                                                            variant={copiedPayrollMiniappLink ? 'contained' : 'outlined'}
+                                                            startIcon={copiedPayrollMiniappLink ? <CheckCircleIcon fontSize="small" /> : <ContentCopyIcon fontSize="small" />}
+                                                            disabled={isLoadingPayrollMiniappLink}
+                                                            onClick={handleCopyPayrollMiniappLink}
+                                                            sx={{ minWidth: 0, px: 1 }}
+                                                        >
+                                                            {copiedPayrollMiniappLink ? '已复制' : '复制'}
+                                                        </Button>
+                                                    </span>
+                                                </Tooltip>
                                             </Box>
-                                        </Alert>
-                                    )}
+                                        )}
+                                    </Box>
                                     {renderCardContent(employeeData, false, billingDetails)}
                                 </Paper>
                             </Grid>

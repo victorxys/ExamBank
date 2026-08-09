@@ -2544,12 +2544,6 @@ def setup_periodic_tasks(sender, **kwargs):
         reset_daily_tts_usage_task.s(),
         name="reset daily tts usage at midnight",
     )
-    # Crontab for auto-renewal bill generation
-    sender.add_periodic_task(
-        crontab(minute="1", hour="0", day_of_week="1"),  # 每周一 00:01
-        auto_check_and_extend_renewal_bills_task.s(),
-        name="auto check and extend renewal bills every monday",
-    )
     # Crontab for syncing contracts from Jinshuju
     sender.add_periodic_task(
         crontab(minute=0, hour='*'),  # 每小时的0分执行
@@ -2562,7 +2556,7 @@ def setup_periodic_tasks(sender, **kwargs):
 def auto_check_and_extend_renewal_bills_task(self):
     """
     每周检查所有自动续约合同，并确保它们的账单已经生成到未来11个月。
-    由 Celery Beat 定时触发 (每周一 00:01)。
+    由 celeryconfig.py 中的 Celery Beat 调度定时触发。
     """
     app = create_flask_app_for_task()
     with app.app_context():
@@ -2574,36 +2568,61 @@ def auto_check_and_extend_renewal_bills_task(self):
         contracts_to_check = NannyContract.query.filter(
             NannyContract.is_monthly_auto_renew, NannyContract.status == "active"
         ).all()
+        contract_ids = [str(contract.id) for contract in contracts_to_check]
 
         task_logger.info(
-            f"[AutoRenewCheckTask] 找到 {len(contracts_to_check)} 个需要检查的自动续约合同。"
+            f"[AutoRenewCheckTask] 找到 {len(contract_ids)} 个需要检查的自动续约合同。"
         )
 
-        if not contracts_to_check:
-            return {"status": "Success", "message": "没有需要检查的合同。"}
+        if not contract_ids:
+            return {
+                "status": "Success",
+                "message": "没有需要检查的合同。",
+                "processed": 0,
+                "failed": 0,
+                "failed_contract_ids": [],
+            }
 
         engine = BillingEngine()
         processed_count = 0
+        failed_contract_ids = []
 
-        for contract in contracts_to_check:
+        for contract_id in contract_ids:
             try:
                 task_logger.info(
-                    f"[AutoRenewCheckTask] 正在检查合同 ID: {contract.id}..."
+                    f"[AutoRenewCheckTask] 正在检查合同 ID: {contract_id}..."
                 )
-                engine.extend_auto_renew_bills(contract.id)
+                engine.extend_auto_renew_bills(contract_id)
+                db.session.commit()
                 processed_count += 1
             except Exception as e:
+                db.session.rollback()
+                failed_contract_ids.append(contract_id)
                 task_logger.error(
-                    f"[AutoRenewCheckTask] 处理合同 {contract.id} 时发生错误: {e}",
+                    f"[AutoRenewCheckTask] 处理合同 {contract_id} 时发生错误: {e}",
                     exc_info=True,
                 )
 
-        final_message = f"每周自动续约检查任务完成。共处理 {processed_count} 个合同。"
-        task_logger.info(f"[AutoRenewCheckTask] {final_message}")
+        failed_count = len(failed_contract_ids)
+        if failed_count == 0:
+            status = "Success"
+        elif processed_count == 0:
+            status = "Failed"
+        else:
+            status = "PartialSuccess"
+
+        final_message = (
+            f"每周自动续约检查任务完成。"
+            f"成功 {processed_count} 个，失败 {failed_count} 个。"
+        )
+        log_method = task_logger.info if failed_count == 0 else task_logger.warning
+        log_method(f"[AutoRenewCheckTask] {final_message}")
         return {
-            "status": "Success",
+            "status": status,
             "message": final_message,
             "processed": processed_count,
+            "failed": failed_count,
+            "failed_contract_ids": failed_contract_ids,
         }
 
 

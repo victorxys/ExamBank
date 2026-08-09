@@ -727,6 +727,19 @@ def _remove_zero_calculation_lines(text: str) -> str:
     return "\n".join(kept_lines)
 
 
+def render_beautify_payload(payload: dict) -> dict:
+    """Render the structured bill payload without calling an external model."""
+    payload = payload or {}
+    return {
+        "company_beautified": _remove_zero_calculation_lines(
+            _render_company_fallback(payload.get("company_bills") or [])
+        ),
+        "employee_beautified": _remove_zero_calculation_lines(
+            _render_employee_fallback(payload.get("employee_bills") or [])
+        ),
+    }
+
+
 def enforce_beautify_payload_contract(parsed: dict, payload: dict) -> dict:
     """Reject incomplete or rounded model text in favor of deterministic output."""
     company_items = payload.get("company_bills") or []
