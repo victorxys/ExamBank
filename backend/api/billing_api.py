@@ -5460,6 +5460,7 @@ def generate_payment_message():
     try:
         generator = PaymentMessageGenerator()
         message_data = generator.generate_for_bills(bill_ids)
+        message_data["bill_ids"] = [str(bill_id) for bill_id in bill_ids]
         return jsonify(message_data)
     except Exception as e:
         current_app.logger.error(f"生成催款消息失败: {e}", exc_info=True)
@@ -5472,16 +5473,27 @@ def beautify_payment_message():
     data = request.get_json() or {}
     company_summary = data.get("company_summary", "")
     employee_summary = data.get("employee_summary", "")
+    bill_ids = data.get("bill_ids") or []
+    company_account_id = data.get("company_account_id")
 
-    if not company_summary and not employee_summary:
+    if not bill_ids and not company_summary and not employee_summary:
         return jsonify({"error": "没有需要美化的内容"}), 400
 
     user_id = get_jwt_identity()
 
     try:
+        beautify_payload = None
+        if bill_ids:
+            beautify_payload = PaymentMessageGenerator().build_beautify_payload(
+                bill_ids,
+                company_account_id=company_account_id,
+                source_employee_summary=employee_summary,
+            )
+
         beautified_data = beautify_bill_with_dify(
             company_summary=company_summary,
             employee_summary=employee_summary,
+            beautify_payload=beautify_payload,
             user_id=user_id,
         )
         return jsonify(beautified_data)

@@ -606,9 +606,158 @@ def call_dify_chat(
             return answer_text, payload
 
 
+def _render_bank_account(account: dict) -> list[str]:
+    if not isinstance(account, dict):
+        return []
+    lines = []
+    if account.get("holder"):
+        lines.append(f"户名：{account['holder']}")
+    if account.get("account"):
+        lines.append(f"帐号：{account['account']}")
+    if account.get("bank"):
+        lines.append(f"银行：{account['bank']}")
+    return lines
+
+
+def _render_company_fallback(items: list[dict]) -> str:
+    blocks = []
+    for item in items or []:
+        lines = [
+            f"{item.get('customer_name', '')}“管理费”",
+            f"服务周期: {item.get('service_start', '')} ~ {item.get('service_end', '')}",
+        ]
+        if item.get("display_mode") == "management_fee_only":
+            lines.append(f"应付：{item.get('pending_amount_display', '0.00')}元")
+        else:
+            for line_item in item.get("line_items") or []:
+                name = line_item.get("name") or "费用"
+                calculation = line_item.get("calculation") or ""
+                lines.append(f"{name}: {calculation}")
+            lines.append(f"本次应付：{item.get('pending_amount_display', '0.00')}元")
+        bank_lines = _render_bank_account(item.get("bank_account") or {})
+        if bank_lines:
+            lines.append("")
+            lines.extend(bank_lines)
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
+
+
+def _render_employee_fallback(items: list[dict]) -> str:
+    blocks = []
+    for item in items or []:
+        attendance = item.get("attendance") or {}
+        rest = attendance.get("rest") or {}
+        overtime = attendance.get("overtime") or {}
+        attendance_parts = [f"出勤{attendance.get('worked_days_display', '0')}天"]
+        for label, detail in (("加班", overtime), ("休息", rest)):
+            try:
+                total_hours = float(detail.get("total_hours") or 0)
+            except (TypeError, ValueError):
+                total_hours = 0
+            if total_hours <= 0:
+                continue
+            part = f"{label}{detail.get('duration_display', '')}"
+            if detail.get("show_calculation_days"):
+                part += f"（{detail.get('calculation_days_display', '0')}天）"
+            attendance_parts.append(part)
+        lines = [
+            f"{item.get('employee_name', '')}“劳务费”",
+            f"服务周期: {item.get('service_start', '')} ~ {item.get('service_end', '')}",
+            "，".join(attendance_parts),
+            (
+                f"费用共{item.get('payable_days_display', '0')}天×"
+                f"({item.get('salary_base_display', '0')}元÷ 26天) "
+                f"={item.get('formula_total_display', '0.00')}元"
+            ),
+        ]
+        lines.append(
+            "💰 本次您需支付员工款项: "
+            f"{item.get('pending_amount_display', '0.00')}元"
+        )
+        bank_lines = _render_bank_account(item.get("bank_account") or {})
+        if bank_lines:
+            lines.append("")
+            lines.extend(bank_lines)
+        miniapp_url = (item.get("miniapp_url") or "").strip()
+        if miniapp_url:
+            lines.extend(["", "客户小程序工资单（点击打开）:", miniapp_url])
+        blocks.append("\n".join(lines))
+    return "\n\n".join(blocks)
+
+
+def _company_result_is_complete(text: str, items: list[dict]) -> bool:
+    if not items:
+        return not text.strip()
+    if not text.strip():
+        return False
+    for item in items:
+        account = item.get("bank_account") or {}
+        required = (
+            item.get("customer_name"),
+            item.get("service_start"),
+            item.get("service_end"),
+            account.get("holder"),
+            account.get("account"),
+            account.get("bank"),
+        )
+        if not all(str(value) in text for value in required if value):
+            return False
+        amount = re.escape(str(item.get("pending_amount_display") or ""))
+        if amount and not re.search(
+            rf"(?:应付|应收|应退|费用总计|本次应付)[^\n]{{0,40}}{amount}\s*元",
+            text,
+        ):
+            return False
+    return True
+
+
+def _employee_result_is_complete(text: str, items: list[dict]) -> bool:
+    if not items:
+        return not text.strip()
+    expected = _render_employee_fallback(items)
+    return text.strip() == expected.strip()
+
+
+def _remove_zero_calculation_lines(text: str) -> str:
+    kept_lines = [
+        line
+        for line in (text or "").splitlines()
+        if not re.search(r"=\s*[+-]?0(?:\.0+)?\s*(?:元)?\s*$", line)
+    ]
+    return "\n".join(kept_lines)
+
+
+def enforce_beautify_payload_contract(parsed: dict, payload: dict) -> dict:
+    """Reject incomplete or rounded model text in favor of deterministic output."""
+    company_items = payload.get("company_bills") or []
+    employee_items = payload.get("employee_bills") or []
+    company_text = parsed.get("company_beautified") or ""
+    employee_text = parsed.get("employee_beautified") or ""
+    result = {
+        "company_beautified": (
+            company_text
+            if _company_result_is_complete(company_text, company_items)
+            else _render_company_fallback(company_items)
+        ),
+        "employee_beautified": (
+            employee_text
+            if _employee_result_is_complete(employee_text, employee_items)
+            else _render_employee_fallback(employee_items)
+        ),
+    }
+    result["company_beautified"] = _remove_zero_calculation_lines(
+        result["company_beautified"]
+    )
+    result["employee_beautified"] = _remove_zero_calculation_lines(
+        result["employee_beautified"]
+    )
+    return result
+
+
 def beautify_bill_with_dify(
     company_summary: str = "",
     employee_summary: str = "",
+    beautify_payload: Optional[dict] = None,
     user_id=None,
 ) -> dict:
     """
@@ -634,15 +783,21 @@ def beautify_bill_with_dify(
     if not api_key:
         raise Exception(f"未能获取 API Key: {api_key_name}")
 
-    query_text = (
-        f"【应付公司款项】\n{company_summary or ''}\n\n"
-        f"【应付员工款项】\n{employee_summary or ''}"
-    )
+    if beautify_payload:
+        query_text = json.dumps(beautify_payload, ensure_ascii=False, indent=2)
+    else:
+        query_text = (
+            f"【应付公司款项】\n{company_summary or ''}\n\n"
+            f"【应付员工款项】\n{employee_summary or ''}"
+        )
     user_str = str(user_id) if user_id else "examdb-bill-beautify"
 
     log_input = {
-        "company_summary_preview": (company_summary or "")[:300],
-        "employee_summary_preview": (employee_summary or "")[:300],
+        "schema_version": (
+            beautify_payload.get("schema_version") if beautify_payload else "legacy_text"
+        ),
+        "company_bill_count": len(beautify_payload.get("company_bills") or []) if beautify_payload else None,
+        "employee_bill_count": len(beautify_payload.get("employee_bills") or []) if beautify_payload else None,
         "api_base_url": config.get("api_base_url"),
         "app_mode": config.get("app_mode"),
         "api_key_name": resolved_key_name,
@@ -668,17 +823,28 @@ def beautify_bill_with_dify(
             timeout_seconds=int(config.get("timeout_seconds") or 180),
         )
 
-        parsed = _normalize_beautified_result(_extract_json_object(answer_text))
-        # 修正：员工侧「您应付/劳务费标题」误用客户名 → 改为员工名
-        parsed["employee_beautified"] = correct_employee_payee_names(
-            employee_summary or "",
-            parsed.get("employee_beautified") or "",
-        )
-        # 兜底：原文中的小程序/https 链接若被模型丢掉，补回员工美化结果
-        parsed["employee_beautified"] = ensure_urls_preserved_in_text(
-            employee_summary or "",
-            parsed.get("employee_beautified") or "",
-        )
+        try:
+            parsed = _normalize_beautified_result(_extract_json_object(answer_text))
+        except ValueError:
+            if not beautify_payload:
+                raise
+            current_app.logger.warning(
+                "Dify 账单美化返回无法解析，已使用 V2 确定性模板",
+                exc_info=True,
+            )
+            parsed = {"company_beautified": "", "employee_beautified": ""}
+        if beautify_payload:
+            parsed = enforce_beautify_payload_contract(parsed, beautify_payload)
+        else:
+            # 旧前端兼容路径：继续处理历史自由文本输入。
+            parsed["employee_beautified"] = correct_employee_payee_names(
+                employee_summary or "",
+                parsed.get("employee_beautified") or "",
+            )
+            parsed["employee_beautified"] = ensure_urls_preserved_in_text(
+                employee_summary or "",
+                parsed.get("employee_beautified") or "",
+            )
         duration_ms = int((time.time() - start_time) * 1000)
         if log_id:
             update_llm_log_result(

@@ -15,10 +15,265 @@ from backend.services.attendance_sync_service import (
     normalize_auto_overtime_form_data,
     strip_client_derived_auto_overtime,
 )
+from backend.services.dify_beautify_service import enforce_beautify_payload_contract
+from backend.services.payment_message_generator import (
+    PaymentMessageGenerator,
+    _duration_display,
+)
 from datetime import date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 import uuid
+
+
+def test_bill_beautify_attendance_preserves_hours_and_three_decimal_days(monkeypatch):
+    bill = SimpleNamespace(
+        actual_work_days=Decimal("26.000"),
+        calculation_details={
+            "base_work_days": "26.000",
+            "overtime_days": "4.917",
+        },
+        cycle_start_date=datetime(2026, 7, 1),
+        cycle_end_date=datetime(2026, 7, 31),
+    )
+    attendance = SimpleNamespace(
+        total_days_worked=Decimal("26.00"),
+        overtime_days=Decimal("4.917"),
+        attendance_details={
+            "rest_days": 2 / 24,
+            "overtime_days": 118 / 24,
+            "raw_data": {
+                "rest_records": [
+                    {"date": "2026-07-28", "hours": 2, "minutes": 0}
+                ],
+                "overtime_records": [
+                    {"date": "2026-07-27", "hours": 24, "minutes": 0},
+                    {
+                        "date": "2026-07-28",
+                        "hours": 94,
+                        "minutes": 0,
+                        "daysOffset": 3,
+                    },
+                ],
+            },
+        },
+    )
+    generator = PaymentMessageGenerator.__new__(PaymentMessageGenerator)
+    monkeypatch.setattr(generator, "_attendance_for_bill", lambda _bill: attendance)
+
+    metrics = generator._attendance_metrics(bill)
+
+    assert metrics["worked_days"] == Decimal("26.000")
+    assert metrics["rest_hours"].quantize(Decimal("0.01")) == Decimal("2.00")
+    assert metrics["rest_days"].quantize(Decimal("0.001")) == Decimal("0.083")
+    assert metrics["overtime_hours"].quantize(Decimal("0.01")) == Decimal("118.00")
+    assert metrics["overtime_days"] == Decimal("4.917")
+    assert _duration_display(metrics["overtime_hours"]) == "4天22小时"
+    assert _duration_display(Decimal("168")) == "7天"
+    assert _duration_display(Decimal("26.5")) == "1天2小时30分钟"
+
+
+def _bill_beautify_payload():
+    return {
+        "schema_version": "bill_beautify_v2",
+        "company_bills": [],
+        "employee_bills": [
+            {
+                "employee_name": "刘燕风",
+                "service_start": "2026-07-01",
+                "service_end": "2026-07-31",
+                "attendance": {
+                    "worked_days_display": "26",
+                    "rest": {
+                        "duration_display": "2小时",
+                        "total_hours": "2.00",
+                        "calculation_days": "0.083",
+                        "calculation_days_display": "0.083",
+                        "show_calculation_days": True,
+                    },
+                    "overtime": {
+                        "duration_display": "4天22小时",
+                        "total_hours": "118.00",
+                        "calculation_days": "4.917",
+                        "calculation_days_display": "4.917",
+                        "show_calculation_days": True,
+                    },
+                },
+                "payable_days": "30.917",
+                "payable_days_display": "30.917",
+                "salary_base_display": "10100",
+                "formula_total_display": "12010.00",
+                "pending_amount_display": "12010.00",
+                "bank_account": {
+                    "holder": "刘燕风",
+                    "account": "TEST-ACCOUNT",
+                    "bank": "测试银行",
+                },
+                "miniapp_url": "https://wxmpurl.cn/test-link",
+            }
+        ],
+    }
+
+
+def test_bill_beautify_falls_back_when_model_rounds_days_and_drops_link():
+    parsed = {
+        "company_beautified": "",
+        "employee_beautified": (
+            "刘燕风“劳务费”\n"
+            "服务周期: 2026-07-01 ~ 2026-07-31\n"
+            "出勤26天，加班5天\n"
+            "💰 本次您需支付员工款项: 12010.00元"
+        ),
+    }
+
+    result = enforce_beautify_payload_contract(parsed, _bill_beautify_payload())
+
+    assert (
+        "出勤26天，加班4天22小时（4.917天），休息2小时（0.083天）"
+        in result["employee_beautified"]
+    )
+    assert "费用共30.917天×(10100元÷ 26天) =12010.00元" in result["employee_beautified"]
+    assert "12010.00元" in result["employee_beautified"]
+    assert "https://wxmpurl.cn/test-link" in result["employee_beautified"]
+
+
+def test_bill_beautify_keeps_complete_model_result():
+    complete = (
+        "刘燕风“劳务费”\n"
+        "服务周期: 2026-07-01 ~ 2026-07-31\n"
+        "出勤26天，加班4天22小时（4.917天），休息2小时（0.083天）\n"
+        "费用共30.917天×(10100元÷ 26天) =12010.00元\n"
+        "💰 本次您需支付员工款项: 12010.00元\n"
+        "\n"
+        "户名：刘燕风\n"
+        "帐号：TEST-ACCOUNT\n"
+        "银行：测试银行\n"
+        "\n"
+        "客户小程序工资单（点击打开）:\n"
+        "https://wxmpurl.cn/test-link"
+    )
+    parsed = {"company_beautified": "", "employee_beautified": complete}
+
+    result = enforce_beautify_payload_contract(parsed, _bill_beautify_payload())
+
+    assert result["employee_beautified"] == complete
+
+
+def test_bill_beautify_removes_model_invented_zero_calculation_line():
+    complete_with_zero_line = (
+        "刘燕风“劳务费”\n"
+        "服务周期: 2026-07-01 ~ 2026-07-31\n"
+        "出勤26天，加班4天22小时（4.917天），休息2小时（0.083天）\n"
+        "费用共30.917天×(10100元÷ 26天) =12010.00元\n"
+        "加班费: 级别(10100.00) / 26 * 加班天数(0.000) = 0.00\n"
+        "💰 本次您需支付员工款项: 12010.00元\n"
+        "户名：刘燕风\n"
+        "帐号：TEST-ACCOUNT\n"
+        "银行：测试银行\n"
+        "https://wxmpurl.cn/test-link"
+    )
+
+    result = enforce_beautify_payload_contract(
+        {
+            "company_beautified": "",
+            "employee_beautified": complete_with_zero_line,
+        },
+        _bill_beautify_payload(),
+    )
+
+    assert "加班费:" not in result["employee_beautified"]
+    assert "本次您需支付员工款项: 12010.00元" in result["employee_beautified"]
+
+
+def test_bill_beautify_rejects_nonzero_legacy_calculation_detail():
+    verbose = (
+        "刘燕风“劳务费”\n"
+        "服务周期: 2026-07-01 ~ 2026-07-31\n"
+        "出勤26天，加班4天22小时（4.917天），休息2小时（0.083天）\n"
+        "基础劳务费: 级别(10100.00) / 26 * 基本劳务天数(26.000) = 10100.00\n"
+        "费用共30.917天×(10100元÷ 26天) =12010.00元\n"
+        "💰 本次您需支付员工款项: 12010.00元\n\n"
+        "户名：刘燕风\n"
+        "帐号：TEST-ACCOUNT\n"
+        "银行：测试银行\n\n"
+        "客户小程序工资单（点击打开）:\n"
+        "https://wxmpurl.cn/test-link"
+    )
+
+    result = enforce_beautify_payload_contract(
+        {"company_beautified": "", "employee_beautified": verbose},
+        _bill_beautify_payload(),
+    )
+
+    assert "基础劳务费:" not in result["employee_beautified"]
+    assert "费用共30.917天×(10100元÷ 26天) =12010.00元" in result["employee_beautified"]
+
+
+def test_bill_beautify_omits_zero_segments_and_fraction_for_whole_days():
+    payload = _bill_beautify_payload()
+    item = payload["employee_bills"][0]
+    item["attendance"]["overtime"] = {
+        "duration_display": "5天",
+        "total_hours": "120.00",
+        "calculation_days": "5.000",
+        "calculation_days_display": "5",
+        "show_calculation_days": False,
+    }
+    item["attendance"]["rest"] = {
+        "duration_display": "0小时",
+        "total_hours": "0.00",
+        "calculation_days": "0.000",
+        "calculation_days_display": "0",
+        "show_calculation_days": False,
+    }
+    item["payable_days"] = "31.000"
+    item["payable_days_display"] = "31"
+
+    result = enforce_beautify_payload_contract(
+        {"company_beautified": "", "employee_beautified": ""},
+        payload,
+    )
+
+    assert "出勤26天，加班5天" in result["employee_beautified"]
+    assert "加班5天（5天）" not in result["employee_beautified"]
+    assert "休息" not in result["employee_beautified"]
+    assert "费用共31天×" in result["employee_beautified"]
+
+
+def test_bill_beautify_management_fee_fallback_is_compact_and_complete():
+    payload = {
+        "schema_version": "bill_beautify_v2",
+        "company_bills": [
+            {
+                "display_mode": "management_fee_only",
+                "customer_name": "许静",
+                "service_start": "2026-08-01",
+                "service_end": "2026-08-31",
+                "pending_amount_display": "800.00",
+                "bank_account": {
+                    "holder": "北京家福安家政服务有限公司",
+                    "account": "TEST-COMPANY-ACCOUNT",
+                    "bank": "测试公司银行",
+                },
+            }
+        ],
+        "employee_bills": [],
+    }
+    parsed = {
+        "company_beautified": "许静“管理费”\n服务周期: 2026-08-01 ~ 2026-08-31",
+        "employee_beautified": "",
+    }
+
+    result = enforce_beautify_payload_contract(parsed, payload)
+
+    assert result["company_beautified"] == (
+        "许静“管理费”\n"
+        "服务周期: 2026-08-01 ~ 2026-08-31\n"
+        "应付：800.00元\n\n"
+        "户名：北京家福安家政服务有限公司\n"
+        "帐号：TEST-COMPANY-ACCOUNT\n"
+        "银行：测试公司银行"
+    )
 
 
 def test_trial_conversion_is_continuous_when_service_periods_overlap():
