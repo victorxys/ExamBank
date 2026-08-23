@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 import calendar
 from decimal import Decimal, InvalidOperation
+import html
 import os
 import re
 import time
@@ -214,6 +215,149 @@ def _request_myms_api(path, params=None):
     return payload, None, None
 
 
+def _first_present_value(values):
+    for value in values:
+        if value is not None and str(value).strip() != "":
+            return str(value).strip()
+    return ""
+
+
+def _normalize_myms_date_text(value):
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text or text in ("0000-00-00", "--"):
+        return ""
+    normalized = (
+        text.replace(".", "-")
+        .replace("/", "-")
+        .replace("年", "-")
+        .replace("月", "-")
+        .replace("日", "")
+    )
+    match = re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", normalized)
+    if not match:
+        return ""
+    return f"{match.group(1)}-{int(match.group(2)):02d}-{int(match.group(3)):02d}"
+
+
+def _years_since_date_text(value):
+    date_text = _normalize_myms_date_text(value)
+    if not date_text:
+        return ""
+    try:
+        start_date = datetime.strptime(date_text, "%Y-%m-%d").date()
+    except ValueError:
+        return ""
+    today = date.today()
+    years = today.year - start_date.year
+    if (today.month, today.day) > (start_date.month, start_date.day):
+        years += 1
+    if (today.month, today.day) < (start_date.month, start_date.day):
+        years = max(years, 0)
+    return str(max(years, 0))
+
+
+def _myms_site_base_url():
+    base_url = _myms_api_base_url()
+    marker = "/wp-json/"
+    if marker in base_url:
+        return base_url.split(marker, 1)[0].rstrip("/") + "/"
+    return urljoin(base_url, "../../")
+
+
+def _myms_profile_url(employee_id, item=None):
+    item = item or {}
+    for key in ("profile_url", "share_url"):
+        value = item.get(key)
+        if value:
+            return str(value)
+    return urljoin(_myms_site_base_url(), f"employee_show.php?id={employee_id}")
+
+
+def _extract_myms_profile_facts(html_text):
+    text = re.sub(r"<[^>]+>", " ", html.unescape(html_text or ""))
+    text = re.sub(r"\s+", " ", text)
+    facts = {}
+
+    experience_match = re.search(r"从业\s*[：:]\s*(\d+)\s*年", text)
+    if not experience_match:
+        experience_match = re.search(r"工作经验\s*(\d+)\s*年", text)
+    if experience_match:
+        facts["experience_years"] = experience_match.group(1)
+
+    tenure_match = re.search(r"入司\s*[：:]\s*[^（(]*[（(]\s*(\d{4}[-./年]\d{1,2}[-./月]\d{1,2})", text)
+    if tenure_match:
+        facts["work_start_date"] = _normalize_myms_date_text(tenure_match.group(1))
+
+    return facts
+
+
+def _request_myms_profile_facts(employee_id, item=None):
+    profile_url = _myms_profile_url(employee_id, item)
+    try:
+        response = requests.get(profile_url, headers=_myms_api_headers(), timeout=8)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        current_app.logger.warning("myms profile page request failed url=%s error=%s", profile_url, exc)
+        return {}
+    return _extract_myms_profile_facts(response.text)
+
+
+def _normalize_myms_ayi_item(item, allow_profile_fallback=False):
+    if not isinstance(item, dict):
+        return item
+
+    normalized = dict(item)
+    experience_start_date = _normalize_myms_date_text(
+        _first_present_value(
+            [
+                normalized.get("work_date"),
+                normalized.get("career_start_date"),
+                normalized.get("careerStartDate"),
+                normalized.get("experience_start_date"),
+                normalized.get("experienceStartDate"),
+                normalized.get("work_experience_start_date"),
+                normalized.get("workExperienceStartDate"),
+                normalized.get("working_start_date"),
+                normalized.get("workingStartDate"),
+                normalized.get("start_work_date"),
+                normalized.get("startWorkDate"),
+                normalized.get("first_work_date"),
+                normalized.get("firstWorkDate"),
+                normalized.get("work_from_date"),
+                normalized.get("workFromDate"),
+            ]
+        )
+    )
+
+    if experience_start_date:
+        normalized["experience_start_date"] = experience_start_date
+        years = _years_since_date_text(experience_start_date)
+        if years:
+            normalized["experience_years"] = years
+            normalized["experience_text"] = f"{years}年（{experience_start_date}~至今）"
+    elif allow_profile_fallback:
+        profile_facts = _request_myms_profile_facts(normalized.get("id"), normalized)
+        profile_experience_years = profile_facts.get("experience_years")
+        if profile_experience_years:
+            normalized["experience_years"] = profile_experience_years
+            normalized["experience_text"] = f"{profile_experience_years}年"
+        if not normalized.get("work_start_date") and profile_facts.get("work_start_date"):
+            normalized["work_start_date"] = profile_facts["work_start_date"]
+
+    return normalized
+
+
+def _normalize_myms_ayi_payload(payload):
+    if not isinstance(payload, dict):
+        return payload
+    normalized = dict(payload)
+    if isinstance(normalized.get("item"), dict):
+        normalized["item"] = _normalize_myms_ayi_item(normalized["item"], allow_profile_fallback=True)
+    return normalized
+
+
 def _ensure_staff_ayi_access():
     account, error = _ensure_staff_access("仅后台运营或管理员可搜索阿姨资料")
     if error:
@@ -254,6 +398,14 @@ def miniapp_ayi_search():
     payload, error_response, status_code = _request_myms_api("ayi/search", params=params)
     if error_response:
         return error_response, status_code
+    if isinstance(payload, dict) and isinstance(payload.get("items"), list):
+        payload = {
+            **payload,
+            "items": [
+                _normalize_myms_ayi_item(item) if isinstance(item, dict) else item
+                for item in payload.get("items", [])
+            ],
+        }
     return jsonify(payload)
 
 
@@ -262,6 +414,7 @@ def miniapp_ayi_detail(employee_id):
     payload, error_response, status_code = _request_myms_api(f"ayi/{employee_id}")
     if error_response:
         return error_response, status_code
+    payload = _normalize_myms_ayi_payload(payload)
     return jsonify(payload)
 
 
