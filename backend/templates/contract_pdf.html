@@ -101,7 +101,7 @@
         {% endif %}
         {% if contract.type == 'nanny_trial' %}
             <p><strong>介绍费:</strong> {{ "%.2f"|format(contract.introduction_fee|float or 0) }} 元</p>
-        {% elif contract.introduction_fee and contract.introduction_fee > 0 %}
+        {% elif contract.type == 'nanny' and contract.introduction_fee and contract.introduction_fee > 0 %}
             <p><strong>介绍费:</strong> {{ "%.2f"|format(contract.introduction_fee|float) }} 元</p>
         {% endif %}
         {% if contract.type == 'maternity_nurse' %}

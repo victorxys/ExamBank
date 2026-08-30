@@ -36,7 +36,9 @@ class BillMergeService:
         source_payroll = EmployeePayroll.query.filter(
             EmployeePayroll.contract_id == source_bill.contract_id,
             EmployeePayroll.year == source_bill.year,
-            EmployeePayroll.month == source_bill.month
+            EmployeePayroll.month == source_bill.month,
+            EmployeePayroll.cycle_start_date == source_bill.cycle_start_date,
+            EmployeePayroll.is_substitute_payroll == False,
         ).first()
         if not source_payroll:
             raise ValueError("源员工工资单未找到")
@@ -48,15 +50,20 @@ class BillMergeService:
             raise ValueError("自然月末续签无需合并账单，员工工资应保留在原月份。")
 
         target_bill = CustomerBill.query.filter(
-            CustomerBill.contract_id == target_contract_id
-        ).order_by(CustomerBill.year.asc(), CustomerBill.month.asc()).first()
+            CustomerBill.contract_id == target_contract_id,
+            CustomerBill.is_substitute_bill == False,
+        ).order_by(
+            CustomerBill.year.asc(),
+            CustomerBill.month.asc(),
+            CustomerBill.cycle_start_date.asc(),
+        ).first()
         if not target_bill:
             raise ValueError("目标合同的首期客户账单未找到")
 
         target_payroll = EmployeePayroll.query.filter(
             EmployeePayroll.contract_id == target_contract_id,
-            EmployeePayroll.year == target_bill.year,
-            EmployeePayroll.month == target_bill.month
+            EmployeePayroll.cycle_start_date == target_bill.cycle_start_date,
+            EmployeePayroll.is_substitute_payroll == False,
         ).first()
         if not target_payroll:
             raise ValueError("目标合同的首期员工工资单未找到")
@@ -147,7 +154,13 @@ class BillMergeService:
             "preview": preview_data
         }
 
-    def execute_merge(self, source_bill_id, target_contract_id, commit=True):
+    def execute_merge(
+        self,
+        source_bill_id,
+        target_contract_id,
+        commit=True,
+        exclude_deposit_adjustments=False,
+    ):
         """执行账单合并操作。"""
         try:
             source_bill, source_payroll, target_bill, target_payroll = self._get_entities(source_bill_id, target_contract_id)
@@ -159,7 +172,11 @@ class BillMergeService:
             db.session.flush()
 
             # 2. 对剩余的款项进行差额冲抵
-            self._balance_bill(source_bill, target_bill)
+            self._balance_bill(
+                source_bill,
+                target_bill,
+                exclude_deposit_adjustments=exclude_deposit_adjustments,
+            )
             self._balance_payroll(source_payroll, target_payroll, source_bill, target_bill)
 
             # 【核心新增】在平衡工资单后，删除源工资单中的“保证金支付工资”调整项
@@ -171,20 +188,9 @@ class BillMergeService:
             # 4. 标记源账单为已合并
             source_bill.is_merged = True
 
-            if commit:
-                db.session.commit()
-
-            current_app.logger.info(f"账单合并成功: 源账单ID {source_bill.id} -> 目标合同ID {target_contract_id}")
-            # return {"message": "账单合并成功"}
-        except Exception as e:
-            if commit:
-                db.session.rollback()
-            current_app.logger.error(f"账单合并操作失败: {e}", exc_info=True)
-            raise
-        
-        # --- 【核心新增】在合并成功后，触发对目标账单的重算 ---
-        target_bill_id = target_bill.id
-        try:
+            # 合并和目标账单重算必须处于同一事务中，否则目标重算失败时会
+            # 留下已标记合并但金额未落库的源账单。
+            target_bill_id = target_bill.id
             current_app.logger.info(f"合并完成，开始触发目标账单 {target_bill_id} 的重算...")
             from backend.services.billing_engine import BillingEngine
             engine = BillingEngine()
@@ -196,21 +202,32 @@ class BillMergeService:
                 cycle_start_date_override=target_bill.cycle_start_date,
                 end_date_override=target_bill.cycle_end_date
             )
-            # 第二次提交：保存重算结果
+
             if commit:
                 db.session.commit()
-            current_app.logger.info(f"目标账单 {target_bill_id} 重算成功。")
-        except Exception as recalc_error:
-            # 如果重算失败，只记录错误，不影响合并成功的结果
-            current_app.logger.error(f"合并后自动重算目标账单 {target_bill_id} 失败: {recalc_error}", exc_info=True)
+
+            current_app.logger.info(f"账单合并成功: 源账单ID {source_bill.id} -> 目标合同ID {target_contract_id}")
+        except Exception as e:
+            if commit:
+                db.session.rollback()
+            current_app.logger.error(f"账单合并操作失败: {e}", exc_info=True)
+            raise
 
         return {"message": "账单合并成功，目标账单已自动更新。"}
 
-    def _balance_bill(self, source_bill, target_bill):
+    def _balance_bill(
+        self,
+        source_bill,
+        target_bill,
+        *,
+        exclude_deposit_adjustments=False,
+    ):
         """计算客户账单余额，并创建冲抵/转移调整项。"""
         # 按照你的要求，直接使用 total_due 字段
         balance = D(0)
         for adj in source_bill.financial_adjustments.all():
+            if exclude_deposit_adjustments and self._is_security_deposit_adjustment(adj):
+                continue
             # 根据 adjustment_type 的效果来累加或累减
             if adj.adjustment_type in [AdjustmentType.CUSTOMER_INCREASE,AdjustmentType.INTRODUCTION_FEE, AdjustmentType.DEPOSIT, AdjustmentType.DEFERRED_FEE]:
                 balance += adj.amount
@@ -245,6 +262,14 @@ class BillMergeService:
         )
 
         source_bill.total_due = D(0)
+
+    @staticmethod
+    def _is_security_deposit_adjustment(adjustment):
+        """判断是否为应由保证金专用转移链处理的客户调整项。"""
+        return (
+            adjustment.adjustment_type == AdjustmentType.DEPOSIT
+            or "保证金" in (adjustment.description or "")
+        )
 
     def _balance_payroll(self, source_payroll, target_payroll, source_bill, target_bill):
         """计算员工工资单余额，并创建冲抵/转移调整项。"""

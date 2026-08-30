@@ -25,6 +25,7 @@ from decimal import Decimal
 import uuid
 from backend.services.billing_engine import BillingEngine
 from backend.services.bill_merge_service import BillMergeService
+from backend.services.contract_fee_policy import supports_introduction_fee
 import calendar
 
 
@@ -36,6 +37,9 @@ def upsert_introduction_fee_adjustment(contract: BaseContract):
     Args:
         contract: 一个 BaseContract 实例。
     """
+    if not supports_introduction_fee(contract):
+        return
+
     new_amount = contract.introduction_fee
 
     # 1. 查找该合同是否已存在“介绍费”调整项
@@ -76,18 +80,12 @@ def upsert_introduction_fee_adjustment(contract: BaseContract):
 
 def create_maternity_nurse_contract_adjustments(contract: MaternityNurseContract):
     """
-    为新创建的月嫂合同生成所有必要的一次性财务调整项。
-    包括：定金和介绍费。
+    为新创建的月嫂合同生成必要的一次性定金调整项。
 
     Args:
         contract: 一个 MaternityNurseContract 实例。
     """
-    # 1. 创建或更新介绍费调整项
-    # 复用上面的函数来处理介绍费
-    upsert_introduction_fee_adjustment(contract)
-
-    # 2. 创建定金调整项 (只在首次创建时执行)
-    # 我们通过检查是否已存在来确保不重复创建
+    # 定金调整项只在首次创建时执行。
     existing_deposit = FinancialAdjustment.query.filter_by(
         contract_id=contract.id,
         adjustment_type=AdjustmentType.DEPOSIT
@@ -505,9 +503,29 @@ class ContractService:
             self._delete_future_billing_records(old_contract.id, renewal_termination_date)
 
             if not transfer_deposit:
-                self._finalize_old_contract_after_renewal(old_contract, renewal_termination_date)
+                # 即使不转移保证金，原合同同月的账单也必须截断到续约前一天。
+                # 否则旧合同仍会保留整月工资/费用，造成新旧合同服务期重叠。
+                self._prepare_old_contract_for_renewal(
+                    old_contract,
+                    renewal_termination_date,
+                )
                 current_app.logger.info(f"不转移保证金续签更流程完成。旧合同 {old_contract.id} 的保证金将按标准终止流程处理。")
                 return renewed_contract            
+
+            # 先处理旧合同的实际截止日和保证金，再决定是否需要合并中途账单。
+            # _ensure_renewal_deposit_transfer 会重算旧合同最后一期账单，确保工资
+            # 转移金额只来自续约前的实际服务区间。
+            if old_contract.security_deposit_paid and old_contract.security_deposit_paid > 0:
+                self._ensure_renewal_deposit_transfer(
+                    old_contract,
+                    renewed_contract,
+                    renewal_termination_date,
+                )
+            else:
+                self._prepare_old_contract_for_renewal(
+                    old_contract,
+                    renewal_termination_date,
+                )
 
             # 2. 根据旧合同结束日期判断费用处理策略
             old_end_date = renewal_termination_date
@@ -516,9 +534,12 @@ class ContractService:
 
             if not is_end_of_month and not isinstance(old_contract, MaternityNurseContract):
                 # 场景1: 合同结束日不是月末，且不是月嫂合同（月嫂合同只转移保证金，不合并账单）
-                # 合并整个账单逻辑
-                current_app.logger.info(f"合同 {old_contract.id} 结束日不是月末，执行账单合并逻辑。")
-                last_bill = CustomerBill.query.filter_by(contract_id=old_contract.id ).order_by(CustomerBill.cycle_end_date.desc()).first()
+                # 合并截断后的账单逻辑；保证金由上面的专用链路处理。
+                current_app.logger.info(f"合同 {old_contract.id} 结束日不是月末，执行截断账单合并逻辑。")
+                last_bill = CustomerBill.query.filter_by(
+                    contract_id=old_contract.id,
+                    is_substitute_bill=False,
+                ).order_by(CustomerBill.cycle_end_date.desc()).first()
                 if last_bill:
                     self._delete_non_transferable_adjustments(old_contract, last_bill)
                     
@@ -539,25 +560,42 @@ class ContractService:
                     db.session.flush()
 
                     merge_service = BillMergeService()
-                    merge_service.execute_merge(str(last_bill.id), str(renewed_contract.id), commit=False)
+                    merge_service.execute_merge(
+                        str(last_bill.id),
+                        str(renewed_contract.id),
+                        commit=False,
+                        exclude_deposit_adjustments=True,
+                    )
                     current_app.logger.info(f"已将账单 {last_bill.id} 的费用合并到新合同 {renewed_contract.id}。")
                 else:
                     current_app.logger.warning(f"未找到合同 {old_contract.id} 的最后一个账单，无法执行合并。")
             else:
-                # 场景2: 合同结束日是月末，只转移保证金
-                current_app.logger.info(f"合同 {old_contract.id} 结束日是月末，仅转移保证金。")
-                if old_contract.security_deposit_paid and old_contract.security_deposit_paid > 0:
-                    self._ensure_renewal_deposit_transfer(
-                        old_contract,
-                        renewed_contract,
-                        renewal_termination_date,
-                    )
+                # 场景2: 月嫂或自然月末续约，只转移保证金，不合并工资。
+                current_app.logger.info(f"合同 {old_contract.id} 执行仅保证金转移逻辑。")
 
             self._finalize_old_contract_after_renewal(old_contract, renewal_termination_date)
 
 
         current_app.logger.info(f"成功续约合同 {old_contract_id}，创建新合同 {renewed_contract.id}。")
         return renewed_contract
+
+    def _prepare_old_contract_for_renewal(
+        self,
+        old_contract: BaseContract,
+        renewal_termination_date: date,
+    ) -> None:
+        """将旧合同及其当前月份账单截断到续约前一天。"""
+        self._finalize_old_contract_after_renewal(old_contract, renewal_termination_date)
+
+        engine = BillingEngine()
+        engine.calculate_for_month(
+            year=renewal_termination_date.year,
+            month=renewal_termination_date.month,
+            contract_id=str(old_contract.id),
+            force_recalculate=True,
+            end_date_override=renewal_termination_date,
+        )
+        db.session.flush()
 
     def _finalize_old_contract_after_renewal(self, old_contract: BaseContract, renewal_termination_date: date) -> None:
         """
@@ -585,24 +623,11 @@ class ContractService:
         2. 旧合同最后一期账单上存在“保证金转出”
         3. 新合同存在“从续约前合同转入”的冲抵调整项
         """
-        old_contract.termination_date = renewal_termination_date
-        old_contract.end_date = datetime.combine(renewal_termination_date, datetime.min.time())
-        old_contract.status = "finished"
-        db.session.add(old_contract)
-        db.session.flush()
-
-        engine = BillingEngine()
-        engine.calculate_for_month(
-            year=renewal_termination_date.year,
-            month=renewal_termination_date.month,
-            contract_id=str(old_contract.id),
-            force_recalculate=True,
-            end_date_override=renewal_termination_date,
-        )
-        db.session.flush()
+        self._prepare_old_contract_for_renewal(old_contract, renewal_termination_date)
 
         last_bill_old_contract = CustomerBill.query.filter_by(
-            contract_id=old_contract.id
+            contract_id=old_contract.id,
+            is_substitute_bill=False,
         ).order_by(CustomerBill.cycle_end_date.desc()).first()
 
         if not last_bill_old_contract:
@@ -663,12 +688,15 @@ class ContractService:
             )
             db.session.add(deposit_adj)
 
+        # 保证金转出/转入调整项创建后，需要再次重算旧合同最后一期账单。
+        engine = BillingEngine()
         engine.calculate_for_month(
             year=last_bill_old_contract.year,
             month=last_bill_old_contract.month,
             contract_id=last_bill_old_contract.contract_id,
             force_recalculate=True,
             cycle_start_date_override=last_bill_old_contract.cycle_start_date,
+            end_date_override=renewal_termination_date,
         )
 
     def _delete_future_billing_records(self, contract_id: str, cutoff_date: date) -> None:
@@ -1050,7 +1078,8 @@ class ContractService:
         # 查找与源账单关联的工资单
         source_payroll = EmployeePayroll.query.filter_by(
             contract_id=old_contract.id,  # <-- 核心修正：使用 old_contract.id
-            cycle_start_date=last_bill.cycle_start_date
+            cycle_start_date=last_bill.cycle_start_date,
+            is_substitute_payroll=False,
         ).first()
 
         # 1. 删除源工资单中的“保证金支付工资”

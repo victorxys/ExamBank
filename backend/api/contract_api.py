@@ -55,6 +55,7 @@ from backend.services.contract_operation_log_service import (
     diff_snapshots,
     snapshot_contract,
 )
+from backend.services.contract_fee_policy import supports_introduction_fee
 from backend.utils.miniapp_config import get_miniapp_credentials, miniapp_credential_status
 from backend.api.utils import get_contract_level_semantics
 
@@ -1222,7 +1223,11 @@ def create_formal_contract():
             "employee_signing_token": str(uuid.uuid4()),
             "employee_level": to_decimal(data.get("employee_level")),
             "notes": data.get("notes"),
-            "introduction_fee": to_decimal(data.get("introduction_fee")),
+            "introduction_fee": (
+                to_decimal(data.get("introduction_fee"))
+                if data["contract_type"] in ("nanny", "nanny_trial")
+                else None
+            ),
             "management_fee_amount": to_decimal(data.get("management_fee_amount")),
             "management_fee_rate": to_decimal(data.get("management_fee_rate")),
             "service_content": data.get("service_content"),
@@ -1457,7 +1462,11 @@ def get_contract_details(contract_id):
             "employee_level": str(contract.employee_level) if contract.employee_level is not None else '',
             "management_fee_rate": str(contract.management_fee_rate) if contract.management_fee_rate is not None else '',
             "management_fee_amount": str(contract.management_fee_amount) if contract.management_fee_amount is not None else '',
-            "introduction_fee": str(contract.introduction_fee) if contract.introduction_fee is not None else '',
+            "introduction_fee": (
+                str(contract.introduction_fee)
+                if supports_introduction_fee(contract) and contract.introduction_fee is not None
+                else ''
+            ),
             "template_id": contract.template_id,
             "service_content": contract.service_content,
             "service_type": contract.service_type,
@@ -1709,21 +1718,30 @@ def update_contract(contract_id):
                 return default if default is not None else None
             return D(str(value))
 
+        target_contract_type = data.get('contract_type', contract.type)
+        if target_contract_type == 'maternity_nurse' and 'introduction_fee' in data:
+            if to_decimal(data['introduction_fee'], 0) > 0:
+                return jsonify({"error": "月嫂合同不支持介绍费"}), 400
+
         # 更新核心字段
         if 'start_date' in data and data['start_date']:
             contract.start_date = datetime.fromisoformat(data['start_date'].split('T')[0])
         if 'end_date' in data and data['end_date']:
             contract.end_date = datetime.fromisoformat(data['end_date'].split('T')[0])
 
+        if 'contract_type' in data:
+            contract.type = data['contract_type']
+
         if 'introduction_fee' in data:
-            contract.introduction_fee = to_decimal(data['introduction_fee'], 0)
+            requested_introduction_fee = to_decimal(data['introduction_fee'], 0)
+            contract.introduction_fee = (
+                requested_introduction_fee if supports_introduction_fee(contract) else None
+            )
 
         if 'management_fee_amount' in data:
             contract.management_fee_amount = to_decimal(data['management_fee_amount'], 0)
         if 'management_fee_rate' in data:
             contract.management_fee_rate = to_decimal(data['management_fee_rate'], 0)
-        if 'contract_type' in data:
-            contract.type = data['contract_type']
         if 'template_id' in data:
             contract.template_id = data['template_id']
             new_template = ContractTemplate.query.get(data['template_id'])
@@ -1967,7 +1985,11 @@ def handle_signing_page_action(token):
                 "management_fee_amount": float(contract.management_fee_amount) if contract.management_fee_amount is not None else None,
                 "deposit_amount": float(deposit_amount) if deposit_amount is not None else None,
                 "security_deposit_paid": float(security_deposit_paid) if security_deposit_paid is not None else None,
-                "introduction_fee": float(contract.introduction_fee) if contract.introduction_fee is not None else None,
+                "introduction_fee": (
+                    float(contract.introduction_fee)
+                    if supports_introduction_fee(contract) and contract.introduction_fee is not None
+                    else None
+                ),
             }
             return jsonify(response_data)
         except Exception as e:

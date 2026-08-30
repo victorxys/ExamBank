@@ -79,6 +79,7 @@ class RenewalCleanupCandidate:
     needs_bill_total_recalc: bool
     needs_successor_work_days_recalc: bool
     needs_attendance_allocation_recalc: bool
+    needs_mid_month_cycle_truncation: bool
     needs_rate_backfill: bool
 
     @property
@@ -103,6 +104,7 @@ class RenewalCleanupCandidate:
             or self.needs_bill_total_recalc
             or self.needs_successor_work_days_recalc
             or self.needs_attendance_allocation_recalc
+            or self.needs_mid_month_cycle_truncation
             or self.needs_rate_backfill
         )
 
@@ -546,6 +548,11 @@ def find_cleanup_candidates(
         first_successor_bill = _find_first_bill(successor.id)
         first_successor_payroll = _find_first_payroll(successor.id)
         last_payroll = _find_payroll_for_bill(last_bill)
+        needs_mid_month_cycle_truncation = (
+            successor_start_date.day != 1
+            and last_bill is not None
+            and _to_date(last_bill.cycle_end_date) != cutoff_date
+        )
         has_bill_merge_transfer = (
             successor_start_date.day != 1
             and _has_linked_bill_merge_transfer(last_bill, first_successor_bill)
@@ -631,6 +638,7 @@ def find_cleanup_candidates(
                 last_bill,
                 first_successor_bill,
             ),
+            needs_mid_month_cycle_truncation=needs_mid_month_cycle_truncation,
             needs_rate_backfill=_needs_rate_backfill(successor),
         )
 
@@ -726,6 +734,8 @@ def apply_cleanup_candidate(candidate: RenewalCleanupCandidate, dry_run: bool = 
             print("  将按续约新合同首期账单周期重算实际劳务天数、账单和工资单")
         if candidate.needs_attendance_allocation_recalc:
             print("  将按整月签署考勤表重新分配旧合同最后一期与新合同首期考勤，并重算账单/工资单")
+        if candidate.needs_mid_month_cycle_truncation:
+            print("  将把月中续约旧账单/工资单截断到续约前一天，并按截断后的工资同步新合同首期")
         if candidate.needs_rate_backfill:
             print("  将按管理费金额和员工级别反推新合同管理费率")
         return
@@ -787,10 +797,11 @@ def apply_cleanup_candidate(candidate: RenewalCleanupCandidate, dry_run: bool = 
             ).delete(synchronize_session=False)
 
     service._finalize_old_contract_after_renewal(old_contract, candidate.cutoff_date)
+    is_mid_month_renewal = candidate.successor_start_date.day != 1
     if (
         old_contract.security_deposit_paid
         and old_contract.security_deposit_paid > 0
-        and not candidate.has_bill_merge_transfer
+        and (is_mid_month_renewal or not candidate.has_bill_merge_transfer)
     ):
         service._ensure_renewal_deposit_transfer(
             old_contract,
@@ -817,6 +828,9 @@ def apply_cleanup_candidate(candidate: RenewalCleanupCandidate, dry_run: bool = 
             details={"transferred_to_contract_id": str(successor.id)},
         )
         _recalculate_bill_total_from_adjustments(last_bill)
+    elif is_mid_month_renewal:
+        # 没有保证金时也必须先截断旧账单，否则后续工资同步仍会读取整月金额。
+        service._prepare_old_contract_for_renewal(old_contract, candidate.cutoff_date)
     elif candidate.needs_bill_total_recalc:
         last_bill = _find_last_bill_for_cutoff(old_contract.id, candidate.cutoff_date)
         if last_bill:
@@ -870,6 +884,23 @@ def apply_cleanup_candidate(candidate: RenewalCleanupCandidate, dry_run: bool = 
             cycle_start_date_override=first_successor_bill.cycle_start_date if first_successor_bill else None,
             end_date_override=first_successor_bill.cycle_end_date if first_successor_bill else None,
         )
+
+    if is_mid_month_renewal:
+        # 历史错误数据可能已经存在“整月”转移的两条工资调整项，不能只检查
+        # 是否存在，还要在旧账单截断后按新的工资明细重算并双边回写金额。
+        last_bill = _find_last_bill_for_cutoff(old_contract.id, candidate.cutoff_date)
+        if not last_bill:
+            raise ValueError(f"月中续约 {successor.id} 缺少续约前最后一期账单，无法同步工资转移。")
+
+        from backend.services.renewal_sync_service import sync_renewal_payroll_transfer
+
+        if not sync_renewal_payroll_transfer(
+            old_contract.id,
+            last_bill.year,
+            last_bill.month,
+            recalculate=True,
+        ):
+            raise ValueError(f"月中续约 {successor.id} 无法按截断后的账单同步工资转移。")
 
     if candidate.has_payroll_transfer_out and not candidate.has_payroll_transfer_in:
         last_bill = _find_last_bill_for_cutoff(old_contract.id, candidate.cutoff_date)

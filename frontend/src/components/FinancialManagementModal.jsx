@@ -616,8 +616,14 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
             handleCloseSubstituteDialog();
         } catch (error) {
             console.error("保存替班记录失败:", error);
-            // 错误提示同样要用 setAlert
-            setAlert({ open: true, message: '添加替班记录失败，同一时间段可能已有替班记录，不能重复添加。', severity: 'error' });
+            const errorMessage = error.response?.data?.error || error.response?.data?.message;
+            setAlert({
+                open: true,
+                message: errorMessage
+                    ? `添加替班记录失败：${errorMessage}`
+                    : '添加替班记录失败，请查看后台日志。',
+                severity: 'error',
+            });
         }
     };
     const handleDeleteSubstitute = async (recordId) => {

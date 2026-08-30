@@ -73,6 +73,7 @@ from backend.services.maternity_attendance_service import (
     find_maternity_cycle_for_reference,
     MATERNITY_CYCLE_DAYS,
 )
+from backend.services.contract_fee_policy import supports_introduction_fee
 from backend.utils.miniapp_config import get_miniapp_credentials
 
 
@@ -985,12 +986,13 @@ def _contract_summary(contract, include_customer_token=False, include_employee_t
         "employee_level": str(contract.employee_level) if contract.employee_level is not None else "",
         "security_deposit_paid": str(contract.security_deposit_paid) if contract.security_deposit_paid is not None else "",
         "deposit_amount": str(contract.deposit_amount) if getattr(contract, "deposit_amount", None) is not None else "",
-        "introduction_fee": str(contract.introduction_fee) if contract.introduction_fee is not None else "",
         "management_fee_amount": str(contract.management_fee_amount) if contract.management_fee_amount is not None else "",
         "service_type": contract.service_type,
         "customer_info": _customer_info_payload(contract),
         "employee_info": _employee_info_payload(contract),
     }
+    if supports_introduction_fee(contract) and contract.introduction_fee is not None:
+        data["introduction_fee"] = str(contract.introduction_fee)
     if include_customer_token:
         data["customer_signing_token"] = contract.customer_signing_token
     if include_employee_token:
@@ -1931,7 +1933,7 @@ def _attendance_summary(form):
 
 def _format_miniapp_contract_signing_payload(payload):
     contract_type = payload.get("type")
-    return {
+    result = {
         "success": True,
         "contract": {
             "id": payload.get("contract_id"),
@@ -1946,7 +1948,6 @@ def _format_miniapp_contract_signing_payload(payload):
             "employee_level": payload.get("employee_level"),
             "security_deposit_paid": payload.get("security_deposit_paid"),
             "deposit_amount": payload.get("deposit_amount"),
-            "introduction_fee": payload.get("introduction_fee"),
             "management_fee_amount": payload.get("management_fee_amount"),
             "service_type": payload.get("service_type"),
             "service_content": payload.get("service_content"),
@@ -1959,6 +1960,9 @@ def _format_miniapp_contract_signing_payload(payload):
             "employee_signature": payload.get("employee_signature"),
         },
     }
+    if supports_introduction_fee(contract_type) and "introduction_fee" in payload:
+        result["contract"]["introduction_fee"] = payload.get("introduction_fee")
+    return result
 
 
 def _ensure_customer_account():

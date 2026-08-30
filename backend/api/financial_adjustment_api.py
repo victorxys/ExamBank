@@ -1,9 +1,28 @@
 # backend/api/financial_adjustment_api.py
 from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import IntegrityError
-from ..models import db, FinancialAdjustment, AdjustmentType
+from ..models import (
+    db,
+    CustomerBill,
+    EmployeePayroll,
+    FinancialAdjustment,
+    AdjustmentType,
+)
 
 financial_adjustment_api = Blueprint('financial_adjustment_api', __name__)
+
+
+def _is_substitute_adjustment_target(customer_bill_id=None, employee_payroll_id=None):
+    """判断调整项是否指向替班账单或替班工资单。"""
+    if customer_bill_id:
+        bill = db.session.get(CustomerBill, customer_bill_id)
+        if bill and bill.is_substitute_bill:
+            return True
+    if employee_payroll_id:
+        payroll = db.session.get(EmployeePayroll, employee_payroll_id)
+        if payroll and payroll.is_substitute_payroll:
+            return True
+    return False
 
 @financial_adjustment_api.route('/financial-adjustments', methods=['POST'])
 def create_financial_adjustment():
@@ -23,6 +42,14 @@ def create_financial_adjustment():
         adjustment_type = AdjustmentType[data['adjustment_type'].upper()]
     except KeyError:
         return jsonify({"error": f"Invalid adjustment_type: {data['adjustment_type']}"}), 400
+
+    if (
+        adjustment_type == AdjustmentType.DEPOSIT_PAID_SALARY
+        and _is_substitute_adjustment_target(
+            data.get('customer_bill_id'), data.get('employee_payroll_id')
+        )
+    ):
+        return jsonify({"error": "替班工资单不支持保证金支付工资调整项"}), 400
 
     new_adjustment = FinancialAdjustment(
         adjustment_type=adjustment_type,
@@ -70,6 +97,13 @@ def get_financial_adjustments():
     if 'employee_payroll_id' in request.args:
         query = query.filter(FinancialAdjustment.employee_payroll_id == request.args['employee_payroll_id'])
 
+    if _is_substitute_adjustment_target(
+        request.args.get('customer_bill_id'), request.args.get('employee_payroll_id')
+    ):
+        query = query.filter(
+            FinancialAdjustment.adjustment_type != AdjustmentType.DEPOSIT_PAID_SALARY
+        )
+
     if 'start_date' in request.args:
         query = query.filter(FinancialAdjustment.date >= request.args['start_date'])
 
@@ -92,6 +126,14 @@ def update_financial_adjustment(adjustment_id):
 
     if not data:
         return jsonify({"error": "Invalid input"}), 400
+
+    if (
+        adjustment.adjustment_type == AdjustmentType.DEPOSIT_PAID_SALARY
+        and _is_substitute_adjustment_target(
+            adjustment.customer_bill_id, adjustment.employee_payroll_id
+        )
+    ):
+        return jsonify({"error": "替班工资单不支持保证金支付工资调整项"}), 400
 
     # 主要更新结算信息
     if 'is_settled' in data:
