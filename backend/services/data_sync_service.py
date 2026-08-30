@@ -340,7 +340,7 @@ class DataSyncService:
 
                         # --- BEGIN: 我们新增的核心业务逻辑 ---
                         if isinstance(new_contract, MaternityNurseContract):
-                            # 如果是月嫂合同，调用专属函数处理定金和介绍费
+                            # 月嫂合同只创建定金调整项，不创建介绍费调整项。
                             create_maternity_nurse_contract_adjustments(new_contract)
                         else:
                             # 对于其他合同（育儿嫂、试工），只处理介绍费

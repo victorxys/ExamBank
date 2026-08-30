@@ -30,6 +30,7 @@ from backend.models import (
     BankTransactionStatus,
 )
 from backend.services.renewal_sync_service import calculate_exact_payroll_transfer_amount
+from backend.services.contract_fee_policy import supports_introduction_fee
 
 from sqlalchemy import func, or_,and_
 from sqlalchemy.orm import attributes
@@ -2168,6 +2169,8 @@ class BillingEngine:
         current_app.logger.info(f"--- [DEPOSIT-HANDLER-V2] END for Bill ID: {bill.id} ---")
     def _handle_introduction_fee(self, contract, bill):
         """处理介绍费的逻辑，采用“更新或创建”模式，确保幂等性。"""
+        if not supports_introduction_fee(contract):
+            return
         if not contract.introduction_fee or contract.introduction_fee <= 0:
             return
 
@@ -2274,6 +2277,10 @@ class BillingEngine:
         sub_record.generated_bill_id = bill.id
         sub_record.generated_payroll_id = payroll.id
 
+        # 替班工资不使用客户保证金支付。清理历史错误数据，避免它影响
+        # 工资单详情、催款消息或后续保存时的调整项列表。
+        self._remove_substitute_deposit_paid_salary_adjustments(bill, payroll)
+
         # First calculation to get the correct payroll total
         details = self._calculate_substitute_details(sub_record, main_contract, bill, payroll, overrides)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
@@ -2296,8 +2303,8 @@ class BillingEngine:
                 # Update the adjustment with the payroll total
                 adjustment.amount = payroll.total_due
                 db.session.flush()
-                # (V18) 同步镜像调整项
-                self._mirror_company_paid_salary_adjustment(adjustment, payroll)
+                # 替班工资若由公司代付，只记录客户账单侧的公司代付，
+                # 不得镜像成“保证金支付工资”。
 
         # Recalculate with the correct adjustment amount
         details = self._calculate_substitute_details(sub_record, main_contract, bill, payroll, overrides)
@@ -2322,7 +2329,7 @@ class BillingEngine:
             overrides = {}
 
         QUANTIZER = D("0.01")
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer , emp_balance_transfer = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
 
@@ -2989,11 +2996,15 @@ class BillingEngine:
         
         # --- [核心修改] 在计算客户应付之前，先统计代付工资总额 ---
         total_paid_salary_adjustments = D(0)
-        if bill: # 移除 not bill.is_substitute_bill，确保替班账单也能统计代付工资调整项
-            # 统计账单上的公司代付工资和保证金代付工资调整项总额
+        if bill:
+            paid_salary_types = [AdjustmentType.COMPANY_PAID_SALARY]
+            if not bill.is_substitute_bill:
+                paid_salary_types.append(AdjustmentType.DEPOSIT_PAID_SALARY)
+
+            # 普通合同支持公司代付/保证金代付；替班账单只支持公司代付。
             for adj in db.session.query(FinancialAdjustment).filter(
                 FinancialAdjustment.customer_bill_id == bill.id,
-                FinancialAdjustment.adjustment_type.in_([AdjustmentType.COMPANY_PAID_SALARY, AdjustmentType.DEPOSIT_PAID_SALARY])
+                FinancialAdjustment.adjustment_type.in_(paid_salary_types)
             ).all():
                 total_paid_salary_adjustments += adj.amount
 
@@ -3616,6 +3627,25 @@ class BillingEngine:
             current_app.logger.error(f"[FinalAdj] 找不到账单ID: {bill_id}")
             return
 
+        # 替班工资只能由客户直接支付给替班员工，或由公司代付，
+        # 不参与普通合同末期的“保证金支付工资”结算。
+        if bill.is_substitute_bill:
+            payroll = EmployeePayroll.query.filter_by(
+                contract_id=bill.contract_id,
+                cycle_start_date=bill.cycle_start_date,
+                is_substitute_payroll=True,
+            ).first()
+            removed = self._remove_substitute_deposit_paid_salary_adjustments(bill, payroll)
+            if removed and bill.source_substitute_record:
+                self.calculate_for_substitute(
+                    bill.source_substitute_record.id,
+                    commit=False,
+                )
+            current_app.logger.info(
+                f"[FinalAdj] 替班账单 {bill.id} 不创建保证金支付工资调整项。"
+            )
+            return
+
         contract = bill.contract
         payroll = EmployeePayroll.query.filter_by(
             contract_id=contract.id,
@@ -3753,6 +3783,12 @@ class BillingEngine:
         if not company_adj or not payroll:
             return
 
+        if getattr(payroll, "is_substitute_payroll", False):
+            current_app.logger.info(
+                f"[MIRROR_ADJ] 工资单 {payroll.id} 属于替班记录，跳过保证金支付工资镜像。"
+            )
+            return
+
         if isinstance(payroll.contract, NannyTrialContract):
             current_app.logger.info(f"[MIRROR_ADJ] 合同 {payroll.contract.id} 是试工合同，跳过创建镜像调整项。")
             return
@@ -3791,6 +3827,47 @@ class BillingEngine:
             db.session.flush()
             company_adj.mirrored_adjustment_id = new_adj.id
             db.session.add(company_adj)
+
+    def _remove_substitute_deposit_paid_salary_adjustments(
+        self, bill, payroll=None
+    ) -> int:
+        """清理替班账单/工资单上历史遗留的保证金支付工资调整项。"""
+        if not bill or not bill.is_substitute_bill:
+            return 0
+
+        if payroll is None:
+            payroll = EmployeePayroll.query.filter_by(
+                contract_id=bill.contract_id,
+                cycle_start_date=bill.cycle_start_date,
+                is_substitute_payroll=True,
+            ).first()
+
+        adjustment_scope = [FinancialAdjustment.customer_bill_id == bill.id]
+        if payroll:
+            adjustment_scope.append(
+                FinancialAdjustment.employee_payroll_id == payroll.id
+            )
+
+        adjustments = FinancialAdjustment.query.filter(
+            FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT_PAID_SALARY,
+            or_(*adjustment_scope),
+        ).all()
+
+        for adjustment in adjustments:
+            # 解除“公司代付工资”到该历史镜像项的关联，但保留合法的公司代付记录。
+            mirror_owner = getattr(adjustment, "mirror_of", None)
+            if mirror_owner:
+                mirror_owner.mirrored_adjustment_id = None
+                db.session.add(mirror_owner)
+            db.session.delete(adjustment)
+
+        if adjustments:
+            db.session.flush()
+            current_app.logger.info(
+                f"[SubstituteSalary] 已清理替班账单 {bill.id} 的 "
+                f"{len(adjustments)} 个保证金支付工资调整项。"
+            )
+        return len(adjustments)
 
     def _remove_final_salary_adjustments(
         self, bill: CustomerBill, payroll: EmployeePayroll | None = None

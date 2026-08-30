@@ -8,12 +8,14 @@ from backend.models import (
     CustomerBill,
     EmployeePayroll,
     FinancialAdjustment,
+    AdjustmentType,
     AttendanceRecord,
     NannyContract,
     FinancialActivityLog,
 )
 from backend.services.billing_engine import BillingEngine
 from backend.services.contract_service import _find_successor_contract_internal, _find_predecessor_contract_internal
+from backend.services.contract_fee_policy import supports_introduction_fee
 
 D = decimal.Decimal
 
@@ -138,7 +140,6 @@ def _get_details_template(contract, cycle_start, cycle_end):
             "客交保证金": str(getattr(contract, "security_deposit_paid", 0) or 0),
             "管理费": str(getattr(contract, "management_fee_amount", 0) or 0),
             "定金": str(getattr(contract, "deposit_amount", 0) or 0),
-            "介绍费": str(getattr(contract, "introduction_fee", "0.00")),
             "合同备注": contract.notes or "—",
         }
     else:
@@ -147,9 +148,11 @@ def _get_details_template(contract, cycle_start, cycle_end):
             "客交保证金": str(getattr(contract, "security_deposit_paid", 0) or 0),
             "管理费": str(getattr(contract, "management_fee_amount", 0) or 0),
             "定金": "0.00",
-            "介绍费": str(getattr(contract, "introduction_fee", "0.00")),
             "合同备注": contract.notes or "—",
         }
+
+    if supports_introduction_fee(contract):
+        level_fields["介绍费"] = str(getattr(contract, "introduction_fee", "0.00"))
 
     customer_groups = [
         {
@@ -340,6 +343,16 @@ def get_billing_details_internal(
 
     adjustments = list(adjustments_map.values())
 
+    # 历史版本曾把替班的公司代付错误镜像成保证金支付工资。
+    # 即使尚未重算，也不能在替班工资单详情中继续展示该错误项。
+    if customer_bill.is_substitute_bill:
+        adjustments = [
+            adj
+            for adj in adjustments
+            if adj.adjustment_type != AdjustmentType.DEPOSIT_PAID_SALARY
+        ]
+
+    attendance_record = None
     overtime_days = 0
     if customer_bill.is_substitute_bill:
         sub_record = customer_bill.source_substitute_record

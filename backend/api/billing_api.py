@@ -68,6 +68,7 @@ from backend.services.contract_service import (
     cancel_substitute_bill_due_to_transfer,
     update_salary_history_on_contract_activation
 )
+from backend.services.contract_fee_policy import supports_introduction_fee
 from backend.api.utils import (
     get_billing_details_internal,
     get_contract_type_details,
@@ -374,6 +375,41 @@ ADJUSTMENT_TYPE_LABELS = {
     AdjustmentType.DEPOSIT: "定金",
     AdjustmentType.EMPLOYEE_CLIENT_PAYMENT: "客户直付"
 }
+
+
+def _filter_substitute_deposit_paid_salary_adjustments(adjustments_data, bill):
+    """替班账单不接受“保证金支付工资”调整项。"""
+    if not bill.is_substitute_bill or not adjustments_data:
+        return adjustments_data
+
+    filtered = []
+    removed_count = 0
+    for adjustment_data in adjustments_data:
+        try:
+            raw_type = adjustment_data.get("adjustment_type")
+            adjustment_type = (
+                raw_type
+                if isinstance(raw_type, AdjustmentType)
+                else AdjustmentType(raw_type)
+            )
+        except (TypeError, ValueError):
+            try:
+                adjustment_type = AdjustmentType[
+                    str(adjustment_data.get("adjustment_type")).upper()
+                ]
+            except (KeyError, TypeError):
+                adjustment_type = None
+
+        if adjustment_type == AdjustmentType.DEPOSIT_PAID_SALARY:
+            removed_count += 1
+            continue
+        filtered.append(adjustment_data)
+
+    if removed_count:
+        current_app.logger.warning(
+            f"替班账单 {bill.id} 的请求中包含 {removed_count} 个保证金支付工资调整项，已忽略。"
+        )
+    return filtered
 
 def _date_only(value):
     if isinstance(value, datetime):
@@ -967,6 +1003,14 @@ def update_single_contract(contract_id):
     if not data:
         return jsonify({"error": "缺少更新数据"}), 400
 
+    if contract.type == "maternity_nurse" and "introduction_fee" in data:
+        try:
+            requested_introduction_fee = D(str(data["introduction_fee"] or 0))
+        except (decimal.InvalidOperation, TypeError, ValueError):
+            return jsonify({"error": "介绍费金额无效"}), 400
+        if requested_introduction_fee > 0:
+            return jsonify({"error": "月嫂合同不支持介绍费"}), 400
+
     try:
         should_generate_bills = False
         should_recalculate_first_bill = False
@@ -1011,6 +1055,8 @@ def update_single_contract(contract_id):
 
         if "introduction_fee" in data and hasattr(contract, 'introduction_fee'):
             new_fee = D(data["introduction_fee"] or 0)
+            if not supports_introduction_fee(contract):
+                new_fee = D(0)
             should_recalculate_first_bill = True
             # upsert_introduction_fee_adjustment(contract)
             if contract.introduction_fee != new_fee:
@@ -1447,7 +1493,9 @@ def batch_update_billing_details():
         # --- 3. 处理财务调整项 ---
         was_deletion = False
         if 'adjustments' in data:
-            adjustments_data = data.get('adjustments', [])
+            adjustments_data = _filter_substitute_deposit_paid_salary_adjustments(
+                data.get('adjustments', []), bill
+            )
             was_deletion = _apply_all_adjustments_and_settlements(adjustments_data,bill,payroll)
 
         # !!! 新增日志 !!!
@@ -2111,7 +2159,6 @@ def create_virtual_contract():
                 provisional_start_date=date_parse(data["provisional_start_date"]) if data.get("provisional_start_date") else None,
                 security_deposit_paid=D(data.get("security_deposit_paid") or 0),
                 management_fee_amount=D(data.get("management_fee_amount") or 0),
-                introduction_fee=D(data.get("introduction_fee") or 0),
                 deposit_amount=D(data.get("deposit_amount") or 0)
             )
         elif contract_type == "nanny":

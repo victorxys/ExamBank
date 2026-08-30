@@ -572,6 +572,8 @@ class PaymentMessageGenerator:
                 continue
 
             if adj.adjustment_type == AdjustmentType.DEPOSIT_PAID_SALARY:
+                if bill.is_substitute_bill:
+                    continue
                 item = {
                     "name": "已由保证金支付工资",
                     "description": f"{abs(adj.amount):.2f}元"
