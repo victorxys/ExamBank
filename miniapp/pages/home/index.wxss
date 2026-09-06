@@ -355,7 +355,7 @@
 .attendance-stats {
   margin-top: 18rpx;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12rpx;
 }
 
@@ -365,6 +365,16 @@
   border: 1rpx solid #e2e8f0;
   border-radius: 16rpx;
   text-align: center;
+}
+
+.stat-box.rest {
+  color: #2563eb;
+  background: #dbeafe;
+}
+
+.stat-box.leave {
+  color: #dc2626;
+  background: #fee2e2;
 }
 
 .stat-value {

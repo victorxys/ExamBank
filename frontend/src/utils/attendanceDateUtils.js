@@ -19,6 +19,16 @@ export class CrossDayDurationCalculator {
         const startDate = new Date(record.date);
         const daysOffset = record.daysOffset || 0;
 
+        // 兼容历史数据中只有 hours/minutes、没有时间字段的记录。
+        if (!record.startTime && !record.endTime && (record.hours != null || record.minutes != null)) {
+            const totalMinutes = Math.max(0, Number(record.hours || 0) * 60 + Number(record.minutes || 0));
+            return {
+                totalHours: totalMinutes / 60,
+                totalMinutes: totalMinutes % 60,
+                days: daysOffset
+            };
+        }
+
         if (daysOffset === 0) {
             // 单天记录：根据开始时间和结束时间计算
             const startTime = record.startTime || '09:00';

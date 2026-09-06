@@ -1,5 +1,8 @@
 from datetime import datetime
 from types import SimpleNamespace
+import pytest
+
+from scripts import cleanup_month_end_renewal_payroll_transfers as cleanup_script
 
 from backend.services import renewal_sync_service
 from backend.services.renewal_sync_service import (
@@ -8,8 +11,11 @@ from backend.services.renewal_sync_service import (
 )
 
 
-def _contract(start_date):
-    return SimpleNamespace(start_date=datetime.fromisoformat(start_date))
+def _contract(start_date, end_date=None):
+    contract = SimpleNamespace(start_date=datetime.fromisoformat(start_date))
+    if end_date is not None:
+        contract.end_date = datetime.fromisoformat(end_date)
+    return contract
 
 
 def test_month_end_renewal_does_not_require_payroll_transfer():
@@ -22,6 +28,13 @@ def test_month_end_renewal_does_not_require_payroll_transfer():
 def test_mid_month_renewal_still_requires_payroll_transfer():
     source = _contract("2026-07-01")
     successor = _contract("2026-07-16")
+
+    assert is_month_end_renewal(source, successor) is False
+
+
+def test_first_day_successor_is_not_month_end_when_source_ends_early():
+    source = _contract("2026-07-01", "2026-07-15")
+    successor = _contract("2026-08-01")
 
     assert is_month_end_renewal(source, successor) is False
 
@@ -184,3 +197,56 @@ def test_month_end_cleanup_removes_both_transfer_pairs(monkeypatch):
     assert source_bill.is_merged is False
     assert fake_session.added == [source_bill]
     assert fake_session.flush_count == 1
+
+
+def test_cleanup_script_rolls_back_when_recalculation_fails(monkeypatch):
+    source_bill = SimpleNamespace(cycle_end_date=datetime(2026, 7, 31), is_merged=True)
+    adjustment = SimpleNamespace(id="transfer")
+
+    class RollbackSession:
+        def __init__(self):
+            self.deleted = []
+            self.committed = 0
+            self.rolled_back = 0
+
+        def commit(self):
+            self.committed += 1
+
+        def rollback(self):
+            self.rolled_back += 1
+            source_bill.is_merged = True
+            self.deleted.clear()
+
+    session = RollbackSession()
+    monkeypatch.setattr(
+        cleanup_script,
+        "db",
+        SimpleNamespace(session=session),
+    )
+
+    def fail_after_mutation(*_args, **_kwargs):
+        source_bill.is_merged = False
+        session.deleted.append(adjustment)
+        raise RuntimeError("模拟重算失败")
+
+    monkeypatch.setattr(
+        cleanup_script,
+        "cleanup_month_end_renewal_payroll_transfers",
+        fail_after_mutation,
+    )
+
+    candidate = cleanup_script.Candidate(
+        source_contract=SimpleNamespace(id="old"),
+        successor=SimpleNamespace(id="new"),
+        source_bill=source_bill,
+        target_bill=SimpleNamespace(id="target"),
+        transfer_count=1,
+    )
+
+    with pytest.raises(RuntimeError, match="模拟重算失败"):
+        cleanup_script.apply_candidates([candidate])
+
+    assert source_bill.is_merged is True
+    assert session.deleted == []
+    assert session.committed == 0
+    assert session.rolled_back == 1

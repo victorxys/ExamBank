@@ -709,7 +709,7 @@ export default function MiniappPhaseOne() {
             <div className="grid grid-cols-4 gap-2">
               <div className="rounded-md bg-slate-50 p-3 text-center"><strong className="block text-lg">{attendanceSummary.workDays}</strong><span className="text-xs text-slate-500">出勤</span></div>
               <div className="rounded-md bg-slate-50 p-3 text-center"><strong className="block text-lg">{attendanceSummary.restCount}</strong><span className="text-xs text-slate-500">休息</span></div>
-              <div className="rounded-md bg-slate-50 p-3 text-center"><strong className="block text-lg">{attendanceSummary.leaveCount + attendanceSummary.paidLeaveCount}</strong><span className="text-xs text-slate-500">请假</span></div>
+              <div className="rounded-md bg-slate-50 p-3 text-center"><strong className="block text-lg">{attendanceSummary.leaveCount}</strong><span className="text-xs text-slate-500">请假</span></div>
               <div className="rounded-md bg-slate-50 p-3 text-center"><strong className="block text-lg">{attendanceSummary.overtimeCount}</strong><span className="text-xs text-slate-500">加班</span></div>
             </div>
             <div className="mt-4 space-y-2">

@@ -8,8 +8,8 @@ from sqlalchemy import func
 from backend.models import db, CustomerBill, FinancialAdjustment, AdjustmentType, CompanyBankAccount, PaymentRecord, EmployeePayroll, PayoutRecord, ServicePersonnel, AttendanceRecord, BaseContract
 from backend.services.payroll_miniapp_link_service import (
     build_payroll_miniapp_link_payload,
-    extract_https_urls,
     format_customer_miniapp_link_block,
+    PayrollMiniappLinkError,
 )
 
 # 使用 render_template_string 来渲染从文件读取的模板字符串
@@ -135,8 +135,8 @@ class PaymentMessageGenerator:
             db.session.commit()
         except Exception:
             db.session.rollback()
-            current_app.logger.warning(
-                "催款消息生成后提交小程序 share_token 失败", exc_info=True
+            raise PayrollMiniappLinkError(
+                "催款消息生成成功，但客户小程序工资单链接未能保存，请重试。"
             )
 
         return {
@@ -187,19 +187,12 @@ class PaymentMessageGenerator:
             )
             employee_groups.setdefault(group_key, []).append(bill)
 
-        fallback_urls = [
-            url
-            for url in extract_https_urls(source_employee_summary or "")
-            if url.startswith("https://wxmpurl.cn/")
-        ]
         employee_bills = []
-        for index, group_bills in enumerate(employee_groups.values()):
-            fallback_url = fallback_urls[index] if index < len(fallback_urls) else ""
+        for group_bills in employee_groups.values():
             employee_bills.append(
                 self._build_employee_beautify_item(
                     group_bills,
                     selected_ids,
-                    fallback_miniapp_url=fallback_url,
                 )
             )
 
@@ -315,12 +308,15 @@ class PaymentMessageGenerator:
                 "worked_days": worked_days,
                 "rest_days": D(0),
                 "rest_hours": D(0),
+                "leave_days": D(0),
+                "leave_hours": D(0),
                 "overtime_days": overtime_days,
                 "overtime_hours": overtime_days * D(24),
             }
 
         details = attendance.attendance_details or {}
         rest_days = _decimal(details.get("rest_days"))
+        leave_days = _decimal(details.get("leave_days"))
         precise_overtime_days = _decimal(
             details.get("overtime_days"),
             str(attendance.overtime_days or 0),
@@ -335,6 +331,8 @@ class PaymentMessageGenerator:
             ),
             "rest_days": rest_days,
             "rest_hours": rest_days * D(24),
+            "leave_days": leave_days,
+            "leave_hours": leave_days * D(24),
             "overtime_days": overtime_days,
             "overtime_hours": precise_overtime_days * D(24),
         }
@@ -343,13 +341,14 @@ class PaymentMessageGenerator:
         self,
         selected_bills,
         selected_ids,
-        fallback_miniapp_url="",
     ):
         related_bills = self._related_renewal_bills(selected_bills)
         metrics = {
             "worked_days": D(0),
             "rest_days": D(0),
             "rest_hours": D(0),
+            "leave_days": D(0),
+            "leave_hours": D(0),
             "overtime_days": D(0),
             "overtime_hours": D(0),
         }
@@ -397,11 +396,12 @@ class PaymentMessageGenerator:
             or getattr(primary_bill.contract, "employee_level", 0)
         )
         payable_days = metrics["worked_days"] + metrics["overtime_days"]
-        miniapp_url = (fallback_miniapp_url or "").strip()
-        if not miniapp_url:
+        miniapp_url = ""
+        if not primary_payroll.is_substitute_payroll:
             link_payload = build_payroll_miniapp_link_payload(
                 primary_payroll,
                 commit=False,
+                require_url=True,
             )
             miniapp_url = (link_payload.get("miniapp_url") or "").strip()
         account = primary_context["employee_bank_account"]
@@ -425,6 +425,17 @@ class PaymentMessageGenerator:
                     ),
                     "show_calculation_days": (
                         metrics["rest_hours"] % D(24) != 0
+                    ),
+                },
+                "leave": {
+                    "duration_display": _duration_display(metrics["leave_hours"]),
+                    "total_hours": _fixed(metrics["leave_hours"], 2),
+                    "calculation_days": _fixed(metrics["leave_days"]),
+                    "calculation_days_display": _calculation_days_display(
+                        metrics["leave_days"]
+                    ),
+                    "show_calculation_days": (
+                        metrics["leave_hours"] % D(24) != 0
                     ),
                 },
                 "overtime": {
@@ -644,7 +655,9 @@ class PaymentMessageGenerator:
         if include_miniapp_link and payroll and not payroll.is_substitute_payroll:
             try:
                 link_payload = build_payroll_miniapp_link_payload(
-                    payroll, commit=False
+                    payroll,
+                    commit=False,
+                    require_url=True,
                 )
                 customer_miniapp_url = (link_payload.get("miniapp_url") or "").strip()
                 if customer_miniapp_url:
@@ -657,6 +670,8 @@ class PaymentMessageGenerator:
                         payroll.id,
                         link_payload.get("miniapp_error"),
                     )
+            except PayrollMiniappLinkError:
+                raise
             except Exception as e:
                 current_app.logger.warning(
                     "催款消息生成小程序链接失败 bill_id=%s: %s",
@@ -664,6 +679,9 @@ class PaymentMessageGenerator:
                     e,
                     exc_info=True,
                 )
+                raise PayrollMiniappLinkError(
+                    f"账单 {bill.id} 的客户小程序工资单链接生成失败，请重试。"
+                ) from e
 
         return {
             "customer_name": bill.contract.customer_name,

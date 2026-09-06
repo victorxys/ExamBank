@@ -55,13 +55,23 @@
           </view>
         </view>
         <view class="stat-sep"></view>
+        <view class="stat-item rest">
+          <view class="stat-icon">
+            <image class="stat-icon-img" src="/assets/ui/icons/payroll_rest.svg" mode="aspectFit" />
+          </view>
+          <view>
+            <view class="stat-value">{{payroll.rest_days_text}}<text>天</text></view>
+            <view class="stat-label">休息</view>
+          </view>
+        </view>
+        <view class="stat-sep"></view>
         <view class="stat-item leave">
           <view class="stat-icon">
             <image class="stat-icon-img" src="/assets/ui/icons/payroll_rest.svg" mode="aspectFit" />
           </view>
           <view>
             <view class="stat-value">{{payroll.leave_days_text}}<text>天</text></view>
-            <view class="stat-label">休息</view>
+            <view class="stat-label">请假</view>
           </view>
         </view>
       </view>

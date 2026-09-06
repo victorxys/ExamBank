@@ -126,9 +126,14 @@
         <view class="stat-label">加班(天)</view>
       </view>
       <view class="stat-col">
+        <view class="stat-num blue">{{stats.restDaysText}}</view>
+        <view wx:if="{{stats.restDaysHoursText}}" class="stat-hours blue">{{stats.restDaysHoursText}}</view>
+        <view class="stat-label">休息</view>
+      </view>
+      <view class="stat-col">
         <view class="stat-num orange">{{stats.leaveDaysText}}</view>
         <view wx:if="{{stats.leaveDaysHoursText}}" class="stat-hours orange">{{stats.leaveDaysHoursText}}</view>
-        <view class="stat-label">请假/休假</view>
+        <view class="stat-label">请假</view>
       </view>
     </view>
   </view>

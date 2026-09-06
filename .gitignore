@@ -234,6 +234,7 @@ jinshujuexport/
 backend/static/signatures/
 backend/scripts/
 scripts/*
+!scripts/repair_attendance_issues_1236.py
 !scripts/cleanup_renewed_nanny_contract_history.py
 !scripts/normalize_attendance_auto_overtime.py
 !scripts/resync_signed_attendance_forms.py
@@ -273,5 +274,6 @@ microservices/
 software-copyright-redesign/
 
 test*.py
+!backend/tests/test_repair_attendance_issues_1236.py
 !backend/tests/test_renewal_payroll_transfer.py
 !backend/tests/test_auto_renew_billing_task.py

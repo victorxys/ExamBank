@@ -217,6 +217,15 @@ function minutesToTime(minutes) {
 
 function calculateTotalDuration(record = {}) {
   const daysOffset = Number(record.daysOffset || 0) || 0;
+  if (!record.startTime && !record.endTime && (record.hours != null || record.minutes != null)) {
+    const storedMinutes = Math.max(0, Number(record.hours || 0) * 60 + Number(record.minutes || 0));
+    return {
+      totalHours: storedMinutes / 60,
+      hours: Math.floor(storedMinutes / 60),
+      minutes: storedMinutes % 60,
+      days: daysOffset
+    };
+  }
   const startMinutes = timeToMinutes(record.startTime || '09:00', 9 * 60);
   const endMinutes = timeToMinutes(record.endTime || '18:00', 18 * 60);
   let totalMinutes;
@@ -819,10 +828,11 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
   const contractInfo = normalizeContractInfoForAttendance(form, normalized);
   const maternity = isMaternityForm(form);
   const validDays = getValidDaysCount(monthDays, contractInfo, form);
-  let totalLeaveDays = 0;
+  let restDays = 0;
+  let leaveDays = 0;
+  let paidLeaveDays = 0;
   let totalManualOvertimeDays = 0;
   let autoOvertimeDays = 0;
-  let manualNormalOvertimeDays = 0;
   let holidayOvertimeDays = 0;
 
   function hoursInCycle(record) {
@@ -838,11 +848,17 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
     return duration.totalHours * (daysInCurrentMonth / totalDaysSpan);
   }
 
-  ['rest_records', 'leave_records'].forEach((key) => {
+  [['rest_records', 'rest'], ['leave_records', 'leave'], ['paid_leave_records', 'paid_leave']].forEach(([key, type]) => {
     (normalized[key] || []).forEach((record) => {
-      totalLeaveDays += hoursInCycle(record) / 24;
+      const days = hoursInCycle(record) / 24;
+      if (type === 'rest') restDays += days;
+      else if (type === 'leave') leaveDays += days;
+      else paidLeaveDays += days;
     });
   });
+
+  // 保留原有出勤扣减口径；同时把展示字段拆成休息、请假、带薪休假。
+  const totalLeaveDays = restDays + leaveDays + paidLeaveDays;
 
   (normalized.overtime_records || []).forEach((record) => {
     const days = hoursInCycle(record) / 24;
@@ -872,8 +888,6 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
       }
       if (holidayLike) {
         holidayOvertimeDays += dailyOvertime;
-      } else {
-        manualNormalOvertimeDays += dailyOvertime;
       }
       current = addDays(current, 1);
     }
@@ -882,28 +896,41 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
   const onboardingDays = calculateOnboardingDaysToExclude(normalized, form);
   const offboardingAdjustment = calculateOffboardingAdjustment(normalized, form);
 
-  const totalWorkBeforeCap = validDays - onboardingDays + offboardingAdjustment - totalLeaveDays;
+  // 带薪休假计入出勤；只有休息和普通请假扣减基础出勤天数。
+  const totalWorkBeforeCap = validDays - onboardingDays + offboardingAdjustment - restDays - leaveDays;
   // 月嫂不做「超过 26 天自动加班」，出勤按真实周期天数
-  const recalculatedAuto = maternity
-    ? 0
-    : Math.max(0, totalWorkBeforeCap - 26 - manualNormalOvertimeDays);
   const totalWorkDays = maternity ? totalWorkBeforeCap : Math.min(26, totalWorkBeforeCap);
-  const effectiveAuto = maternity ? 0 : (autoOvertimeDays > 0 ? recalculatedAuto : autoOvertimeDays);
+  // 自动加班记录已经由服务端按合同窗口生成，展示时必须使用其实际时长。
+  // 草稿阶段的补齐由 normalizeAutoOvertime/autoConvertOvertimeIfNeeded 负责生成。
+  const effectiveAuto = maternity ? 0 : autoOvertimeDays;
   const totalOvertimeDays = totalManualOvertimeDays + effectiveAuto;
 
   return {
     workDays: totalWorkDays,
-    leaveDays: totalLeaveDays,
+    // “请假”展示只表示普通请假；总计保留在 leaveTotalDays。
+    leaveDays,
+    restDays,
+    actualLeaveDays: leaveDays,
+    paidLeaveDays,
+    leaveTotalDays: totalLeaveDays,
     overtimeDays: totalOvertimeDays,
     holidayOvertimeDays,
     normalOvertimeDays: Math.max(0, totalOvertimeDays - holidayOvertimeDays),
     autoOvertimeDays: effectiveAuto,
     isMaternity: maternity,
     workDaysText: formatDays(totalWorkDays),
-    leaveDaysText: formatDays(totalLeaveDays),
+    restDaysText: formatDays(restDays),
+    actualLeaveDaysText: formatDays(leaveDays),
+    paidLeaveDaysText: formatDays(paidLeaveDays),
+    leaveDaysText: formatDays(leaveDays),
+    leaveTotalDaysText: formatDays(totalLeaveDays),
     overtimeDaysText: formatDays(totalOvertimeDays),
     workDaysHoursText: formatDaysHours(totalWorkDays),
-    leaveDaysHoursText: formatDaysHours(totalLeaveDays),
+    restDaysHoursText: formatDaysHours(restDays),
+    actualLeaveDaysHoursText: formatDaysHours(leaveDays),
+    paidLeaveDaysHoursText: formatDaysHours(paidLeaveDays),
+    leaveDaysHoursText: formatDaysHours(leaveDays),
+    leaveTotalDaysHoursText: formatDaysHours(totalLeaveDays),
     overtimeDaysHoursText: formatDaysHours(totalOvertimeDays),
     holidayOvertimeDaysText: formatDays(holidayOvertimeDays),
     normalOvertimeDaysText: formatDays(Math.max(0, totalOvertimeDays - holidayOvertimeDays)),
@@ -1150,6 +1177,10 @@ function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays =
 
 function normalizeAutoOvertime(attendanceData, form, monthDays, holidays = {}) {
   const current = normalizeAttendanceData(attendanceData);
+  // 服务端已把自动加班展开成逐日可编辑投影时，直接使用它；重复补算会改变客户看到的总时长。
+  if ((current.overtime_records || []).some((record) => record[AUTO_OVERTIME_PROJECTION_KEY])) {
+    return current;
+  }
   const existingAuto = (current.overtime_records || []).filter((record) => record.is_auto);
   const result = autoConvertOvertimeIfNeeded(current, form, monthDays, holidays);
   if (result.converted) return result.data;
@@ -1164,7 +1195,9 @@ function removeAutoOvertime(attendanceData) {
   const current = normalizeAttendanceData(attendanceData);
   return {
     ...current,
-    overtime_records: (current.overtime_records || []).filter((record) => !record.is_auto)
+    overtime_records: (current.overtime_records || []).filter(
+      (record) => !record.is_auto && !record[AUTO_OVERTIME_PROJECTION_KEY]
+    )
   };
 }
 

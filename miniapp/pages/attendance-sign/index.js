@@ -46,9 +46,11 @@ function formatDateTime(value) {
 function buildEmptyStats() {
   return {
     workDaysText: '0',
+    restDaysText: '0',
     leaveDaysText: '0',
     overtimeDaysText: '0',
     workDaysHoursText: '',
+    restDaysHoursText: '',
     leaveDaysHoursText: '',
     overtimeDaysHoursText: '',
     holidayOvertimeDaysText: '0',
@@ -257,7 +259,7 @@ Page({
     const { index } = event.currentTarget.dataset;
     const record = this.data.specialRecords[Number(index)];
     if (!record) return;
-    if (record.is_auto) {
+    if (record.is_auto || record._auto_overtime_projection) {
       this.openAutoOvertimeInfo();
       return;
     }

@@ -121,7 +121,8 @@ function attendanceStats(formData = {}) {
   return {
     workDays,
     restCount: rest.length,
-    leaveCount: leave.length + paidLeave.length,
+    leaveCount: leave.length,
+    paidLeaveCount: paidLeave.length,
     overtimeCount: overtime.length,
     records
   };

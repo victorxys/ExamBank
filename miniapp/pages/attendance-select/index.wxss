@@ -105,7 +105,7 @@
 .stats-row {
   margin-top: 22rpx;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12rpx;
 }
 
@@ -129,6 +129,11 @@
 .stat-box.leave {
   background: #fee2e2;
   color: #dc2626;
+}
+
+.stat-box.rest {
+  background: #dbeafe;
+  color: #2563eb;
 }
 
 .stat-value {

@@ -9,7 +9,13 @@ from backend.models import (
     MaternityNurseContract,
     TrialOutcome,
 )
-from backend.services.attendance_sync_service import sync_attendance_to_record, normalize_auto_overtime_form_data
+from backend.services.attendance_sync_service import (
+    normalize_auto_overtime_form_data,
+    project_auto_overtime_for_editing,
+    strip_client_derived_auto_overtime,
+    sync_attendance_to_record,
+    validate_attendance_time_precision,
+)
 from backend.services.billing_engine import BillingEngine
 from backend.services.maternity_attendance_service import (
     is_maternity_contract,
@@ -503,7 +509,14 @@ def _trim_display_record_to_window(record, effective_start, effective_end):
     return trimmed
 
 
-def build_display_form_data_for_contract_window(form, effective_start_date=None, effective_end_date=None):
+_EFFECTIVE_END_UNSET = object()
+
+
+def build_display_form_data_for_contract_window(
+    form,
+    effective_start_date=None,
+    effective_end_date=_EFFECTIVE_END_UNSET,
+):
     """Build display-only form data clipped to the service window without rewriting history."""
     form_data = deepcopy(form.form_data or {})
     if not form or not form.contract:
@@ -512,7 +525,15 @@ def build_display_form_data_for_contract_window(form, effective_start_date=None,
     cycle_start = to_date_value(form.cycle_start_date)
     cycle_end = to_date_value(form.cycle_end_date)
     effective_start = to_date_value(effective_start_date) or cycle_start
-    effective_end = to_date_value(effective_end_date) or get_attendance_contract_end_date(form.contract) or cycle_end
+    if effective_end_date is _EFFECTIVE_END_UNSET:
+        effective_end = (
+            cycle_end
+            if effective_start_date is not None
+            else get_attendance_contract_end_date(form.contract) or cycle_end
+        )
+    else:
+        # None is an explicit open-ended successor window; clip only to this form's cycle.
+        effective_end = to_date_value(effective_end_date) or cycle_end
     if not cycle_start or not cycle_end or not effective_start or not effective_end:
         return form_data
 
@@ -626,13 +647,17 @@ def _find_family_attendance_form(employee_id, family_contracts, cycle_start, pre
     return forms[0]
 
 
-def _merged_attendance_end_date(form_contract, effective_end_date=None, effective_start_date=None):
+def _merged_attendance_end_date(
+    form_contract,
+    effective_end_date=_EFFECTIVE_END_UNSET,
+    effective_start_date=None,
+):
     """
     计算前端可填报截止日。
     同月续签合并服务期后，必须以合并后的 effective_end 为准；
     否则前端会优先读 attendance_end_date，把日历截断在旧合同结束日。
     """
-    if effective_end_date is not None:
+    if effective_end_date is not _EFFECTIVE_END_UNSET:
         return to_date_value(effective_end_date)
     if effective_start_date is not None:
         # 显式传入合并窗口且 end 为 None：通常是月签自动续约链，允许无限期填写
@@ -1880,17 +1905,9 @@ def set_maternity_onboarding_date_for_attendance(contract_id):
         # 上户时刻：HH:MM，半小时步长；缺省 09:00
         onboarding_time = (data.get("onboarding_time") or data.get("actual_onboarding_time") or "09:00").strip()
         try:
-            th, tm = [int(x) for x in onboarding_time.split(":")[:2]]
+            th, tm = [int(x) for x in onboarding_time.split(":")]
             if th < 0 or th > 23 or tm not in (0, 30):
-                # 允许 24:00 以外的半小时；若非整半小时则四舍五入到最近半小时
-                if tm not in (0, 30):
-                    if tm < 15:
-                        tm = 0
-                    elif tm < 45:
-                        tm = 30
-                    else:
-                        th = min(th + 1, 23)
-                        tm = 0
+                raise ValueError
             onboarding_time = f"{th:02d}:{tm:02d}"
             onboard_time_obj = datetime.strptime(onboarding_time, "%H:%M").time()
         except (ValueError, TypeError):
@@ -2072,7 +2089,11 @@ def update_attendance_form(employee_token):
         should_apply_auto = action == 'confirm' or form.status == 'employee_confirmed'
         
         if form_data is not None:
-            form.form_data = form_data or {}
+            form_data = strip_client_derived_auto_overtime(form_data or {})
+            time_errors = validate_attendance_time_precision(form_data)
+            if time_errors:
+                return jsonify({"error": "；".join(time_errors)}), 400
+            form.form_data = form_data
             if should_apply_auto and action != 'confirm':
                 normalized_form_data, normalized = normalize_auto_overtime_form_data(
                     form,
@@ -2116,7 +2137,7 @@ def update_attendance_form(employee_token):
                 form_data = normalized_form_data
             # 验证"上户"和"下户"记录的时间是否已填写
             validation_errors = []
-            current_form_data = form_data if form_data else form.form_data or {}
+            current_form_data = form_data if form_data is not None else form.form_data or {}
             current_form_data, end_normed = _normalize_onboarding_end_times(current_form_data)
             if end_normed:
                 form.form_data = current_form_data
@@ -2603,18 +2624,33 @@ def get_onboarding_time_info(employee_id, contract_id, current_cycle_start):
         }
 
 
-def normalize_contract_effective_dates(contract, effective_start_date=None, effective_end_date=None):
+def normalize_contract_effective_dates(
+    contract,
+    effective_start_date=None,
+    effective_end_date=_EFFECTIVE_END_UNSET,
+):
     """Return the service window for display without folding termination into end_date."""
     if not contract:
-        return effective_start_date, effective_end_date
+        return (
+            effective_start_date,
+            None if effective_end_date is _EFFECTIVE_END_UNSET else effective_end_date,
+        )
 
     display_start_date = effective_start_date if effective_start_date else contract.start_date
-    display_end_date = effective_end_date if effective_end_date is not None else contract.end_date
+    display_end_date = (
+        contract.end_date
+        if effective_end_date is _EFFECTIVE_END_UNSET and effective_start_date is None
+        else (None if effective_end_date is _EFFECTIVE_END_UNSET else effective_end_date)
+    )
 
     return display_start_date, display_end_date
 
 
-def form_to_dict(form, effective_start_date=None, effective_end_date=None):
+def form_to_dict(
+    form,
+    effective_start_date=None,
+    effective_end_date=_EFFECTIVE_END_UNSET,
+):
     # 生成客户签署链接
     client_sign_url = None
     if form.customer_signature_token:
@@ -2638,10 +2674,11 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
     )
     # 展示用合同结束日：合并窗口更长时取合并后的结束日，避免前端回退到旧合同 end_date
     form_contract_end = form.contract.end_date if form.contract else None
-    if display_end_date is not None:
-        contract_end_date = display_end_date
-    else:
-        contract_end_date = form_contract_end
+    has_effective_window = (
+        effective_end_date is not _EFFECTIVE_END_UNSET
+        or effective_start_date is not None
+    )
+    contract_end_date = display_end_date if has_effective_window else form_contract_end
     
     # 【家庭信息】获取同一家庭的所有客户信息
     family_customers = []
@@ -2676,8 +2713,14 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
     display_form_data = build_display_form_data_for_contract_window(
         form,
         display_start_date,
-        attendance_end_date or display_end_date,
+        attendance_end_date if attendance_end_date is not None else display_end_date,
     )
+    # 客户、管理员和分享页都使用同一份服务端日粒度投影，避免各端再次展开
+    # 自动加班时出现重复或不同的跨天时长。
+    display_form_data = project_auto_overtime_for_editing(display_form_data)
+    raw_form_data = form.form_data or {}
+    use_display_form_data = form.status in ('employee_confirmed', 'customer_signed', 'synced')
+    response_form_data = display_form_data if use_display_form_data else raw_form_data
 
     return {
         "id": str(form.id),
@@ -2687,7 +2730,8 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
         "month": form.cycle_start_date.month if form.cycle_start_date else None,
         "cycle_start_date": form.cycle_start_date.isoformat(),
         "cycle_end_date": form.cycle_end_date.isoformat(),
-        "form_data": form.form_data,
+        "form_data": response_form_data,
+        "raw_form_data": raw_form_data,
         "display_form_data": display_form_data,
         "status": form.status,
         "employee_access_token": form.employee_access_token,
@@ -2964,7 +3008,8 @@ def download_attendance_pdf(form_id):
         employee = form.contract.service_personnel
         
         # 解析考勤数据
-        attendance_data = form.form_data or {}
+        # PDF 与员工、客户页面使用同一份合同窗口投影，避免旧合同的记录混入当前合同。
+        attendance_data = _attendance_form_readonly_data(form)
         
         # 计算统计数据
         stats = _calculate_pdf_stats(attendance_data, form.cycle_start_date, form.cycle_end_date)
@@ -2983,7 +3028,10 @@ def download_attendance_pdf(form_id):
             customer_name=contract.customer_name,
             employee_name=employee.name,
             total_work_days=stats['work_days'],
+            total_rest_days=stats['rest_days'],
             total_leave_days=stats['leave_days'],
+            total_paid_leave_days=stats['paid_leave_days'],
+            total_leave_days_all=stats['leave_total_days'],
             total_overtime_days=stats['overtime_days'],
             calendar_weeks=calendar_weeks,
             special_records=special_records,
@@ -3009,14 +3057,28 @@ def download_attendance_pdf(form_id):
 
 def _calculate_pdf_stats(data, start_date, end_date):
     """计算 PDF 用的统计数据"""
-    total_leave = 0
+    rest_days = 0
+    leave_days = 0
+    paid_leave_days = 0
     total_overtime = 0
     
     # 【关键修复】休息和请假不算出勤，需要计算并扣除
-    for key in ['rest_records', 'leave_records']:
+    for key, target in (
+        ('rest_records', 'rest'),
+        ('leave_records', 'leave'),
+        ('paid_leave_records', 'paid_leave'),
+    ):
         for record in data.get(key, []):
             hours = (record.get('hours', 0)) + (record.get('minutes', 0) / 60)
-            total_leave += hours / 24
+            days = hours / 24
+            if target == 'rest':
+                rest_days += days
+            elif target == 'leave':
+                leave_days += days
+            else:
+                paid_leave_days += days
+
+    leave_total_days = rest_days + leave_days + paid_leave_days
     
     # 【修复】计算加班天数，区分假期加班和正常加班
     holiday_overtime = 0
@@ -3049,11 +3111,14 @@ def _calculate_pdf_stats(data, start_date, end_date):
     # 休息和请假不算出勤，需要扣除！
     # 公式：出勤天数 = 当月总天数 - 正常加班天数 - 休息天数 - 请假天数
     days_count = (end_date - start_date).days + 1
-    total_work = days_count - normal_overtime - total_leave
-    
+    total_work = days_count - normal_overtime - rest_days - leave_days
+
     return {
         'work_days': total_work,
-        'leave_days': total_leave,
+        'rest_days': rest_days,
+        'leave_days': leave_days,
+        'paid_leave_days': paid_leave_days,
+        'leave_total_days': leave_total_days,
         'overtime_days': total_overtime
     }
 
@@ -3520,6 +3585,20 @@ def get_employee_attendance_forms(employee_token):
         current_app.logger.error(f"获取员工考勤表列表失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
 
+def _attendance_form_readonly_data(form):
+    """Return the contract-window projection used by all read-only detail APIs."""
+    cycle_start = to_date_value(form.cycle_start_date)
+    cycle_end = to_date_value(form.cycle_end_date)
+    effective_start, effective_end = resolve_effective_attendance_window_for_contract(
+        form.employee_id,
+        cycle_start,
+        cycle_end,
+        form.contract,
+    )
+    payload = form_to_dict(form, effective_start, effective_end)
+    return payload.get("display_form_data") or payload.get("form_data") or {}
+
+
 # 新增API端点：获取考勤表详情用于查看
 @attendance_form_bp.route('/records/<record_id>/form', methods=['GET'])
 def get_attendance_form_by_record(record_id):
@@ -3543,6 +3622,7 @@ def get_attendance_form_by_record(record_id):
         contract = BaseContract.query.get(attendance_form.contract_id)
         
         # 构建返回数据
+        display_data = _attendance_form_readonly_data(attendance_form)
         form_data = {
             "id": str(attendance_form.id),
             "employee_id": str(attendance_form.employee_id),
@@ -3553,7 +3633,9 @@ def get_attendance_form_by_record(record_id):
             "month": attendance_form.cycle_start_date.month if attendance_form.cycle_start_date else None,
             "cycle_start_date": attendance_form.cycle_start_date.isoformat() if attendance_form.cycle_start_date else None,
             "cycle_end_date": attendance_form.cycle_end_date.isoformat() if attendance_form.cycle_end_date else None,
-            "attendance_details": attendance_form.form_data or {},
+            "attendance_details": display_data,
+            "raw_attendance_details": attendance_form.form_data or {},
+            "display_form_data": display_data,
             "customer_signature": attendance_form.signature_data.get('signature_image') if attendance_form.signature_data else None,
             "submitted_at": attendance_form.customer_signed_at.isoformat() if attendance_form.customer_signed_at else None,
             "is_submitted": attendance_form.status in ['customer_signed', 'synced'],
@@ -3605,6 +3687,7 @@ def get_attendance_form_by_contract():
         contract = BaseContract.query.get(contract_id)
         
         # 构建返回数据
+        display_data = _attendance_form_readonly_data(attendance_form)
         form_data = {
             "id": str(attendance_form.id),
             "employee_id": str(attendance_form.employee_id),
@@ -3615,7 +3698,9 @@ def get_attendance_form_by_contract():
             "month": attendance_form.cycle_start_date.month if attendance_form.cycle_start_date else None,
             "cycle_start_date": attendance_form.cycle_start_date.isoformat() if attendance_form.cycle_start_date else None,
             "cycle_end_date": attendance_form.cycle_end_date.isoformat() if attendance_form.cycle_end_date else None,
-            "attendance_details": attendance_form.form_data or {},
+            "attendance_details": display_data,
+            "raw_attendance_details": attendance_form.form_data or {},
+            "display_form_data": display_data,
             "customer_signature": attendance_form.signature_data.get('signature_image') if attendance_form.signature_data else None,
             "submitted_at": attendance_form.customer_signed_at.isoformat() if attendance_form.customer_signed_at else None,
             "is_submitted": attendance_form.status in ['customer_signed', 'synced'],

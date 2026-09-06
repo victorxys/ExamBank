@@ -32,9 +32,13 @@
           <view class="mini-stat-value">{{item.overtime_text}}</view>
           <view class="mini-stat-label">加班</view>
         </view>
+        <view class="mini-stat rest">
+          <view class="mini-stat-value">{{item.rest_days_text}}</view>
+          <view class="mini-stat-label">休息</view>
+        </view>
         <view class="mini-stat leave">
           <view class="mini-stat-value">{{item.leave_days_text}}</view>
-          <view class="mini-stat-label">休假</view>
+          <view class="mini-stat-label">请假</view>
         </view>
       </view>
     </view>

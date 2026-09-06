@@ -77,6 +77,7 @@ from backend.api.utils import (
 )
 from backend.services.contract_service import _find_successor_contract_internal
 from backend.services.payment_message_generator import PaymentMessageGenerator
+from backend.services.payroll_miniapp_link_service import PayrollMiniappLinkError
 from backend.services.bank_statement_service import BankStatementService
 from backend.services.contract_operation_log_service import (
     create_contract_operation_log,
@@ -5516,6 +5517,10 @@ def generate_payment_message():
             "is_formatted": True,
         }
         return jsonify(message_data)
+    except PayrollMiniappLinkError as e:
+        db.session.rollback()
+        current_app.logger.error(f"生成催款消息缺少小程序链接: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 503
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"生成催款消息失败: {e}", exc_info=True)
@@ -5539,8 +5544,15 @@ def beautify_payment_message():
             company_account_id=company_account_id,
             source_employee_summary=employee_summary,
         )
-        return jsonify(render_beautify_payload(beautify_payload))
+        rendered = render_beautify_payload(beautify_payload)
+        db.session.commit()
+        return jsonify(rendered)
+    except PayrollMiniappLinkError as e:
+        db.session.rollback()
+        current_app.logger.error(f"规范催款信息缺少小程序链接: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 503
     except Exception as e:
+        db.session.rollback()
         current_app.logger.error(f"生成规范催款信息失败: {e}", exc_info=True)
         err_msg = str(e) if e else "生成失败，请稍后重试"
         if len(err_msg) > 200:

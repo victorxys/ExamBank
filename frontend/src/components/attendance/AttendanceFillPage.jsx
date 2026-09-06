@@ -81,6 +81,10 @@ const isFullDayDisplayRecord = (record = {}) => {
     return startMinutes <= 0 && endMinutes >= 24 * 60;
 };
 
+const isAutoOvertimeRecord = (record = {}) => Boolean(
+    record.is_auto || record._auto_overtime_projection
+);
+
 const parseDateOnlyForAttendance = (value) => {
     if (!value) return null;
     const parsed = startOfDay(parseISO(String(value).slice(0, 10)));
@@ -259,17 +263,28 @@ const buildDisplayMonthDays = (cycleStartDate, cycleEndDate = null, { isMaternit
     return days;
 };
 
+const normalizePickerTime = (value, fallbackHour = '09') => {
+    if (!value) return `${fallbackHour}:00`;
+    const [rawHour, rawMinute] = String(value).split(':').map(Number);
+    const safeHour = Number.isFinite(rawHour) ? Math.max(0, Math.min(24, rawHour)) : Number(fallbackHour);
+    const safeMinute = Number.isFinite(rawMinute) ? rawMinute : 0;
+    const roundedMinutes = Math.min(24 * 60, Math.max(0, Math.round((safeHour * 60 + safeMinute) / 30) * 30));
+    if (roundedMinutes >= 24 * 60) return '24:00';
+    return `${String(Math.floor(roundedMinutes / 60)).padStart(2, '0')}:${String(roundedMinutes % 60).padStart(2, '0')}`;
+};
+
 // Custom TimePicker Component
 const TimePicker = ({ value, onChange, disabled, placeholder = '请选择' }) => {
     const [isOpen, setIsOpen] = useState(false);
     const isEmpty = !value || value === '';
-    const [hour, minute] = isEmpty ? ['', ''] : (value || '00:00').split(':');
+    const normalizedValue = isEmpty ? '' : normalizePickerTime(value, '00');
+    const [hour, minute] = isEmpty ? ['', ''] : normalizedValue.split(':');
     // Generate a unique ID prefix for this instance to avoid conflicts
     const idPrefix = useMemo(() => Math.random().toString(36).substr(2, 9), []);
 
-    // Generate hours (00-23) and minutes (00, 10, 20, 30, 40, 50)
-    const hours = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
-    const minutes = Array.from({ length: 6 }, (_, i) => (i * 10).toString().padStart(2, '0'));
+    // 考勤时间只允许半小时刻度，24:00 仅作为结束时间。
+    const hours = Array.from({ length: 25 }, (_, i) => i.toString().padStart(2, '0'));
+    const minutes = ['00', '30'];
 
     // Scroll to selected item when popover opens
     useEffect(() => {
@@ -310,7 +325,7 @@ const TimePicker = ({ value, onChange, disabled, placeholder = '请选择' }) =>
                                 key={h}
                                 id={`${idPrefix}-hour-${h}`}
                                 onClick={() => {
-                                    const newMinute = minute || '00';
+                                    const newMinute = h === '24' ? '00' : (minute || '00');
                                     onChange(`${h}:${newMinute}`);
                                 }}
                                 className={cn(
@@ -330,7 +345,7 @@ const TimePicker = ({ value, onChange, disabled, placeholder = '请选择' }) =>
                                 key={m}
                                 id={`${idPrefix}-minute-${m}`}
                                 onClick={() => {
-                                    const newHour = hour || '09';
+                                    const newHour = hour === '24' ? '23' : (hour || '09');
                                     onChange(`${newHour}:${m}`);
                                     // Optional: Close on minute selection if desired, but keeping open allows adjustment
                                 }}
@@ -1618,7 +1633,9 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
         const cleanData = { ...data };
         if (Array.isArray(cleanData.overtime_records)) {
             // 只保留非自动生成的加班记录（即用户手填的确定的加班记录）
-            cleanData.overtime_records = cleanData.overtime_records.filter(r => !r.is_auto);
+            cleanData.overtime_records = cleanData.overtime_records.filter(
+                r => !r.is_auto && !r._auto_overtime_projection
+            );
         }
         data = cleanData;
 
@@ -2090,16 +2107,17 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
 
     // Stats - Calculate total days for each category (with 3 decimal places)
     let totalWorkDays = 0; // 出勤天数
-    let totalLeaveDays = 0; // 请假或休假天数（休息、请假，不含带薪休假）
+    let totalRestDays = 0;
+    let totalActualLeaveDays = 0;
+    let totalLeaveDays = 0; // 休息 + 请假，用于出勤扣减
     let totalOvertimeDays = 0; // 加班天数（单独统计）
     let totalManualOvertimeDays = 0; // 用户手动填写的加班天数
-    let manualNormalOvertimeDays = 0; // 用户手动填写的普通日加班天数
     const MAX_WORK_DAYS = 26;
 
     // Calculate leave days (rest, leave) - 【修复】不包含带薪休假
     // 【关键修复】休息和请假不算出勤，需要从出勤天数中扣除
     // 【关键】对于跨月记录，只计算当前月份内的天数
-    ['rest_records', 'leave_records'].forEach(key => {
+    [['rest_records', 'rest'], ['leave_records', 'leave']].forEach(([key, category]) => {
         if (Array.isArray(attendanceData[key])) {
             attendanceData[key].forEach(record => {
                 // 【关键修复】计算当前月份内的实际天数
@@ -2140,15 +2158,16 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                     hoursInCurrentMonth = totalRecordHours * (daysInCurrentMonth / totalDaysSpan);
                 }
 
-                totalLeaveDays += hoursInCurrentMonth / 24;
+                if (category === 'rest') totalRestDays += hoursInCurrentMonth / 24;
+                else totalActualLeaveDays += hoursInCurrentMonth / 24;
             });
         }
     });
+    totalLeaveDays = totalRestDays + totalActualLeaveDays;
 
     // 【修复】计算加班天数，区分假期加班和正常加班
     // 【关键】对于跨月记录，只计算当前月份内的天数
     let holidayOvertimeDays = 0; // 假期加班天数
-    let normalOvertimeDays = 0;  // 正常加班天数（修复：现在正常加班也算出勤）
     let autoOvertimeDays = 0;    // 【新增】自动补齐的加班天数
     const legacyAutoOvertimeDates = new Set();
 
@@ -2157,7 +2176,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
         const overtimeByDate = new Map(
             attendanceData.overtime_records
                 .filter(record => {
-                    if (record.is_auto || (record.daysOffset || 0) !== 0) return false;
+                    if (isAutoOvertimeRecord(record) || (record.daysOffset || 0) !== 0) return false;
                     const hours = (record.hours || 0) + (record.minutes || 0) / 60;
                     return hours >= 23.99 && record.startTime === '00:00' && record.endTime === '24:00';
                 })
@@ -2215,7 +2234,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
 
             const overtimeDays = hoursInCurrentMonth / 24;
 
-            const isAutoOvertime = record.is_auto || legacyAutoOvertimeDates.has(record.date);
+            const isAutoOvertime = isAutoOvertimeRecord(record) || legacyAutoOvertimeDates.has(record.date);
 
             if (isAutoOvertime) {
                 autoOvertimeDays += overtimeDays;
@@ -2254,11 +2273,6 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
 
                 if (isHolidayDay) {
                     holidayOvertimeDays += dailyOvertime;
-                } else {
-                    normalOvertimeDays += dailyOvertime;
-                    if (!isAutoOvertime) {
-                        manualNormalOvertimeDays += dailyOvertime;
-                    }
                 }
 
                 currentDay = addDays(currentDay, 1);
@@ -2281,14 +2295,8 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
     );
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
     totalWorkDays = validDaysCount - totalOnboardingDays + offboardingAdjustment - totalLeaveDays;
-    const recalculatedAutoOvertimeDays = isMaternityCycle
-        ? 0
-        : Math.max(0, totalWorkDays - MAX_WORK_DAYS - manualNormalOvertimeDays);
-    if (!isMaternityCycle && autoOvertimeDays > 0) {
-        autoOvertimeDays = recalculatedAutoOvertimeDays;
-    } else if (isMaternityCycle) {
-        autoOvertimeDays = 0;
-    }
+    // 自动加班已由服务端按合同窗口生成；展示时使用记录本身，避免再次推导出不同的时长。
+    if (isMaternityCycle) autoOvertimeDays = 0;
     const displayAutoOvertimeDays = autoOvertimeDays;
     totalOvertimeDays = totalManualOvertimeDays + autoOvertimeDays;
 
@@ -2422,7 +2430,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                 {/* 加上一个外层 div 控制最大宽度，防止在大屏上太宽 */}
                 <div className="max-w-3xl mx-auto">
                     <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] border border-gray-100">
-                        <div className="grid grid-cols-3 gap-3 text-center divide-x divide-gray-100">
+                        <div className="grid grid-cols-4 gap-3 text-center divide-x divide-gray-100">
                             <div>
                                 <div className="text-2xl font-black text-gray-900">{formatDays(totalWorkDays)}</div>
                                 <div className="min-h-4 text-[11px] font-semibold text-gray-500 mt-0.5">
@@ -2431,11 +2439,18 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                 <div className="text-[11px] font-medium text-gray-400 mt-1">出勤(天)</div>
                             </div>
                             <div>
-                                <div className="text-2xl font-black text-orange-500">{formatDays(totalLeaveDays)}</div>
-                                <div className="min-h-4 text-[11px] font-semibold text-orange-500 mt-0.5">
-                                    {formatDaysHours(totalLeaveDays)}
+                                <div className="text-2xl font-black text-blue-600">{formatDays(totalRestDays)}</div>
+                                <div className="min-h-4 text-[11px] font-semibold text-blue-600 mt-0.5">
+                                    {formatDaysHours(totalRestDays)}
                                 </div>
-                                <div className="text-[11px] font-medium text-gray-400 mt-1">请假/休假</div>
+                                <div className="text-[11px] font-medium text-gray-400 mt-1">休息</div>
+                            </div>
+                            <div>
+                                <div className="text-2xl font-black text-orange-500">{formatDays(totalActualLeaveDays)}</div>
+                                <div className="min-h-4 text-[11px] font-semibold text-orange-500 mt-0.5">
+                                    {formatDaysHours(totalActualLeaveDays)}
+                                </div>
+                                <div className="text-[11px] font-medium text-gray-400 mt-1">请假</div>
                             </div>
                             <div>
                                 <div className="text-2xl font-black text-green-600">{formatDays(totalOvertimeDays)}</div>
@@ -2540,7 +2555,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                     key={index}
                                     onClick={() => {
                                         if (isDisabled) return;
-                                        if (record.type === 'overtime' && record.is_auto) {
+                                        if (record.type === 'overtime' && isAutoOvertimeRecord(record)) {
                                             setIsAutoOvertimeAlertOpen(true);
                                             return;
                                         }
@@ -2551,7 +2566,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                         transition-all duration-200 flex flex-col items-center justify-center
                                         ${isDisabled
                                             ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-60'
-                                            : `${record.type === 'overtime' && record.is_auto
+                                            : `${record.type === 'overtime' && isAutoOvertimeRecord(record)
                                                 ? 'bg-emerald-50/30 border-emerald-300/50 border-dashed'
                                                 : (statusColors[record.type] || 'bg-gray-50 border-gray-200')
                                             } cursor-pointer active:scale-95 hover:shadow-md`
@@ -2585,8 +2600,8 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                     {isDisabled ? (
                                         <X className="w-4 h-4 text-gray-400 mt-0.5" />
                                     ) : (
-                                        <span className={`text-[10px] leading-none mt-0.5 font-medium truncate w-full text-center ${record.type === 'overtime' && record.is_auto ? 'text-emerald-600 font-bold' : (statusTextColors[record.type] || 'text-gray-600')}`}>
-                                            {record.type === 'overtime' && record.is_auto ? '自动补齐' : (record.typeLabel || '出勤')}
+                                        <span className={`text-[10px] leading-none mt-0.5 font-medium truncate w-full text-center ${record.type === 'overtime' && isAutoOvertimeRecord(record) ? 'text-emerald-600 font-bold' : (statusTextColors[record.type] || 'text-gray-600')}`}>
+                                            {record.type === 'overtime' && isAutoOvertimeRecord(record) ? '自动补齐' : (record.typeLabel || '出勤')}
                                         </span>
                                     )}
 
@@ -2701,7 +2716,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                     // 下户：显示离开时间（endTime）
                                     const displayTime = record.type === 'offboarding' ? endTime : startTime;
                                     timeRangeStr = `${format(startDate, 'M月d日')} ${displayTime || '待填写'}`;
-                                } else if (record.is_auto || isFullDayDisplayRecord(record)) {
+                                } else if (isAutoOvertimeRecord(record) || isFullDayDisplayRecord(record)) {
                                     timeRangeStr = dateRangeStr;
                                 } else if (actualDaysOffset > 0) {
                                     // 跨天：显示当前月份内的起止时间
@@ -2715,7 +2730,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                     <div
                                         key={index}
                                         onClick={() => {
-                                            if (record.is_auto) {
+                                            if (isAutoOvertimeRecord(record)) {
                                                 setIsAutoOvertimeAlertOpen(true);
                                                 return;
                                             }
@@ -2736,7 +2751,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                                     'onboarding': 'bg-cyan-100 text-cyan-700 border-cyan-300',
                                                     'offboarding': 'bg-orange-100 text-orange-700 border-orange-300',
                                                 };
-                                                const colorClass = record.type === 'overtime' && record.is_auto
+                                                const colorClass = record.type === 'overtime' && isAutoOvertimeRecord(record)
                                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-300 border-dashed'
                                                     : (typeColors[record.type] || (isWeekend ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-gray-700 border-gray-200'));
 
@@ -2750,7 +2765,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
 
                                             <div>
                                                 <div className="text-sm font-medium text-gray-900">
-                                                    {record.is_auto ? '自动补齐加班' : record.typeLabel}
+                                                    {isAutoOvertimeRecord(record) ? '自动补齐加班' : record.typeLabel}
                                                 </div>
                                                 <div className={`text-xs ${isOnboardingOrOffboarding &&
                                                     !(record.type === 'offboarding' ? record.endTime : record.startTime)
@@ -2758,7 +2773,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                                     : 'text-gray-500'
                                                     }`}>
                                                     {timeRangeStr}
-                                                    {record.is_auto && (
+                                                    {isAutoOvertimeRecord(record) && (
                                                         <span className="text-[10px] text-gray-400 block mt-0.5 font-normal">
                                                             补齐{durationText}，因出勤天数超26天上限自动转换
                                                         </span>
