@@ -83,6 +83,37 @@ def _time_to_minutes(time_value):
     return total
 
 
+def is_valid_attendance_time(time_value, allow_empty=True):
+    """Return whether an attendance time uses the supported half-hour precision."""
+    if time_value is None or str(time_value).strip() == "":
+        return allow_empty
+
+    parts = str(time_value).strip().split(":")
+    if len(parts) != 2 or not all(part.isdigit() for part in parts):
+        return False
+    hour, minute = (int(part) for part in parts)
+    if hour < 0 or hour > 24 or minute not in (0, 30):
+        return False
+    return not (hour == 24 and minute != 0)
+
+
+def validate_attendance_time_precision(form_data):
+    """Return user-facing errors for record times outside the half-hour grid."""
+    errors = []
+    for key, records in (form_data or {}).items():
+        if not key.endswith("_records") or not isinstance(records, list):
+            continue
+        for index, record in enumerate(records):
+            if not isinstance(record, dict):
+                continue
+            date_label = record.get("date") or f"第{index + 1}条"
+            for field, label in (("startTime", "开始时间"), ("endTime", "结束时间")):
+                value = record.get(field)
+                if value and not is_valid_attendance_time(value):
+                    errors.append(f"{date_label}的{label}必须使用半小时刻度（00或30分钟）")
+    return errors
+
+
 def _onboarding_time_from_data(data):
     for record in data.get("onboarding_records") or []:
         onboarding_time = record.get("startTime")
@@ -542,6 +573,12 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
     if not allow_create_missing_auto and not legacy_auto_dates and not existing_auto_records:
         return data, False
 
+    # 已确认表单中的自动加班记录是历史计算结果的权威明细。不要在每次读取/同步
+    # 时再次用“超过 26 天”反推整天数，否则 96h + 19h 会被改写成 120h。
+    # 员工重新提交时，接口会先剥离这些记录，再走下面的缺失记录生成逻辑。
+    if allow_create_missing_auto and existing_auto_records and not legacy_auto_dates:
+        return data, False
+
     rest_days = _calculate_records_days(data.get("rest_records", []))
     leave_days = _calculate_records_days(data.get("leave_records", []))
     total_leave_days = rest_days + leave_days
@@ -825,25 +862,20 @@ def sync_attendance_to_record(attendance_form_id):
             offboarding_day_work = Decimal('1')
             current_app.logger.warning(f"[ATTENDANCE_SYNC] 未找到上户时间信息，下户日按1整天计算")
     
-    # 【关键修复】使用合同的有效日期范围，而不是整个考勤周期
+    # 展示接口和工资单都按同一客户/家庭的合并服务窗口工作。同步层也必须使用
+    # 同一窗口，否则同月续签时员工/客户看到的记录和 AttendanceRecord 会再次分叉。
     contract = form.contract
     if contract:
-        # 合同开始日期（如果有实际上户日，优先使用实际上户日）
-        raw_contract_start = getattr(contract, 'actual_onboarding_date', None) or contract.start_date
-        contract_start = raw_contract_start.date() if isinstance(raw_contract_start, datetime) else raw_contract_start
-        effective_start = max(cycle_start, contract_start)
-        
-        contract_end = _attendance_contract_end_date(contract)
-                
-        if contract_end:
-            effective_end = max(effective_start, min(cycle_end, contract_end))  # 防止 contract_end 在 effective_start 之前导致负数
-        else:
-            effective_end = cycle_end
-
-        
-        # 计算有效天数（基础劳务天数）
+        effective_start, effective_end = _effective_service_window_for_cycle(
+            form,
+            cycle_start,
+            cycle_end,
+        )
         base_work_days = (effective_end - effective_start).days + 1
-        current_app.logger.info(f"[ATTENDANCE_SYNC] 合同有效期: {effective_start} 到 {effective_end}, 基础劳务天数: {base_work_days}")
+        current_app.logger.info(
+            f"[ATTENDANCE_SYNC] 合并服务窗口: {effective_start} 到 {effective_end}, "
+            f"基础劳务天数: {base_work_days}"
+        )
     else:
         # 如果没有合同信息，回退到使用考勤周期
         effective_start = cycle_start
@@ -935,6 +967,7 @@ def sync_attendance_to_record(attendance_form_id):
         "rest_days": float(rest_days),
         "leave_days": float(leave_days),
         "paid_leave_days": float(paid_leave_days),
+        "leave_total_days": float(rest_days + leave_days + paid_leave_days),
         "overtime_days": float(overtime_days),
         "normal_overtime_days": float(normal_overtime_days),
         "statutory_holiday_days": float(statutory_holiday_days),

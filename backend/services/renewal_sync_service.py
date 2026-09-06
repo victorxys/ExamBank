@@ -298,7 +298,10 @@ def is_month_end_renewal(source_contract, successor) -> bool:
         return False
     renewal_end = successor_start - timedelta(days=1)
     _, last_day = calendar.monthrange(renewal_end.year, renewal_end.month)
-    return renewal_end.day == last_day
+    if renewal_end.day != last_day:
+        return False
+    source_end = _to_date(getattr(source_contract, "end_date", None))
+    return source_end is None or source_end == renewal_end
 
 
 def _commission_offset_amount(payroll):

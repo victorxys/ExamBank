@@ -19,8 +19,47 @@ _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE = {
     "expires_at": 0,
 }
 
+WECHAT_REQUEST_ATTEMPTS = 3
+WECHAT_RETRY_DELAY_SECONDS = 0.2
+
 PAYROLL_MINIAPP_PATH = "pages/payroll-due/index"
 CUSTOMER_MINIAPP_LINK_LABEL = "客户小程序工资单（点击打开）:"
+
+
+class PayrollMiniappLinkError(RuntimeError):
+    """Raised when a required customer payroll link cannot be generated."""
+
+
+def _clear_payroll_access_token_cache():
+    _MINIAPP_PAYROLL_ACCESS_TOKEN_CACHE.update(
+        appid="",
+        access_token="",
+        expires_at=0,
+    )
+
+
+def _request_with_retry(request_fn, *args, **kwargs):
+    """Retry transient network/HTTP failures without hiding the final error."""
+    last_error = None
+    for attempt in range(WECHAT_REQUEST_ATTEMPTS):
+        try:
+            response = request_fn(*args, **kwargs)
+            status_code = getattr(response, "status_code", 200)
+            if status_code == 429 or status_code >= 500:
+                if attempt + 1 < WECHAT_REQUEST_ATTEMPTS:
+                    time.sleep(WECHAT_RETRY_DELAY_SECONDS * (attempt + 1))
+                    continue
+            response.raise_for_status()
+            return response
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt + 1 >= WECHAT_REQUEST_ATTEMPTS:
+                raise
+            time.sleep(WECHAT_RETRY_DELAY_SECONDS * (attempt + 1))
+
+    if last_error:
+        raise last_error
+    raise RuntimeError("微信接口请求失败")
 
 
 def ensure_payroll_customer_share_token(payroll: EmployeePayroll) -> str:
@@ -54,7 +93,8 @@ def miniapp_payroll_access_token(config: Optional[dict] = None) -> str:
             missing.append("WECHAT_MINIAPP_SECRET")
         raise RuntimeError(f"未配置 {'/'.join(missing)}")
 
-    response = requests.get(
+    response = _request_with_retry(
+        requests.get,
         "https://api.weixin.qq.com/cgi-bin/token",
         params={
             "grant_type": "client_credential",
@@ -106,25 +146,34 @@ def generate_payroll_miniapp_url_link(
         "expire_time": expire_time,
         "env_version": (config or {}).get("env_version") or "release",
     }
-    response = requests.post(
-        f"https://api.weixin.qq.com/wxa/generate_urllink?access_token={access_token}",
-        json=payload,
-        timeout=(3, 8),
-    )
-    response.raise_for_status()
-    data = response.json()
-    if data.get("errcode"):
-        raise RuntimeError(data.get("errmsg") or "生成小程序链接失败")
-    url_link = data.get("url_link")
-    if not url_link:
-        raise RuntimeError("微信未返回小程序 URL Link")
-    return url_link, f"{path}?{query}"
+    for token_attempt in range(2):
+        access_token = miniapp_payroll_access_token(config)
+        response = _request_with_retry(
+            requests.post,
+            f"https://api.weixin.qq.com/wxa/generate_urllink?access_token={access_token}",
+            json=payload,
+            timeout=(3, 8),
+        )
+        data = response.json()
+        errcode = str(data.get("errcode") or "")
+        if errcode in {"40001", "42001"} and token_attempt == 0:
+            _clear_payroll_access_token_cache()
+            continue
+        if errcode:
+            raise RuntimeError(data.get("errmsg") or "生成小程序链接失败")
+        url_link = data.get("url_link")
+        if not url_link:
+            raise RuntimeError("微信未返回小程序 URL Link")
+        return url_link, f"{path}?{query}"
+
+    raise RuntimeError("小程序 access_token 已失效，刷新后仍无法生成链接")
 
 
 def build_payroll_miniapp_link_payload(
     payroll: EmployeePayroll,
     *,
     commit: bool = False,
+    require_url: bool = False,
 ) -> dict[str, Any]:
     """
     构建与 GET /payrolls/<id>/miniapp-link 一致的结果结构。
@@ -207,6 +256,12 @@ def build_payroll_miniapp_link_payload(
         except Exception:
             db.session.rollback()
             raise
+
+    if require_url and not result.get("miniapp_url"):
+        error = result.get("miniapp_error") or "未生成客户小程序工资单链接"
+        raise PayrollMiniappLinkError(
+            f"工资单 {getattr(payroll, 'id', '')} 的客户小程序链接生成失败：{error}"
+        )
 
     return result
 

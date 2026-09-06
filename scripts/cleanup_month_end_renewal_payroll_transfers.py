@@ -8,6 +8,7 @@ import os
 import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from uuid import UUID
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -22,6 +23,7 @@ from backend.models import (  # noqa: E402
     CustomerBill,
     EmployeePayroll,
     FinancialAdjustment,
+    PayoutRecord,
 )
 from backend.services.renewal_sync_service import (  # noqa: E402
     PAYROLL_TRANSFER_DESCRIPTIONS,
@@ -37,6 +39,7 @@ class Candidate:
     source_bill: CustomerBill
     target_bill: CustomerBill | None
     transfer_count: int
+    unsafe_reason: str | None = None
 
 
 def _to_date(value) -> date | None:
@@ -55,20 +58,88 @@ def _payroll_for_bill(bill):
     ).first()
 
 
-def find_candidates(contract_id=None):
+def _transfer_adjustments(source_bill, target_bill):
+    source_payroll = _payroll_for_bill(source_bill)
+    target_payroll = _payroll_for_bill(target_bill)
+    payroll_ids = [
+        payroll.id
+        for payroll in (source_payroll, target_payroll)
+        if payroll is not None
+    ]
+    if not payroll_ids or not source_bill or not target_bill:
+        return []
+
+    candidates = FinancialAdjustment.query.filter(
+        FinancialAdjustment.employee_payroll_id.in_(payroll_ids),
+        FinancialAdjustment.description.in_(PAYROLL_TRANSFER_DESCRIPTIONS),
+    ).all()
+    source_descriptions = set(PAYROLL_TRANSFER_DESCRIPTIONS[::2])
+    target_descriptions = set(PAYROLL_TRANSFER_DESCRIPTIONS[1::2])
+    transfers = []
+    for adjustment in candidates:
+        linked_bill_id = (adjustment.details or {}).get("linked_bill_id")
+        if (
+            source_payroll
+            and adjustment.employee_payroll_id == source_payroll.id
+            and adjustment.description in source_descriptions
+            and str(linked_bill_id) == str(target_bill.id)
+        ):
+            transfers.append(adjustment)
+        elif (
+            target_payroll
+            and adjustment.employee_payroll_id == target_payroll.id
+            and adjustment.description in target_descriptions
+            and str(linked_bill_id) == str(source_bill.id)
+        ):
+            transfers.append(adjustment)
+    return transfers
+
+
+def _unsafe_reason(source_bill, target_bill, transfers):
+    source_payroll = _payroll_for_bill(source_bill)
+    target_payroll = _payroll_for_bill(target_bill)
+    if not target_bill or not source_payroll or not target_payroll:
+        return "缺少旧合同或续签合同首期工资单/账单"
+    if not transfers:
+        return "未找到与对端账单精确关联的工资转移调整项"
+    if Decimal(str(source_bill.total_paid or 0)) != 0 or Decimal(str(target_bill.total_paid or 0)) != 0:
+        return "客户账单已有实际收款记录"
+    if (
+        Decimal(str(source_payroll.total_paid_out or 0)) != 0
+        or Decimal(str(target_payroll.total_paid_out or 0)) != 0
+        or PayoutRecord.query.filter(
+            PayoutRecord.employee_payroll_id.in_([source_payroll.id, target_payroll.id])
+        ).count()
+    ):
+        return "工资单已有实际发放记录"
+    if any(
+        adjustment.is_settled
+        or Decimal(str(adjustment.paid_amount or 0)) != 0
+        for adjustment in transfers
+    ):
+        return "工资转移调整项已有结算记录"
+    return None
+
+
+def find_candidates(contract_ids=None, employee_names=None):
     query = BaseContract.query.filter(
         BaseContract.previous_contract_id.isnot(None),
         BaseContract.source == "renewal",
     )
-    if contract_id:
-        value = UUID(str(contract_id))
+    if contract_ids:
+        values = [UUID(str(contract_id)) for contract_id in contract_ids]
         query = query.filter(
-            (BaseContract.id == value) | (BaseContract.previous_contract_id == value)
+            (BaseContract.id.in_(values))
+            | (BaseContract.previous_contract_id.in_(values))
         )
 
     candidates = []
     for successor in query.order_by(BaseContract.start_date.asc()).all():
         source_contract = db.session.get(BaseContract, successor.previous_contract_id)
+        if employee_names:
+            employee = source_contract.service_personnel if source_contract else None
+            if not employee or employee.name not in set(employee_names):
+                continue
         if not is_month_end_renewal(source_contract, successor):
             continue
 
@@ -87,25 +158,16 @@ def find_candidates(contract_id=None):
             contract_id=successor.id,
             is_substitute_bill=False,
         ).order_by(CustomerBill.cycle_start_date.asc()).first()
-        payroll_ids = [
-            payroll.id
-            for payroll in (_payroll_for_bill(source_bill), _payroll_for_bill(target_bill))
-            if payroll
-        ]
-        transfer_count = 0
-        if payroll_ids:
-            transfer_count = FinancialAdjustment.query.filter(
-                FinancialAdjustment.employee_payroll_id.in_(payroll_ids),
-                FinancialAdjustment.description.in_(PAYROLL_TRANSFER_DESCRIPTIONS),
-            ).count()
-        if transfer_count:
+        transfers = _transfer_adjustments(source_bill, target_bill)
+        if transfers:
             candidates.append(
                 Candidate(
                     source_contract=source_contract,
                     successor=successor,
                     source_bill=source_bill,
                     target_bill=target_bill,
-                    transfer_count=transfer_count,
+                    transfer_count=len(transfers),
+                    unsafe_reason=_unsafe_reason(source_bill, target_bill, transfers),
                 )
             )
     return candidates
@@ -130,6 +192,28 @@ def describe(candidate):
         f"错误工资转移 {candidate.transfer_count} 条 | "
         f"旧合同 {candidate.source_contract.id} | 新合同 {candidate.successor.id}"
     )
+    if candidate.unsafe_reason:
+        print(f"  拒绝执行: {candidate.unsafe_reason}")
+
+
+def apply_candidates(candidates):
+    """Apply all candidates in one transaction and roll back on any failure."""
+    cleaned = 0
+    try:
+        for candidate in candidates:
+            source_end = _to_date(candidate.source_bill.cycle_end_date)
+            cleaned += cleanup_month_end_renewal_payroll_transfers(
+                candidate.source_contract,
+                candidate.successor,
+                source_end.year,
+                source_end.month,
+                recalculate=True,
+            )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    return cleaned
 
 
 def main():
@@ -140,17 +224,38 @@ def main():
     )
     parser.add_argument(
         "--contract-id",
+        dest="contract_ids",
+        action="append",
         help="只检查指定旧合同或续签合同 ID",
+    )
+    parser.add_argument(
+        "--employee-name",
+        dest="employee_names",
+        action="append",
+        help="只检查指定员工，可重复传入多个姓名",
     )
     parser.add_argument(
         "--apply",
         action="store_true",
         help="实际清理并重算；默认只读审计",
     )
+    parser.add_argument(
+        "--all-candidates",
+        action="store_true",
+        help="允许 --apply 处理全部审计候选，必须显式指定",
+    )
     args = parser.parse_args()
 
+    if args.apply and not (args.contract_ids or args.employee_names or args.all_candidates):
+        parser.error("--apply 必须同时指定 --contract-id、--employee-name 或 --all-candidates")
+    if args.all_candidates and (args.contract_ids or args.employee_names):
+        parser.error("--all-candidates 不能与 --contract-id 或 --employee-name 同时使用")
+
     with app.app_context():
-        candidates = find_candidates(args.contract_id)
+        candidates = find_candidates(
+            None if args.all_candidates else args.contract_ids,
+            None if args.all_candidates else args.employee_names,
+        )
         print(f"找到 {len(candidates)} 个自然月末工资转移错误。")
         for candidate in candidates:
             describe(candidate)
@@ -160,21 +265,12 @@ def main():
                 print("当前为只读审计；确认后增加 --apply 执行修复。")
             return 0
 
-        try:
-            cleaned = 0
-            for candidate in candidates:
-                source_end = _to_date(candidate.source_bill.cycle_end_date)
-                cleaned += cleanup_month_end_renewal_payroll_transfers(
-                    candidate.source_contract,
-                    candidate.successor,
-                    source_end.year,
-                    source_end.month,
-                    recalculate=True,
-                )
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
+        unsafe_candidates = [candidate for candidate in candidates if candidate.unsafe_reason]
+        if unsafe_candidates:
+            print("存在不满足自动修正安全条件的候选，未执行任何修改。")
+            return 2
+
+        cleaned = apply_candidates(candidates)
 
         print(f"已清理 {cleaned} 条错误工资转移，并重算相关月份账单。")
         return 0

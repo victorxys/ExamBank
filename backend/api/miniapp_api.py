@@ -61,6 +61,7 @@ from backend.services.attendance_sync_service import (
     normalize_auto_overtime_form_data,
     project_auto_overtime_for_editing,
     strip_client_derived_auto_overtime,
+    validate_attendance_time_precision,
 )
 from backend.services.maternity_attendance_service import (
     is_maternity_contract,
@@ -1427,7 +1428,10 @@ def _payroll_payload(payroll, contract_id=None, year=None, month=None):
         if attendance_stats
         else details.get("overtime_days")
     )
+    rest_days = _decimal_value((attendance_stats or {}).get("rest_days") if attendance_stats else 0)
     leave_days = _decimal_value((attendance_stats or {}).get("leave_days") if attendance_stats else 0)
+    paid_leave_days = _decimal_value((attendance_stats or {}).get("paid_leave_days") if attendance_stats else 0)
+    leave_total_days = rest_days + leave_days + paid_leave_days
     calculated_amount = (base_salary / salary_days * (work_days + overtime_days)).quantize(Decimal("0.01")) if salary_days else Decimal("0")
     payout_parts_available = any(
         details.get(key) is not None
@@ -1478,7 +1482,10 @@ def _payroll_payload(payroll, contract_id=None, year=None, month=None):
         "salary_days": _format_days_string(salary_days),
         "work_days": _format_days_string(work_days),
         "overtime_days": _format_days_string(overtime_days),
+        "rest_days": _format_days_string(rest_days),
         "leave_days": _format_days_string(leave_days),
+        "paid_leave_days": _format_days_string(paid_leave_days),
+        "leave_total_days": _format_days_string(leave_total_days),
         "formula_text": "月劳务费 ÷ 计薪天数 ×（出勤 + 加班）",
         "attendance_form_id": str(attendance_form.id) if attendance_form else None,
         "attendance_signature_token": attendance_form.customer_signature_token if attendance_form else None,
@@ -1536,7 +1543,10 @@ def _estimated_payroll_payload(contract, year, month):
         "salary_days": _format_days_string(salary_days),
         "work_days": _format_days_string(estimated_work_days),
         "overtime_days": _format_days_string(estimated_overtime_days),
+        "rest_days": _format_days_string(Decimal("0")),
         "leave_days": _format_days_string(estimated_leave_days),
+        "paid_leave_days": _format_days_string(Decimal("0")),
+        "leave_total_days": _format_days_string(estimated_leave_days),
         "formula_text": "预估方式：月劳务费 ÷ 计薪天数 ×（出勤 + 加班）",
         "attendance_form_id": None,
         "attendance_signature_token": None,
@@ -1661,7 +1671,7 @@ def _should_use_display_form_data_for_miniapp(payload):
     if not isinstance(payload, dict) or payload.get("display_form_data") is None:
         return False
 
-    if payload.get("status") in ("customer_signed", "synced"):
+    if payload.get("status") in ("employee_confirmed", "customer_signed", "synced"):
         return True
 
     contract_info = payload.get("contract_info") or {}
@@ -1751,11 +1761,18 @@ def _attendance_preview(form, payload=None):
     valid_start = valid_days[0] if valid_days else start
     valid_end = valid_days[-1] if valid_days else end
     holiday_records = rest_records + leave_records + paid_leave_records
-    leave_hours = sum(_record_hours_in_range(record, valid_start, valid_end) for record in holiday_records)
+    rest_hours = sum(_record_hours_in_range(record, valid_start, valid_end) for record in rest_records)
+    leave_hours = sum(_record_hours_in_range(record, valid_start, valid_end) for record in leave_records)
+    paid_leave_hours = sum(_record_hours_in_range(record, valid_start, valid_end) for record in paid_leave_records)
+    leave_total_hours = rest_hours + leave_hours + paid_leave_hours
     overtime_hours = sum(_record_hours_in_range(record, valid_start, valid_end) for record in overtime_records)
+    rest_days = rest_hours / 24
     leave_days = leave_hours / 24
+    paid_leave_days = paid_leave_hours / 24
+    leave_total_days = leave_total_hours / 24
     overtime_days = overtime_hours / 24
-    work_days = max(0, len(valid_days) - leave_days)
+    # 带薪休假计入出勤；只有休息和普通请假从基础出勤中扣减。
+    work_days = max(0, len(valid_days) - rest_days - leave_days)
     # 育儿嫂单月上限 26 天；月嫂按真实周期，不强制截断
     if not is_maternity:
         work_days = min(26, work_days)
@@ -1769,9 +1786,21 @@ def _attendance_preview(form, payload=None):
         if disabled:
             tone = "disabled"
             label = ""
-        elif any(_record_covers_day(record, current) for record in holiday_records):
-            tone = "rest"
-            label = "休假"
+        else:
+            covered_type = next(
+                (
+                    (record_type, record_label)
+                    for records, record_type, record_label in (
+                        (rest_records, "rest", "休息"),
+                        (leave_records, "leave", "请假"),
+                        (paid_leave_records, "paid_leave", "带薪休假"),
+                    )
+                    if any(_record_covers_day(record, current) for record in records)
+                ),
+                None,
+            )
+            if covered_type:
+                tone, label = covered_type
         if not disabled and any(_record_covers_day(record, current) for record in overtime_records):
             tone = "overtime"
             label = "加班"
@@ -1789,8 +1818,14 @@ def _attendance_preview(form, payload=None):
     return {
         "work_days": work_days,
         "work_days_text": _format_attendance_result_amount(work_days),
+        "rest_days": rest_days,
+        "rest_days_text": _format_attendance_result_amount(rest_days),
         "leave_days": leave_days,
         "leave_days_text": _format_attendance_result_amount(leave_days),
+        "paid_leave_days": paid_leave_days,
+        "paid_leave_days_text": _format_attendance_result_amount(paid_leave_days),
+        "leave_total_days": leave_total_days,
+        "leave_total_days_text": _format_attendance_result_amount(leave_total_days),
         "overtime_hours": overtime_hours,
         "overtime_days": overtime_days,
         "overtime_text": _format_attendance_result_amount(overtime_days),
@@ -1827,8 +1862,14 @@ def _attendance_record_stats(form):
     return {
         "work_days": work_days,
         "work_days_text": _format_attendance_result_amount(work_days),
-        "leave_days": leave_total,
-        "leave_days_text": _format_attendance_result_amount(leave_total),
+        "rest_days": rest_days,
+        "rest_days_text": _format_attendance_result_amount(rest_days),
+        "leave_days": leave_days,
+        "leave_days_text": _format_attendance_result_amount(leave_days),
+        "paid_leave_days": paid_leave_days,
+        "paid_leave_days_text": _format_attendance_result_amount(paid_leave_days),
+        "leave_total_days": leave_total,
+        "leave_total_days_text": _format_attendance_result_amount(leave_total),
         "overtime_days": overtime_days,
         "overtime_hours": overtime_days * 24,
         "overtime_text": _format_attendance_result_amount(overtime_days),
@@ -2344,7 +2385,9 @@ def _attendance_summary_from_placeholder(placeholder):
         "stats": {
             "work_days_text": "0",
             "overtime_text": "0",
+            "rest_days_text": "0",
             "leave_days_text": "0",
+            "leave_total_days_text": "0",
         },
         "suggested_onboarding_date": (
             to_date_value(getattr(contract, "provisional_start_date", None))
@@ -3806,6 +3849,9 @@ def employee_attendance_update(form_id):
     action = data.get("action")
     should_apply_auto = action == "confirm" or form.status == "employee_confirmed"
     if form_data is not None:
+        time_errors = validate_attendance_time_precision(form_data or {})
+        if time_errors:
+            return jsonify({"success": False, "error": "；".join(time_errors)}), 400
         form.form_data = strip_client_derived_auto_overtime(form_data)
         if should_apply_auto and action != "confirm":
             normalized_form_data, normalized = normalize_auto_overtime_form_data(

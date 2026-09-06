@@ -45,7 +45,10 @@ function calculateAttendanceCardStats(form = {}, holidays = {}) {
   return {
     work_days_text: stripDayUnit(stats.workDaysText),
     overtime_text: stripDayUnit(stats.overtimeDaysText),
-    leave_days_text: stripDayUnit(stats.leaveDaysText)
+    rest_days_text: stripDayUnit(stats.restDaysText),
+    leave_days_text: stripDayUnit(stats.leaveDaysText),
+    paid_leave_days_text: stripDayUnit(stats.paidLeaveDaysText),
+    leave_total_days_text: stripDayUnit(stats.leaveTotalDaysText)
   };
 }
 
@@ -54,7 +57,10 @@ function fallbackAttendanceCardStats(form = {}) {
   return {
     work_days_text: stats.work_days_text || '0',
     overtime_text: stats.overtime_text || '0',
-    leave_days_text: stats.leave_days_text || '0'
+    rest_days_text: stats.rest_days_text || '0',
+    leave_days_text: stats.leave_days_text || '0',
+    paid_leave_days_text: stats.paid_leave_days_text || '0',
+    leave_total_days_text: stats.leave_total_days_text || stats.leave_days_text || '0'
   };
 }
 

@@ -12,6 +12,7 @@ from backend.api.miniapp_api import _prepare_attendance_display_payload
 from backend.services.attendance_sync_service import (
     AUTO_OVERTIME_PROJECTION_KEY,
     _split_overtime_days_by_holiday,
+    validate_attendance_time_precision,
     normalize_auto_overtime_form_data,
     strip_client_derived_auto_overtime,
 )
@@ -23,10 +24,133 @@ from backend.services.payment_message_generator import (
     PaymentMessageGenerator,
     _duration_display,
 )
+from backend.services import payroll_miniapp_link_service
+from backend.services.payroll_miniapp_link_service import PayrollMiniappLinkError
 from datetime import date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 import uuid
+import requests
+from flask import Flask
+
+
+def _attendance_form_for_window_test():
+    old_contract = SimpleNamespace(
+        id="old-contract",
+        customer_name="续签客户",
+        customer_id=None,
+        family_id=None,
+        service_personnel_id="employee",
+        service_personnel=SimpleNamespace(name="测试员工"),
+        type="nanny",
+        status="finished",
+        start_date=datetime(2026, 6, 24),
+        end_date=datetime(2026, 8, 7),
+        termination_date=datetime(2026, 8, 7),
+        is_monthly_auto_renew=True,
+        actual_onboarding_date=None,
+        expected_offboarding_date=None,
+    )
+    return SimpleNamespace(
+        id="attendance-form",
+        contract_id=old_contract.id,
+        employee_id="employee",
+        contract=old_contract,
+        cycle_start_date=datetime(2026, 8, 1),
+        cycle_end_date=datetime(2026, 8, 31),
+        form_data={
+            "rest_records": [
+                {"date": "2026-08-14", "hours": 72, "minutes": 0, "daysOffset": 2}
+            ],
+            "leave_records": [],
+            "overtime_records": [],
+            "out_of_beijing_records": [],
+            "out_of_country_records": [],
+            "paid_leave_records": [],
+            "onboarding_records": [],
+            "offboarding_records": [],
+        },
+        customer_signature_token=None,
+        status="synced",
+        customer_signed_at=None,
+        signature_data=None,
+        employee_access_token=None,
+        created_at=datetime(2026, 8, 1),
+    )
+
+
+def test_form_to_dict_keeps_records_after_old_contract_end_for_open_successor_window(monkeypatch):
+    form = _attendance_form_for_window_test()
+    monkeypatch.setattr(
+        attendance_form_api,
+        "check_previous_month_out_of_beijing",
+        lambda *_args: None,
+    )
+    monkeypatch.setattr(
+        attendance_form_api,
+        "get_onboarding_time_info",
+        lambda *_args: None,
+    )
+
+    with Flask("attendance-form-test").app_context():
+        result = attendance_form_api.form_to_dict(
+            form,
+            effective_start_date=date(2026, 6, 24),
+            effective_end_date=None,
+        )
+
+    assert [record["date"] for record in result["display_form_data"]["rest_records"]] == [
+        "2026-08-14"
+    ]
+    assert result["contract_info"]["attendance_end_date"] is None
+    assert result["contract_info"]["effective_end_date"] is None
+    assert result["contract_info"]["end_date"] is None
+
+
+def test_form_to_dict_keeps_records_inside_bounded_successor_window(monkeypatch):
+    form = _attendance_form_for_window_test()
+    monkeypatch.setattr(
+        attendance_form_api,
+        "check_previous_month_out_of_beijing",
+        lambda *_args: None,
+    )
+    monkeypatch.setattr(
+        attendance_form_api,
+        "get_onboarding_time_info",
+        lambda *_args: None,
+    )
+
+    with Flask("attendance-form-test").app_context():
+        result = attendance_form_api.form_to_dict(
+            form,
+            effective_start_date=date(2026, 6, 24),
+            effective_end_date=date(2026, 8, 20),
+        )
+
+    assert [record["date"] for record in result["display_form_data"]["rest_records"]] == [
+        "2026-08-14"
+    ]
+    assert result["contract_info"]["attendance_end_date"] == "2026-08-20"
+
+
+def test_form_to_dict_still_clips_records_for_unmerged_old_contract_window(monkeypatch):
+    form = _attendance_form_for_window_test()
+    monkeypatch.setattr(
+        attendance_form_api,
+        "check_previous_month_out_of_beijing",
+        lambda *_args: None,
+    )
+    monkeypatch.setattr(
+        attendance_form_api,
+        "get_onboarding_time_info",
+        lambda *_args: None,
+    )
+
+    with Flask("attendance-form-test").app_context():
+        result = attendance_form_api.form_to_dict(form)
+
+    assert result["display_form_data"]["rest_records"] == []
+    assert result["contract_info"]["end_date"] == "2026-08-07T00:00:00"
 
 
 def test_bill_beautify_attendance_preserves_hours_and_three_decimal_days(monkeypatch):
@@ -69,6 +193,8 @@ def test_bill_beautify_attendance_preserves_hours_and_three_decimal_days(monkeyp
     assert metrics["worked_days"] == Decimal("26.000")
     assert metrics["rest_hours"].quantize(Decimal("0.01")) == Decimal("2.00")
     assert metrics["rest_days"].quantize(Decimal("0.001")) == Decimal("0.083")
+    assert metrics["leave_days"] == Decimal("0")
+    assert metrics["leave_hours"] == Decimal("0")
     assert metrics["overtime_hours"].quantize(Decimal("0.01")) == Decimal("118.00")
     assert metrics["overtime_days"] == Decimal("4.917")
     assert _duration_display(metrics["overtime_hours"]) == "4天22小时"
@@ -152,6 +278,44 @@ def test_bill_beautify_payload_is_rendered_deterministically():
     assert "https://wxmpurl.cn/test-link" in result["employee_beautified"]
 
 
+def test_bill_beautify_renders_leave_days_from_authoritative_attendance_payload():
+    payload = _bill_beautify_payload()
+    payload["employee_bills"][0]["attendance"]["leave"] = {
+        "duration_display": "4天",
+        "total_hours": "96.00",
+        "calculation_days": "4.000",
+        "calculation_days_display": "4.000",
+        "show_calculation_days": False,
+    }
+
+    result = render_beautify_payload(payload)
+
+    assert "出勤26天，加班4天22小时（4.917天），休息2小时（0.083天），请假4天" in result[
+        "employee_beautified"
+    ]
+
+
+def test_bill_beautify_attendance_metrics_includes_leave_days(monkeypatch):
+    bill = SimpleNamespace(
+        actual_work_days=Decimal("22.000"),
+        calculation_details={"base_work_days": "22.000", "overtime_days": "0.000"},
+    )
+    attendance = SimpleNamespace(
+        total_days_worked=Decimal("22.00"),
+        overtime_days=Decimal("0.000"),
+        attendance_details={"rest_days": "5.000", "leave_days": "4.000"},
+    )
+    generator = PaymentMessageGenerator.__new__(PaymentMessageGenerator)
+    monkeypatch.setattr(generator, "_attendance_for_bill", lambda _bill: attendance)
+
+    metrics = generator._attendance_metrics(bill)
+
+    assert metrics["worked_days"] == Decimal("22.000")
+    assert metrics["rest_days"] == Decimal("5.000")
+    assert metrics["leave_days"] == Decimal("4.000")
+    assert metrics["leave_hours"] == Decimal("96.000")
+
+
 def test_bill_beautify_keeps_complete_model_result():
     complete = (
         "刘燕风“劳务费”\n"
@@ -172,6 +336,91 @@ def test_bill_beautify_keeps_complete_model_result():
     result = enforce_beautify_payload_contract(parsed, _bill_beautify_payload())
 
     assert result["employee_beautified"] == complete
+
+
+def test_payroll_miniapp_url_link_retries_transient_token_failure(monkeypatch):
+    payroll_miniapp_link_service._clear_payroll_access_token_cache()
+    monkeypatch.setattr(
+        payroll_miniapp_link_service,
+        "get_miniapp_credentials",
+        lambda _appid=None: ("test-appid", "test-secret"),
+    )
+    monkeypatch.setattr(payroll_miniapp_link_service.time, "sleep", lambda _seconds: None)
+
+    get_calls = []
+
+    class Response:
+        status_code = 200
+
+        def __init__(self, payload):
+            self.payload = payload
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.payload
+
+    def fake_get(*_args, **_kwargs):
+        get_calls.append(True)
+        if len(get_calls) == 1:
+            raise requests.RequestException("temporary timeout")
+        return Response({"access_token": "access-token", "expires_in": 7200})
+
+    post_calls = []
+
+    def fake_post(*_args, **_kwargs):
+        post_calls.append((_args, _kwargs))
+        return Response({"url_link": "https://wxmpurl.cn/payroll-link"})
+
+    monkeypatch.setattr(payroll_miniapp_link_service.requests, "get", fake_get)
+    monkeypatch.setattr(payroll_miniapp_link_service.requests, "post", fake_post)
+
+    payroll = SimpleNamespace(
+        id=uuid.uuid4(),
+        contract_id=uuid.uuid4(),
+        year=2026,
+        month=8,
+    )
+    url, path = payroll_miniapp_link_service.generate_payroll_miniapp_url_link(
+        payroll,
+        "share-token",
+        {"appid": "test-appid", "expire_days": 30, "env_version": "release"},
+    )
+
+    assert url == "https://wxmpurl.cn/payroll-link"
+    assert "shareToken=share-token" in path
+    assert len(get_calls) == 2
+    assert len(post_calls) == 1
+
+
+def test_required_payroll_miniapp_link_does_not_silently_return_empty(monkeypatch):
+    monkeypatch.setattr(
+        "backend.api.setting_api.get_or_create_miniapp_signing_config",
+        lambda: SimpleNamespace(value={"enabled": False}),
+    )
+    monkeypatch.setattr(
+        payroll_miniapp_link_service,
+        "ensure_payroll_customer_share_token",
+        lambda _payroll: "share-token",
+    )
+    payroll = SimpleNamespace(
+        id=uuid.uuid4(),
+        contract_id=uuid.uuid4(),
+        year=2026,
+        month=8,
+        cycle_start_date=datetime(2026, 8, 1),
+        cycle_end_date=datetime(2026, 8, 31),
+        is_substitute_payroll=False,
+        contract=None,
+        customer_share_token=None,
+    )
+
+    with pytest.raises(PayrollMiniappLinkError, match="小程序链接生成失败"):
+        payroll_miniapp_link_service.build_payroll_miniapp_link_payload(
+            payroll,
+            require_url=True,
+        )
 
 
 def test_bill_beautify_removes_model_invented_zero_calculation_line():
@@ -530,6 +779,53 @@ def test_customer_signed_payload_uses_daily_auto_overtime_projection():
     )
 
 
+def test_auto_overtime_projection_keeps_96_plus_19_hours_without_duplication():
+    payload = {
+        "status": "customer_signed",
+        "form_data": {
+            "overtime_records": [
+                {
+                    "date": "2026-08-27",
+                    "type": "overtime",
+                    "startTime": "00:00",
+                    "endTime": "24:00",
+                    "hours": 96,
+                    "minutes": 0,
+                    "daysOffset": 3,
+                    "is_auto": True,
+                },
+                {
+                    "date": "2026-08-31",
+                    "type": "overtime",
+                    "startTime": "05:00",
+                    "endTime": "24:00",
+                    "hours": 19,
+                    "minutes": 0,
+                    "daysOffset": 0,
+                    "is_auto": True,
+                },
+            ],
+        },
+    }
+
+    prepared = _prepare_attendance_display_payload(payload)
+    projected = prepared["form_data"]["overtime_records"]
+    total_hours = sum(
+        Decimal(str(item["hours"])) + Decimal(str(item.get("minutes") or 0)) / Decimal(60)
+        for item in projected
+    )
+
+    assert [(item["date"], item["hours"]) for item in projected] == [
+        ("2026-08-27", 24),
+        ("2026-08-28", 24),
+        ("2026-08-29", 24),
+        ("2026-08-30", 24),
+        ("2026-08-31", 19),
+    ]
+    assert total_hours == Decimal(115)
+    assert all(item.get(AUTO_OVERTIME_PROJECTION_KEY) is True for item in projected)
+
+
 def test_attendance_sign_payload_matches_employee_auto_overtime_projection():
     payload = {
         "status": "employee_confirmed",
@@ -578,7 +874,49 @@ def test_attendance_sign_payload_matches_employee_auto_overtime_projection():
         ("2025-07-31", 24),
     ]
     assert all(item.get(AUTO_OVERTIME_PROJECTION_KEY) is True for item in projected)
-    assert all(item["date"] != "2025-07-26" for item in projected)
+
+
+def test_attendance_time_precision_rejects_non_half_hour_values():
+    errors = validate_attendance_time_precision(
+        {
+            "leave_records": [
+                {
+                    "date": "2026-08-10",
+                    "startTime": "17:15",
+                    "endTime": "19:00",
+                },
+                {
+                    "date": "2026-08-11",
+                    "startTime": "24:30",
+                    "endTime": "25:00",
+                },
+            ]
+        }
+    )
+
+    assert len(errors) == 3
+    assert "2026-08-10的开始时间" in errors[0]
+    assert "2026-08-11的开始时间" in errors[1]
+    assert "2026-08-11的结束时间" in errors[2]
+
+
+def test_pdf_stats_keep_rest_and_leave_separate():
+    stats = attendance_form_api._calculate_pdf_stats(
+        {
+            "rest_records": [{"hours": 120, "minutes": 0}],
+            "leave_records": [{"hours": 96, "minutes": 0}],
+            "paid_leave_records": [{"hours": 24, "minutes": 0}],
+            "overtime_records": [],
+        },
+        date(2026, 8, 1),
+        date(2026, 8, 31),
+    )
+
+    assert stats["rest_days"] == 5
+    assert stats["leave_days"] == 4
+    assert stats["paid_leave_days"] == 1
+    assert stats["leave_total_days"] == 10
+    assert stats["work_days"] == 22
 
 
 def test_recalculate_auto_overtime_on_partial_rest_day_without_shifting_date(monkeypatch):
@@ -671,6 +1009,7 @@ def test_recalculate_auto_overtime_on_partial_rest_day_without_shifting_date(mon
         "2025-07-30": Decimal(24),
         "2025-07-31": Decimal(24),
     }
+    assert all(item["date"] != "2025-07-26" for item in prepared["form_data"]["overtime_records"])
 
     normal_days, holiday_days = _split_overtime_days_by_holiday(
         normalized,

@@ -50,6 +50,7 @@ function buildView(payroll = {}) {
     salary_days_text: payroll.salary_days || '26',
     work_days_text: payroll.work_days || '0',
     overtime_days_text: payroll.overtime_days || '0',
+    rest_days_text: payroll.rest_days || '0',
     leave_days_text: payroll.leave_days || '0',
     work_days_label: daysText(payroll.work_days),
     overtime_days_label: daysText(payroll.overtime_days),

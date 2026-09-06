@@ -259,7 +259,7 @@ page {
 
 .stats-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 1rpx minmax(0, 1fr) 1rpx minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 1rpx minmax(0, 1fr) 1rpx minmax(0, 1fr) 1rpx minmax(0, 1fr);
   align-items: center;
 }
 
@@ -300,6 +300,11 @@ page {
   background: #fff3ea;
 }
 
+.stat-item.rest .stat-icon {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
 .stat-icon-img {
   width: 36rpx;
   height: 36rpx;
@@ -328,6 +333,10 @@ page {
 
 .stat-item.leave .stat-value {
   color: #ea580c;
+}
+
+.stat-item.rest .stat-value {
+  color: #2563eb;
 }
 
 .stat-label {

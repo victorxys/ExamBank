@@ -38,6 +38,7 @@ function buildAttendancePreview(item = {}) {
   return {
     workDaysText: compactDaysText(stats.workDaysText),
     overtimeText: compactDaysText(stats.overtimeDaysText),
+    restDaysText: compactDaysText(stats.restDaysText),
     leaveDaysText: compactDaysText(stats.leaveDaysText),
     previewDays: calendar.cells.map((cell) => {
       if (cell.blank) {
@@ -158,6 +159,7 @@ Page({
         ...item,
         work_days_text: item.workDaysText,
         overtime_text: item.overtimeText,
+        rest_days_text: item.restDaysText,
         leave_days_text: item.leaveDaysText
       }));
       const pendingEvaluations = (todos.evaluations || []).map(contractView);

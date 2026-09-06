@@ -37,7 +37,7 @@ function buildTimeColumns() {
   const hours = [];
   const minutes = [];
   for (let i = 0; i <= 24; i += 1) hours.push(`${String(i).padStart(2, '0')}`);
-  for (let i = 0; i < 60; i += 10) minutes.push(`${String(i).padStart(2, '0')}`);
+  for (let i = 0; i < 60; i += 30) minutes.push(`${String(i).padStart(2, '0')}`);
   return { hours, minutes };
 }
 
@@ -318,9 +318,11 @@ Page({
     typeOptions: buildTypeOptions('normal'),
     stats: {
       workDaysText: '0',
+      restDaysText: '0',
       leaveDaysText: '0',
       overtimeDaysText: '0',
       workDaysHoursText: '',
+      restDaysHoursText: '',
       leaveDaysHoursText: '',
       overtimeDaysHoursText: '',
       holidayOvertimeDaysText: '0'
@@ -1123,10 +1125,11 @@ Page({
   },
 
   timeToPickerValue(time) {
-    const minutes = timeToMinutes(time || '00:00', 0);
+    const minutes = Math.min(24 * 60, Math.max(0, timeToMinutes(time || '00:00', 0)));
+    const roundedMinutes = Math.min(24 * 60, Math.round(minutes / 30) * 30);
     return [
-      Math.min(24, Math.floor(minutes / 60)),
-      Math.min(5, Math.floor((minutes % 60) / 10))
+      Math.min(24, Math.floor(roundedMinutes / 60)),
+      roundedMinutes >= 24 * 60 ? 0 : (roundedMinutes % 60 === 30 ? 1 : 0)
     ];
   },
 
@@ -1137,7 +1140,7 @@ Page({
   confirmTime() {
     const [hourIndex, minuteIndex] = this.data.timeValue;
     const hour = Number(hourIndex || 0);
-    const minute = hour === 24 ? 0 : Number(minuteIndex || 0) * 10;
+    const minute = hour === 24 ? 0 : Number(minuteIndex || 0) * 30;
     const value = minutesToTime(hour * 60 + minute);
     const record = { ...this.data.tempRecord, [this.data.timeField]: value };
     this.setData(this.buildModalState(record, this.data.editingDate, false, null));
@@ -1234,7 +1237,11 @@ Page({
   async submitConfirm() {
     if (this.data.readOnly) return;
     const monthDays = (this.data.monthDays || []).map((item) => new Date(item));
-    const processedResult = autoConvertOvertimeIfNeeded(this.data.attendanceData, this.data.form, monthDays, this.data.holidays || {});
+    const hasProjectedAutoOvertime = (this.data.attendanceData.overtime_records || [])
+      .some((record) => record._auto_overtime_projection);
+    const processedResult = hasProjectedAutoOvertime
+      ? { data: this.data.attendanceData, converted: false, overtimeDays: 0 }
+      : autoConvertOvertimeIfNeeded(this.data.attendanceData, this.data.form, monthDays, this.data.holidays || {});
     const processedData = processedResult.data;
     const processedStats = calculateStats(processedData, monthDays, this.data.form, this.data.holidays || {});
     const converted = Number(processedStats.autoOvertimeDays || 0) > 0;

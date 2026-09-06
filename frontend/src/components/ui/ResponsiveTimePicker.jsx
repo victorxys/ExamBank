@@ -35,9 +35,9 @@ const ResponsiveTimePicker = ({
     // 解析当前值
     const [hour, minute] = (value || '09:00').split(':').map(Number);
 
-    // 生成小时选项 (00-23)
+    // 考勤时间只允许半小时刻度，24:00 仅作为结束时间。
     const hours = useMemo(() =>
-        Array.from({ length: 24 }, (_, i) => ({
+        Array.from({ length: 25 }, (_, i) => ({
             label: String(i).padStart(2, '0'),
             value: String(i).padStart(2, '0')
         })),
@@ -56,23 +56,25 @@ const ResponsiveTimePicker = ({
     }, [minuteStep]);
 
     // 当前选择值 (用于 antd-mobile Picker)
+    const roundedMinutes = Math.min(24 * 60, Math.max(0, Math.round((hour * 60 + minute) / 30) * 30));
     const currentPickerValue = [
-        String(hour).padStart(2, '0'),
-        // 向下取整到最近的步长
-        String(Math.floor(minute / minuteStep) * minuteStep).padStart(2, '0')
+        String(Math.floor(roundedMinutes / 60)).padStart(2, '0'),
+        roundedMinutes >= 24 * 60 ? '00' : String(roundedMinutes % 60).padStart(2, '0')
     ];
 
     // 手机端确认
     const handleMobileConfirm = (val) => {
         if (val && val.length === 2) {
-            onChange?.(`${val[0]}:${val[1]}`);
+            const selectedHour = Number(val[0]);
+            const selectedMinute = selectedHour === 24 ? '00' : val[1];
+            onChange?.(`${val[0]}:${selectedMinute}`);
         }
         setMobilePickerVisible(false);
     };
 
     // 桌面端选择
     const handleDesktopSelect = (h, m) => {
-        onChange?.(`${h}:${m}`);
+        onChange?.(`${h}:${h === '24' ? '00' : m}`);
         setPopoverOpen(false);
     };
 

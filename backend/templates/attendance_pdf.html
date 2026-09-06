@@ -309,6 +309,29 @@
         </div>
     </div>
 
+    <div class="stats-card">
+        <div class="stat-item">
+            <div class="stat-value">{{ '%.3f'|format(total_work_days) }}</div>
+            <div class="stat-label">出勤天数</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ '%.3f'|format(total_rest_days) }}</div>
+            <div class="stat-label">休息天数</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ '%.3f'|format(total_leave_days) }}</div>
+            <div class="stat-label">请假天数</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ '%.3f'|format(total_paid_leave_days) }}</div>
+            <div class="stat-label">带薪休假</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">{{ '%.3f'|format(total_overtime_days) }}</div>
+            <div class="stat-label">加班天数</div>
+        </div>
+    </div>
+
 
     <table class="calendar-grid">
         <thead>

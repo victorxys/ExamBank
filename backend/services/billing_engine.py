@@ -2898,6 +2898,7 @@ class BillingEngine:
         form_data = signed_form.form_data or {}
         rest_days = self._attendance_days_in_cycle(form_data.get("rest_records"), cycle_start, cycle_end)
         leave_days = self._attendance_days_in_cycle(form_data.get("leave_records"), cycle_start, cycle_end)
+        paid_leave_days = self._attendance_days_in_cycle(form_data.get("paid_leave_records"), cycle_start, cycle_end)
         normal_overtime_days, statutory_holiday_days = _split_overtime_days_by_holiday(
             form_data,
             cycle_start,
@@ -2911,6 +2912,8 @@ class BillingEngine:
         details.update({
             "rest_days": float(rest_days),
             "leave_days": float(leave_days),
+            "paid_leave_days": float(paid_leave_days),
+            "leave_total_days": float(rest_days + leave_days + paid_leave_days),
             "overtime_days": float(overtime_days),
             "normal_overtime_days": float(normal_overtime_days),
             "statutory_holiday_days": float(statutory_holiday_days),
@@ -2930,7 +2933,8 @@ class BillingEngine:
         db.session.add(attendance)
         current_app.logger.info(
             f"[BILLING] 从整月考勤表 {signed_form.id} 按账单周期 {cycle_start}~{cycle_end} "
-            f"分配考勤: rest={rest_days}, leave={leave_days}, overtime={overtime_days}"
+            f"分配考勤: rest={rest_days}, leave={leave_days}, paid_leave={paid_leave_days}, "
+            f"overtime={overtime_days}"
         )
 
     def _get_adjustments(self, bill_id, payroll_id):

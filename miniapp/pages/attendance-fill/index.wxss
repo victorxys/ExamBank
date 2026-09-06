@@ -97,7 +97,7 @@
   margin: 16rpx 0 14rpx;
   padding: 24rpx 10rpx;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   background: #fff;
   border: 1rpx solid #edf0f4;
   border-radius: 24rpx;
@@ -126,6 +126,11 @@
 
 .stat-num.orange {
   color: #f97316;
+}
+
+.stat-num.blue,
+.stat-hours.blue {
+  color: #2563eb;
 }
 
 .stat-num.green {
