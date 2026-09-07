@@ -13,7 +13,7 @@ const configs = {
   }
 };
 
-const current = env.current || 'local';
+const current = env.current || 'production';
 
 module.exports = {
   env: current,

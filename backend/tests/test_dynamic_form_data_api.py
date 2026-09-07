@@ -1,10 +1,13 @@
 import pytest
 import json
 import uuid
+import base64
 from io import BytesIO
+from unittest.mock import MagicMock, patch
 from backend.models import DynamicForm, DynamicFormData, ServicePersonnel, User
 from flask_jwt_extended import create_access_token
 from PIL import Image
+import backend.api.dynamic_form_data_api as dynamic_form_data_api
 
 def test_get_form_data_with_association(client, db_session):
     """
@@ -373,3 +376,115 @@ def test_rotate_form_data_image_replaces_file_object_url(client, db_session, mon
     assert rotated_value["type"] == "image/jpeg"
     assert rotated_value["content"] == response_json["image_url"]
     assert form_data.data["field_4"][1]["content"] == "https://img.mengyimengsao.com/uploads/test-id-card/back.jpg"
+
+
+def _signature_form(db_session):
+    dynamic_form = DynamicForm(
+        name="Signature Form",
+        form_token=f"signature_form_{uuid.uuid4()}",
+        surveyjs_schema={
+            "pages": [{
+                "elements": [{"type": "signaturepad", "name": "customer_signature"}]
+            }]
+        },
+    )
+    db_session.add(dynamic_form)
+    db_session.flush()
+    return dynamic_form
+
+
+def _signature_headers(test_user, submission_id):
+    return {
+        "Authorization": f"Bearer {create_access_token(identity=str(test_user.id))}",
+        "Content-Type": "application/json",
+        "Idempotency-Key": str(submission_id),
+    }
+
+
+def test_r2_client_uses_bounded_timeouts(monkeypatch):
+    monkeypatch.setenv("CF_ACCOUNT_ID", "test-account")
+    monkeypatch.setenv("R2_ACCESS_KEY_ID", "test-key")
+    monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "test-secret")
+    monkeypatch.setenv("R2_BUCKET_NAME", "test-bucket")
+    monkeypatch.setenv("R2_CONNECT_TIMEOUT_SECONDS", "3")
+    monkeypatch.setenv("R2_READ_TIMEOUT_SECONDS", "8")
+    monkeypatch.setenv("R2_MAX_ATTEMPTS", "2")
+
+    with patch.object(dynamic_form_data_api.boto3, "client", return_value=MagicMock()) as client_factory:
+        client, bucket_name = dynamic_form_data_api._get_r2_client()
+
+    assert client is not None
+    assert bucket_name == "test-bucket"
+    config = client_factory.call_args.kwargs["config"]
+    assert config.connect_timeout == 3
+    assert config.read_timeout == 8
+    assert config.retries == {"mode": "standard", "total_max_attempts": 2}
+
+
+def test_submit_signature_upload_is_idempotent(client, db_session, monkeypatch):
+    test_user = db_session.query(User).filter_by(phone_number="15810903753").one()
+    dynamic_form = _signature_form(db_session)
+    fake_s3 = MagicMock()
+    monkeypatch.setattr(
+        dynamic_form_data_api,
+        "_get_r2_client",
+        lambda: (fake_s3, "test-bucket"),
+    )
+    monkeypatch.setattr(
+        dynamic_form_data_api,
+        "_public_domain",
+        lambda: "https://img.example.test",
+    )
+
+    signature = "data:image/png;base64," + base64.b64encode(b"signature-bytes").decode()
+    submission_id = uuid.uuid4()
+    response = client.post(
+        f"/api/form-data/submit/{dynamic_form.id}",
+        headers=_signature_headers(test_user, submission_id),
+        json={"data": {"customer_signature": signature}},
+    )
+
+    assert response.status_code == 201
+    response_id = uuid.UUID(response.get_json()["id"])
+    created = db_session.query(DynamicFormData).get(response_id)
+    assert created.data["customer_signature"].startswith("https://img.example.test/")
+    assert created.data["customer_signature"] != signature
+    assert fake_s3.put_object.call_count == 1
+    assert fake_s3.put_object.call_args.kwargs["Body"].read() == b"signature-bytes"
+
+    retry_response = client.post(
+        f"/api/form-data/submit/{dynamic_form.id}",
+        headers=_signature_headers(test_user, submission_id),
+        json={"data": {"customer_signature": signature}},
+    )
+
+    assert retry_response.status_code == 200
+    assert retry_response.get_json()["id"] == str(response_id)
+    assert retry_response.get_json()["idempotent"] is True
+    assert fake_s3.put_object.call_count == 1
+
+
+def test_submit_signature_upload_failure_returns_503_and_rolls_back(
+    client, db_session, monkeypatch
+):
+    test_user = db_session.query(User).filter_by(phone_number="15810903753").one()
+    dynamic_form = _signature_form(db_session)
+    fake_s3 = MagicMock()
+    fake_s3.put_object.side_effect = TimeoutError("R2 read timeout")
+    monkeypatch.setattr(
+        dynamic_form_data_api,
+        "_get_r2_client",
+        lambda: (fake_s3, "test-bucket"),
+    )
+
+    submission_id = uuid.uuid4()
+    signature = "data:image/png;base64," + base64.b64encode(b"signature-bytes").decode()
+    response = client.post(
+        f"/api/form-data/submit/{dynamic_form.id}",
+        headers=_signature_headers(test_user, submission_id),
+        json={"data": {"customer_signature": signature}},
+    )
+
+    assert response.status_code == 503
+    assert response.get_json()["code"] == "SIGNATURE_STORAGE_UNAVAILABLE"
+    assert db_session.query(DynamicFormData).get(submission_id) is None

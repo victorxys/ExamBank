@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
+import { v4 as uuidv4 } from 'uuid';
 // import { createPortal } from 'react-dom'; // Removed to avoid production build issues
 import { useParams, useLocation, useNavigate } from 'react-router-dom'; // 导入 useLocation 和 useNavigate
 import { Model } from 'survey-core';
@@ -1255,6 +1256,7 @@ const DynamicFormPage = () => {
     const [error, setError] = useState(null);
     const [currentMode, setCurrentMode] = useState('admin_view'); // 默认为编辑模式
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+    const submissionIdRef = useRef(null);
 
     // 全局预加载状态
     const [globalPreloadStatus, setGlobalPreloadStatus] = useState({
@@ -2797,8 +2799,14 @@ const DynamicFormPage = () => {
                             // 更新数据
                             response = await api.patch(`/form-data/${dataId}`, { data: formData });
                         } else {
-                            // 提交新数据
-                            response = await api.post(`/form-data/submit/${formResponse.data.id}`, { data: formData });
+                            // 提交新数据：重试时复用同一个幂等键，避免超时后重复创建记录。
+                            const submissionId = submissionIdRef.current || uuidv4();
+                            submissionIdRef.current = submissionId;
+                            response = await api.post(
+                                `/form-data/submit/${formResponse.data.id}`,
+                                { data: formData },
+                                { headers: { 'Idempotency-Key': submissionId } }
+                            );
                         }
 
                         // 准备结果数据

@@ -22,7 +22,10 @@ def _app():
     app = Flask(__name__)
     app.config.update({
         "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "postgresql://postgres:xys131313@localhost:5432/ExamDB",
+        "SQLALCHEMY_DATABASE_URI": os.environ.get(
+            "TEST_DATABASE_URL",
+            "postgresql://postgres:xys131313@localhost:5432/ExamDB",
+        ),
         "SECRET_KEY": "test_secret_key",
         "JWT_SECRET_KEY": "test_jwt_secret_key",
         "JWT_ACCESS_TOKEN_EXPIRES": 3600,
@@ -66,10 +69,19 @@ def db_session(_app):
     which is rolled back at the end, preventing tests from affecting each other.
     """
     with _app.app_context():
-        # Start a new nested transaction
-        transaction = db.session.begin_nested()
-        
-        yield db.session
-
-        # Rollback the transaction after the test is done
-        transaction.rollback()
+        # Bind each test session to an outer connection transaction. API code
+        # may call commit(), while the outer transaction still rolls back all
+        # test writes at teardown.
+        db.session.remove()
+        connection = db.engine.connect()
+        transaction = connection.begin()
+        db.session.configure(
+            bind=connection,
+            join_transaction_mode="create_savepoint",
+        )
+        try:
+            yield db.session
+        finally:
+            db.session.remove()
+            transaction.rollback()
+            connection.close()

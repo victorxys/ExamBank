@@ -7,6 +7,7 @@ from flask_jwt_extended import jwt_required, get_current_user
 import json
 import uuid
 import base64
+import binascii
 import re
 import os
 import time
@@ -15,12 +16,43 @@ from urllib.parse import unquote, urlparse
 from backend.services.exam_service import _calculate_exam_score
 from PIL import Image, ImageOps
 import requests
+from sqlalchemy.exc import IntegrityError
 
 # R2 配置
 import boto3
 from botocore.client import Config
 
 dynamic_form_data_bp = Blueprint('dynamic_form_data_api', __name__, url_prefix='/api/form-data')
+
+
+class SignatureUploadError(RuntimeError):
+    """签名上传失败时使用的、可安全返回给客户端的异常。"""
+
+    def __init__(self, message, code, status_code):
+        super().__init__(message)
+        self.code = code
+        self.status_code = status_code
+
+
+class SignatureStorageUnavailable(SignatureUploadError):
+    def __init__(self, message="签名存储服务暂时不可用，请稍后重试"):
+        super().__init__(message, "SIGNATURE_STORAGE_UNAVAILABLE", 503)
+
+
+class InvalidSignatureData(SignatureUploadError):
+    def __init__(self, message="签名图片数据格式无效"):
+        super().__init__(message, "INVALID_SIGNATURE_DATA", 400)
+
+
+class InvalidSubmissionId(ValueError):
+    pass
+
+
+def _env_positive_int(name, default):
+    try:
+        return max(1, int(os.environ.get(name, default)))
+    except (TypeError, ValueError):
+        return default
 
 
 def _get_r2_client():
@@ -38,7 +70,15 @@ def _get_r2_client():
         endpoint_url=f'https://{CF_ACCOUNT_ID}.r2.cloudflarestorage.com',
         aws_access_key_id=R2_ACCESS_KEY_ID,
         aws_secret_access_key=R2_SECRET_ACCESS_KEY,
-        config=Config(signature_version='s3v4')
+        config=Config(
+            signature_version='s3v4',
+            connect_timeout=_env_positive_int('R2_CONNECT_TIMEOUT_SECONDS', 3),
+            read_timeout=_env_positive_int('R2_READ_TIMEOUT_SECONDS', 8),
+            retries={
+                'mode': 'standard',
+                'total_max_attempts': _env_positive_int('R2_MAX_ATTEMPTS', 2),
+            },
+        )
     )
     return client, R2_BUCKET_NAME
 
@@ -241,48 +281,89 @@ def _rotate_image_and_upload(image_url, form_data_id, field_name, degrees):
 def _upload_signature_to_r2(base64_data, form_token, field_name, data_id):
     """
     将 base64 签名数据上传到 R2，返回图片 URL。
+
+    上传是表单提交的一部分，失败时必须中止提交，不能把原始 Base64
+    写入数据库。R2 的连接和读取超时由 _get_r2_client 统一限制。
     """
-    if not base64_data or not base64_data.startswith('data:image'):
+    if not base64_data or not isinstance(base64_data, str) or not base64_data.startswith('data:image'):
         return base64_data  # 不是 base64 图片数据，原样返回
-    
+
+    # 格式: data:image/png;base64,iVBORw0KGgo...
+    match = re.fullmatch(
+        r'data:(?P<mime>image/[A-Za-z0-9.+-]+);base64,(?P<data>[A-Za-z0-9+/=]+)',
+        base64_data,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        raise InvalidSignatureData()
+
+    mime_type = match.group('mime').lower()
+    image_format = mime_type.split('/', 1)[1]
+    if image_format == 'jpeg':
+        image_format = 'jpg'
+    elif image_format == 'svg+xml':
+        image_format = 'svg'
+
     try:
-        # 解析 base64 数据
-        # 格式: data:image/png;base64,iVBORw0KGgo...
-        match = re.match(r'data:image/(\w+);base64,(.+)', base64_data)
-        if not match:
-            current_app.logger.warning(f"Invalid base64 image format for {field_name}")
-            return base64_data
-        
-        image_format = match.group(1)  # png, jpeg, etc.
-        image_data = base64.b64decode(match.group(2))
-        
-        # 获取 R2 客户端
+        image_data = base64.b64decode(match.group('data'), validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise InvalidSignatureData() from exc
+
+    max_size = _env_positive_int('R2_SIGNATURE_MAX_BYTES', 5 * 1024 * 1024)
+    if not image_data or len(image_data) > max_size:
+        raise InvalidSignatureData("签名图片大小无效或超过限制")
+
+    started_at = time.monotonic()
+    try:
         s3, bucket_name = _get_r2_client()
         if not s3:
-            current_app.logger.error("R2 client not configured, cannot upload signature")
-            return base64_data
-        
+            raise SignatureStorageUnavailable()
+
         # 生成文件名: form_token/data_id/field_name/timestamp_signature.png
-        timestamp = time.time()
+        timestamp = int(time.time() * 1000)
         filename = f"{form_token}/{data_id}/{field_name}/{form_token}_{field_name}_{timestamp}_signature.{image_format}"
-        
-        # 上传到 R2
+
         s3.put_object(
             Bucket=bucket_name,
             Key=filename,
             Body=BytesIO(image_data),
-            ContentType=f'image/{image_format}'
+            ContentType=mime_type,
         )
-        
-        # 返回公开 URL
-        PUBLIC_DOMAIN = os.environ.get("PUBLIC_DOMAIN", "https://img.mengyimengsao.com")
-        url = f"{PUBLIC_DOMAIN}/{filename}"
-        current_app.logger.info(f"Signature uploaded to R2: {url}")
+
+        url = f"{_public_domain()}/{filename}"
+        elapsed_ms = int((time.monotonic() - started_at) * 1000)
+        current_app.logger.info(
+            "Signature uploaded to R2 form_token=%s data_id=%s field=%s bytes=%s elapsed_ms=%s",
+            form_token,
+            data_id,
+            field_name,
+            len(image_data),
+            elapsed_ms,
+        )
         return url
-        
-    except Exception as e:
-        current_app.logger.error(f"Error uploading signature to R2: {e}", exc_info=True)
-        return base64_data  # 上传失败，返回原始数据
+    except SignatureUploadError:
+        elapsed_ms = int((time.monotonic() - started_at) * 1000)
+        current_app.logger.warning(
+            "Signature upload unavailable form_token=%s data_id=%s field=%s elapsed_ms=%s",
+            form_token,
+            data_id,
+            field_name,
+            elapsed_ms,
+            exc_info=True,
+        )
+        raise
+    except Exception as exc:
+        elapsed_ms = int((time.monotonic() - started_at) * 1000)
+        current_app.logger.error(
+            "Error uploading signature to R2 form_token=%s data_id=%s field=%s error_type=%s elapsed_ms=%s",
+            form_token,
+            data_id,
+            field_name,
+            type(exc).__name__,
+            elapsed_ms,
+            exc_info=True,
+        )
+        raise SignatureStorageUnavailable() from exc
 
 
 def _process_signaturepad_fields(form_data_content, surveyjs_schema, form_token, data_id):
@@ -315,6 +396,33 @@ def _process_signaturepad_fields(form_data_content, surveyjs_schema, form_token,
                 )
     
     return processed_data
+
+
+def _submission_id_from_request(form_data_json):
+    """读取并校验客户端幂等键，兼容没有幂等键的旧客户端。"""
+    raw_submission_id = request.headers.get('Idempotency-Key') or form_data_json.get('submission_id')
+    if not raw_submission_id:
+        return uuid.uuid4()
+
+    try:
+        return uuid.UUID(str(raw_submission_id))
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise InvalidSubmissionId("submission id must be a valid UUID") from exc
+
+
+def _duplicate_submission_response(form_data):
+    response = {
+        'message': 'Form data already submitted',
+        'id': str(form_data.id),
+        'idempotent': True,
+    }
+    if form_data.score is not None:
+        response['score'] = form_data.score
+    return jsonify(response), 200
+
+
+def _signature_error_response(error):
+    return jsonify({'message': str(error), 'code': error.code}), error.status_code
 
 def get_model_by_name(model_name):
     """安全地根据模型名称字符串获取模型类。"""
@@ -558,9 +666,25 @@ def submit_form_data(form_id):
     
     form_data_content = form_data_json['data']
 
+    try:
+        submission_id = _submission_id_from_request(form_data_json)
+    except InvalidSubmissionId as exc:
+        return jsonify({'message': str(exc), 'code': 'INVALID_SUBMISSION_ID'}), 400
+
     dynamic_form = DynamicForm.query.get(form_id)
     if not dynamic_form:
         return jsonify({'message': 'DynamicForm not found'}), 404
+
+    existing_submission = DynamicFormData.query.get(submission_id)
+    if existing_submission:
+        if existing_submission.form_id != form_id:
+            return jsonify({'message': 'Idempotency key is already used by another form'}), 409
+        current_app.logger.info(
+            "Duplicate form submission ignored form_id=%s data_id=%s",
+            form_id,
+            submission_id,
+        )
+        return _duplicate_submission_response(existing_submission)
 
     score = None
     result_details = None
@@ -573,8 +697,8 @@ def submit_form_data(form_id):
         )
 
     try:
-        # 先生成 data_id 用于签名文件路径
-        data_id = str(uuid.uuid4())
+        # 使用幂等键作为 data_id，前端超时后重试不会新增第二条记录。
+        data_id = str(submission_id)
         
         # 处理 signaturepad 字段，将 base64 上传到 R2
         processed_data = _process_signaturepad_fields(
@@ -585,7 +709,7 @@ def submit_form_data(form_id):
         )
         
         new_form_data = DynamicFormData(
-            id=uuid.UUID(data_id),
+            id=submission_id,
             form_id=form_id,
             user_id=current_user.id if current_user else None,
             data=processed_data,
@@ -605,7 +729,14 @@ def submit_form_data(form_id):
             new_form_data, dynamic_form.form_token
         )
 
+        commit_started_at = time.monotonic()
         db.session.commit()
+        current_app.logger.info(
+            "Form data committed form_id=%s data_id=%s db_commit_ms=%s",
+            form_id,
+            data_id,
+            int((time.monotonic() - commit_started_at) * 1000),
+        )
             
         response = {
             'message': 'Form data submitted successfully',
@@ -617,10 +748,36 @@ def submit_form_data(form_id):
             response['employee'] = employee_result
 
         return jsonify(response), 201
+    except SignatureUploadError as e:
+        db.session.rollback()
+        return _signature_error_response(e)
+    except IntegrityError:
+        db.session.rollback()
+        existing_submission = DynamicFormData.query.get(submission_id)
+        if existing_submission and existing_submission.form_id == form_id:
+            current_app.logger.info(
+                "Concurrent duplicate form submission ignored form_id=%s data_id=%s",
+                form_id,
+                submission_id,
+            )
+            return _duplicate_submission_response(existing_submission)
+        current_app.logger.error(
+            "Integrity error submitting form data form_id=%s data_id=%s",
+            form_id,
+            submission_id,
+            exc_info=True,
+        )
+        return jsonify({'message': '提交表单失败，请稍后重试', 'code': 'FORM_SUBMISSION_FAILED'}), 500
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error submitting form data: {e}", exc_info=True)
-        return jsonify({'message': 'Error submitting form data', 'error': str(e)}), 500
+        current_app.logger.error(
+            "Error submitting form data form_id=%s data_id=%s error_type=%s",
+            form_id,
+            submission_id,
+            type(e).__name__,
+            exc_info=True,
+        )
+        return jsonify({'message': '提交表单失败，请稍后重试', 'code': 'FORM_SUBMISSION_FAILED'}), 500
 
 @dynamic_form_data_bp.route('/<uuid:data_id>', methods=['PATCH'])
 @jwt_required()
@@ -678,7 +835,13 @@ def update_form_data(data_id):
             form_data, form_data.dynamic_form.form_token
         )
 
+        commit_started_at = time.monotonic()
         db.session.commit()
+        current_app.logger.info(
+            "Form data updated data_id=%s db_commit_ms=%s",
+            data_id,
+            int((time.monotonic() - commit_started_at) * 1000),
+        )
             
         response = {
             'message': 'Form data updated successfully',
@@ -690,10 +853,18 @@ def update_form_data(data_id):
             response['employee'] = employee_result
 
         return jsonify(response), 200
+    except SignatureUploadError as e:
+        db.session.rollback()
+        return _signature_error_response(e)
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error updating form data: {e}", exc_info=True)
-        return jsonify({'message': 'Error updating form data', 'error': str(e)}), 500
+        current_app.logger.error(
+            "Error updating form data data_id=%s error_type=%s",
+            data_id,
+            type(e).__name__,
+            exc_info=True,
+        )
+        return jsonify({'message': '保存表单失败，请稍后重试', 'code': 'FORM_UPDATE_FAILED'}), 500
 
 
 @dynamic_form_data_bp.route('/<uuid:data_id>/rotate-image', methods=['POST'])
