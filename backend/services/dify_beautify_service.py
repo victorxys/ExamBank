@@ -649,7 +649,17 @@ def _render_employee_fallback(items: list[dict]) -> str:
         rest = attendance.get("rest") or {}
         leave = attendance.get("leave") or {}
         overtime = attendance.get("overtime") or {}
-        attendance_parts = [f"出勤{attendance.get('worked_days_display', '0')}天"]
+        worked = attendance.get("worked") or {}
+        worked_duration = worked.get("duration_display")
+        if worked_duration:
+            worked_part = f"出勤{worked_duration}"
+            if worked.get("show_calculation_days"):
+                worked_part += (
+                    f"（{worked.get('calculation_days_display', '0')}天）"
+                )
+        else:
+            worked_part = f"出勤{attendance.get('worked_days_display', '0')}天"
+        attendance_parts = [worked_part]
         for label, detail in (("加班", overtime), ("休息", rest), ("请假", leave)):
             try:
                 total_hours = float(detail.get("total_hours") or 0)
