@@ -416,6 +416,19 @@ class PaymentMessageGenerator:
             "attendance": {
                 "worked_days": _fixed(metrics["worked_days"]),
                 "worked_days_display": _readable(metrics["worked_days"]),
+                "worked": {
+                    "duration_display": _duration_display(
+                        metrics["worked_days"] * D(24)
+                    ),
+                    "total_hours": _fixed(metrics["worked_days"] * D(24), 2),
+                    "calculation_days": _fixed(metrics["worked_days"]),
+                    "calculation_days_display": _calculation_days_display(
+                        metrics["worked_days"]
+                    ),
+                    "show_calculation_days": (
+                        metrics["worked_days"] % D(1) != 0
+                    ),
+                },
                 "rest": {
                     "duration_display": _duration_display(metrics["rest_hours"]),
                     "total_hours": _fixed(metrics["rest_hours"], 2),

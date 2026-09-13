@@ -213,6 +213,13 @@ def _bill_beautify_payload():
                 "service_end": "2026-07-31",
                 "attendance": {
                     "worked_days_display": "26",
+                    "worked": {
+                        "duration_display": "26天",
+                        "total_hours": "624.00",
+                        "calculation_days": "26.000",
+                        "calculation_days_display": "26.000",
+                        "show_calculation_days": False,
+                    },
                     "rest": {
                         "duration_display": "2小时",
                         "total_hours": "2.00",
@@ -276,6 +283,23 @@ def test_bill_beautify_payload_is_rendered_deterministically():
     )
     assert "费用共30.917天×(10100元÷ 26天) =12010.00元" in result["employee_beautified"]
     assert "https://wxmpurl.cn/test-link" in result["employee_beautified"]
+
+
+def test_bill_beautify_renders_fractional_worked_days_as_duration_and_days():
+    payload = _bill_beautify_payload()
+    attendance = payload["employee_bills"][0]["attendance"]
+    attendance["worked_days_display"] = "25.667"
+    attendance["worked"] = {
+        "duration_display": "25天16小时",
+        "total_hours": "616.00",
+        "calculation_days": "25.667",
+        "calculation_days_display": "25.667",
+        "show_calculation_days": True,
+    }
+
+    result = render_beautify_payload(payload)
+
+    assert "出勤25天16小时（25.667天），" in result["employee_beautified"]
 
 
 def test_bill_beautify_renders_leave_days_from_authoritative_attendance_payload():
