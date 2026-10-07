@@ -973,8 +973,8 @@ const ContractDetail = () => {
         }
 
         try {
-            await api.post(`/billing/contracts/${contract.id}/terminate`, payload);
-            setAlert({ open: true, message: '合同终止操作成功！', severity: 'success' });
+            const response = await api.post(`/billing/contracts/${contract.id}/terminate`, payload);
+            setAlert({ open: true, message: response.data.message || '合同终止操作成功！', severity: 'success' });
             handleCloseTerminationDialog();
             if (shouldCloseAfterTermination) {
                 window.opener?.postMessage(

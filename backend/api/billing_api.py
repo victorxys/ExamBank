@@ -77,6 +77,7 @@ from backend.api.utils import (
 )
 from backend.services.contract_service import _find_successor_contract_internal
 from backend.services.payment_message_generator import PaymentMessageGenerator
+from backend.services.termination_receipt_service import record_first_month_offline_receipt
 from backend.services.payroll_miniapp_link_service import PayrollMiniappLinkError
 from backend.services.bank_statement_service import BankStatementService
 from backend.services.contract_operation_log_service import (
@@ -2676,7 +2677,8 @@ def terminate_contract(contract_id):
     except ValueError:
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
 
-    contract = db.session.get(BaseContract, str(contract_id))
+    # 串行处理同一合同的终止请求，避免重复补记线下收款。
+    contract = BaseContract.query.filter_by(id=contract_id).with_for_update().first()
     if not contract:
         return jsonify({"error": "Contract not found"}), 404
 
@@ -2976,6 +2978,16 @@ def terminate_contract(contract_id):
                 cycle_start_date_override=first_bill_of_new_contract.cycle_start_date,
                 end_date_override=first_bill_of_new_contract.cycle_end_date,
             )
+        offline_receipt_amount = record_first_month_offline_receipt(
+            contract, final_bill, termination_date, get_jwt_identity(),
+        )
+        if offline_receipt_amount > 0:
+            _log_activity(
+                final_bill, None,
+                f"首月终止自动补记线下收款 {offline_receipt_amount:.2f} 元",
+                details={"amount": str(offline_receipt_amount), "method": "offline"},
+            )
+            message += f" 已自动补记管理费和保证金线下收款 {offline_receipt_amount:.2f} 元。"
         create_contract_operation_log(
             contract=contract,
             related_contract=new_contract if transfer_options else None,
@@ -2990,6 +3002,7 @@ def terminate_contract(contract_id):
                 "deleted_bill_count": len(bill_ids_to_delete),
                 "deleted_payroll_count": len(payroll_ids_to_delete),
                 "final_bill_id": str(final_bill.id) if final_bill else None,
+                "offline_receipt_amount": str(offline_receipt_amount),
             },
             changes=diff_snapshots(before_snapshot, snapshot_contract(contract)),
         )

@@ -177,10 +177,10 @@ const ContractList = () => {
     const handleConfirmTermination = async () => {
         if (!contractToTerminate || !terminationDate) return;
         try {
-            await api.post(`/billing/contracts/${contractToTerminate.id}/terminate`, {
+            const response = await api.post(`/billing/contracts/${contractToTerminate.id}/terminate`, {
                 termination_date: terminationDate.toISOString().split('T')[0],
             });
-            setAlert({ open: true, message: '合同已终止，正在为您重算最后一期账单...', severity: 'success' });
+            setAlert({ open: true, message: response.data.message || '合同已终止，正在为您重算最后一期账单...', severity: 'success' });
             handleCloseTerminationDialog();
             fetchContracts();
         } catch (error) {

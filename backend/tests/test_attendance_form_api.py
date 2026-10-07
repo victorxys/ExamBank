@@ -563,6 +563,59 @@ def test_bill_beautify_management_fee_fallback_is_compact_and_complete():
     )
 
 
+@pytest.mark.parametrize(
+    "pending, expected_payment",
+    [
+        ("-5868.27", "本次应退：5868.00元"),
+        ("1234.50", "本次应付：1235.00元"),
+        ("-1234.50", "本次应退：1235.00元"),
+    ],
+)
+def test_bill_beautify_company_rounds_stage_results_and_renders_refund_once(
+    monkeypatch, pending, expected_payment,
+):
+    generator = PaymentMessageGenerator.__new__(PaymentMessageGenerator)
+    context = {
+        "employee_name": "田敏",
+        "company_pending_amount": Decimal(pending),
+        "company_line_items": [
+            {"name": "保证金代付员工工资(公司代付工资)", "description": "+3556.73元"},
+            {
+                "name": (
+                    "合同提前终止，管理费退款计算如下：\n"
+                    "  - 退款天数: 17天 * 25.0000 = 425.00元\n"
+                    "  - 剩余完整周期: 2个 * 750.00 = 1500.00元\n"
+                    "  - 总计：1925.00元"
+                ),
+                "description": "-1925.00元",
+            },
+            {"name": "本次交管理费", "description": "17天 * 25.1234 = 427.0978元"},
+        ],
+    }
+    monkeypatch.setattr(generator, "_build_context_for_bill", lambda *_args, **_kwargs: context)
+    bill = SimpleNamespace(
+        id="test-bill", contract=SimpleNamespace(customer_name="王芸"),
+        cycle_start_date=date(2026, 9, 11), cycle_end_date=date(2026, 9, 23),
+        total_paid=Decimal("9750"),
+    )
+    item = generator._build_company_beautify_item(bill, None)
+    payload = {"company_bills": [item], "employee_bills": []}
+    text = render_beautify_payload(payload)["company_beautified"]
+
+    assert "保证金代付员工工资(公司代付工资): +3557.00元" in text
+    assert "  - 总计应退款：1925.00 元" in text
+    assert text.count("1925.00") == 1
+    assert "17天 * 25.1234 = 427.00元" in text
+    assert expected_payment in text
+    assert "本次应付：-" not in text
+    # 旧式负数应付文案不能绕过退款格式校验。
+    legacy = text.replace(expected_payment, f"本次应付：{pending}元")
+    corrected = enforce_beautify_payload_contract(
+        {"company_beautified": legacy, "employee_beautified": ""}, payload,
+    )
+    assert expected_payment in corrected["company_beautified"]
+
+
 def test_trial_conversion_is_continuous_when_service_periods_overlap():
     trial_id = uuid.uuid4()
     trial = SimpleNamespace(
