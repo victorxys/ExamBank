@@ -626,14 +626,17 @@ def _render_company_fallback(items: list[dict]) -> str:
             f"{item.get('customer_name', '')}“管理费”",
             f"服务周期: {item.get('service_start', '')} ~ {item.get('service_end', '')}",
         ]
+        pending = str(item.get('pending_amount_display', '0.00'))
+        payment_label = "应退" if pending.startswith("-") else "应付"
+        pending = pending.lstrip("-")
         if item.get("display_mode") == "management_fee_only":
-            lines.append(f"应付：{item.get('pending_amount_display', '0.00')}元")
+            lines.append(f"{payment_label}：{pending}元")
         else:
             for line_item in item.get("line_items") or []:
                 name = line_item.get("name") or "费用"
                 calculation = line_item.get("calculation") or ""
-                lines.append(f"{name}: {calculation}")
-            lines.append(f"本次应付：{item.get('pending_amount_display', '0.00')}元")
+                lines.append(f"{name}: {calculation}" if calculation else name)
+            lines.append(f"本次{payment_label}：{pending}元")
         bank_lines = _render_bank_account(item.get("bank_account") or {})
         if bank_lines:
             lines.append("")
@@ -714,9 +717,11 @@ def _company_result_is_complete(text: str, items: list[dict]) -> bool:
         )
         if not all(str(value) in text for value in required if value):
             return False
-        amount = re.escape(str(item.get("pending_amount_display") or ""))
+        pending = str(item.get("pending_amount_display") or "")
+        amount = re.escape(pending.lstrip("-"))
+        labels = "应退" if pending.startswith("-") else "(?:应付|应收|费用总计)"
         if amount and not re.search(
-            rf"(?:应付|应收|应退|费用总计|本次应付)[^\n]{{0,40}}{amount}\s*元",
+            rf"{labels}[^\n]{{0,40}}{amount}\s*元",
             text,
         ):
             return False

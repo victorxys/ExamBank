@@ -2,6 +2,7 @@
 
 import os
 import decimal
+import re
 from datetime import datetime
 from flask import current_app
 from sqlalchemy import func
@@ -41,6 +42,38 @@ def _fixed(value, places=3):
 def _readable(value, places=3):
     text = _fixed(value, places)
     return text.rstrip("0").rstrip(".") or "0"
+
+
+def _rounded_money(value):
+    rounded = _decimal(value).quantize(D("1"), rounding=decimal.ROUND_HALF_UP)
+    return f"{rounded if rounded else D(0):.2f}"
+
+
+def _round_company_result_text(text):
+    """阶段结果按元展示，保留公式中的天数、单价等计算精度。"""
+    text = re.sub(
+        r"(=\s*)([+-]?\d+(?:\.\d+)?)(?=\s*元|\s*$)",
+        lambda match: match[1] + _rounded_money(match[2]),
+        text,
+        flags=re.MULTILINE,
+    )
+    return re.sub(
+        r"^([+-]?)(\d+(?:\.\d+)?)(元)$",
+        lambda match: match[1] + _rounded_money(match[2]) + match[3],
+        text,
+    )
+
+
+def _company_beautify_line_item(item):
+    name = _round_company_result_text(item["name"])
+    calculation = _round_company_result_text(item["description"])
+    # 多行退款说明已有总计，直接使用调整项金额替换总计，不再追加一次负金额。
+    summary_pattern = r"(?m)^([ \t]*-\s*)总计[：:]\s*[+-]?\d+(?:\.\d+)?\s*元[ \t]*$"
+    if re.search(summary_pattern, name) and re.fullmatch(r"-\d+(?:\.\d+)?元", calculation):
+        refund = _rounded_money(abs(_decimal(calculation[:-1])))
+        name = re.sub(summary_pattern, lambda match: f"{match[1]}总计应退款：{refund} 元", name)
+        calculation = ""
+    return {"name": name, "calculation": calculation}
 
 
 def _duration_display(hours):
@@ -264,7 +297,7 @@ class PaymentMessageGenerator:
             return None
 
         line_items = [
-            {"name": item["name"], "calculation": item["description"]}
+            _company_beautify_line_item(item)
             for item in context["company_line_items"]
         ]
         management_names = {"管理费", "本次交管理费"}
@@ -278,7 +311,7 @@ class PaymentMessageGenerator:
             "service_end": _as_date(bill.cycle_end_date).isoformat(),
             "line_items": line_items,
             "paid_amount_display": _fixed(bill.total_paid, 2),
-            "pending_amount_display": _fixed(context["company_pending_amount"], 2),
+            "pending_amount_display": _rounded_money(context["company_pending_amount"]),
             "bank_account": {
                 "holder": account.payee_name if account else "",
                 "account": account.account_number if account else "",
