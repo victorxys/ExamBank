@@ -1,34 +1,19 @@
 from flask import Blueprint, request, jsonify, current_app
-import boto3
-from botocore.client import Config
 import os
-import uuid
 from werkzeug.utils import secure_filename
+
+from backend.services.image_storage_service import (
+    ImageStorageError,
+    extension_for_image,
+    mime_type_for_filename,
+    upload_image_bytes,
+)
 
 upload_bp = Blueprint('upload_api', __name__, url_prefix='/api/upload')
 
-# Configuration
-CF_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID")
-R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID")
-R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
-R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME")
-PUBLIC_DOMAIN = os.environ.get("PUBLIC_DOMAIN")
-
-def get_r2_client():
-    if not all([CF_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME, PUBLIC_DOMAIN]):
-        current_app.logger.error("Missing R2 configuration")
-        return None
-
-    return boto3.client(
-        's3',
-        endpoint_url=f'https://{CF_ACCOUNT_ID}.r2.cloudflarestorage.com',
-        aws_access_key_id=R2_ACCESS_KEY_ID,
-        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
-        config=Config(signature_version='s3v4')
-    )
-
-@upload_bp.route('/r2', methods=['POST'])
-def upload_to_r2():
+@upload_bp.route('/image', methods=['POST'])
+@upload_bp.route('/r2', methods=['POST'])  # Backward-compatible legacy route.
+def upload_image():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     
@@ -36,28 +21,49 @@ def upload_to_r2():
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
 
-    if file:
-        try:
-            s3 = get_r2_client()
-            if not s3:
-                return jsonify({'error': 'Server configuration error'}), 500
+    try:
+        filename = secure_filename(file.filename) or "image"
+        mime_type = mime_type_for_filename(filename, file.mimetype)
+        if not mime_type:
+            return jsonify({'error': '仅支持 JPG、PNG、GIF、WEBP 或 SVG 图片'}), 400
 
-            filename = secure_filename(file.filename)
-            # Generate a unique filename to prevent collisions
-            unique_filename = f"uploads/{uuid.uuid4()}/{filename}"
-            
-            s3.put_object(
-                Bucket=R2_BUCKET_NAME,
-                Key=unique_filename,
-                Body=file,
-                ContentType=file.content_type
-            )
-            
-            url = f"{PUBLIC_DOMAIN}/{unique_filename}"
-            return jsonify({'url': url}), 200
-            
-        except Exception as e:
-            current_app.logger.error(f"Error uploading to R2: {e}")
-            return jsonify({'error': str(e)}), 500
+        max_size = _max_image_size()
+        data = file.stream.read(max_size + 1)
+        if len(data) > max_size:
+            return jsonify({'error': f'图片不能超过 {max_size // (1024 * 1024)} MB'}), 413
 
-    return jsonify({'error': 'Unknown error'}), 500
+        result = upload_image_bytes(
+            data,
+            "dynamic-form-upload",
+            "general",
+            mime_type,
+            filename=filename,
+            extension=extension_for_image(filename, mime_type),
+        )
+        return jsonify({
+            'url': result['url'],
+            'file_url': result['url'],
+            'key': result['key'],
+            'storage': 'qiniu',
+        }), 200
+    except ImageStorageError as exc:
+        current_app.logger.error(
+            "Error uploading image to Qiniu error_type=%s",
+            type(exc).__name__,
+            exc_info=True,
+        )
+        return jsonify({'error': '图片存储服务暂时不可用，请稍后重试'}), 503
+    except Exception as exc:
+        current_app.logger.error(
+            "Unexpected image upload error error_type=%s",
+            type(exc).__name__,
+            exc_info=True,
+        )
+        return jsonify({'error': '图片上传失败，请稍后重试'}), 500
+
+
+def _max_image_size():
+    try:
+        return max(1, int(os.environ.get('QINIU_IMAGE_MAX_BYTES', 20 * 1024 * 1024)))
+    except (TypeError, ValueError):
+        return 20 * 1024 * 1024

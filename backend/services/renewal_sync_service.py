@@ -164,13 +164,9 @@ def _clip_record_to_range(record, range_start, range_end):
     if overlap_end < record_end:
         clipped["endTime"] = "24:00"
 
-    span_days = D(days_offset + 1)
-    overlap_days = D((overlap_end - overlap_start).days + 1)
-    total_minutes = _record_minutes(record)
-    if total_minutes <= 0 and span_days > 0:
-        total_minutes = span_days * D(24 * 60)
-    if span_days > 0:
-        _set_duration(clipped, total_minutes * overlap_days / span_days)
+    from backend.services.attendance_sync_service import _record_hours_in_cycle
+
+    _set_duration(clipped, _record_hours_in_cycle(record, overlap_start, overlap_end) * D(60))
     return clipped
 
 
@@ -192,11 +188,9 @@ def _clip_form_data_to_range(form_data, range_start, range_end):
 
 def sync_related_renewal_attendance_forms(attendance_form_id):
     """
-    Copy the signed full-month renewal attendance form back to related contract forms.
+    将权威整月考勤按服务日期回填续签链前后合同，已签署表单保持原样。
 
-    The renewal contract keeps the full month for review. Earlier/later contract forms
-    receive only records overlapping their own service window so their detail pages show
-    the correct overtime/rest/leave markers.
+    未签署表单接收自己服务窗口内的明细；账单引用已签署整月表分配工资。
     """
     form = AttendanceForm.query.get(attendance_form_id)
     if not form or not form.contract or not form.form_data:
@@ -207,11 +201,10 @@ def sync_related_renewal_attendance_forms(attendance_form_id):
         return []
 
     month_start, month_end = _month_bounds(form.cycle_start_date)
-    source_start = _contract_start(form.contract)
     target_contract_ids = []
 
     for contract in related_contracts:
-        if source_start and _contract_start(contract) and _contract_start(contract) > source_start:
+        if str(contract.id) == str(form.contract_id):
             continue
 
         cycle_start, cycle_end = _contract_cycle_in_month(contract, month_start, month_end)
@@ -242,6 +235,9 @@ def sync_related_renewal_attendance_forms(attendance_form_id):
             continue
 
         target_contract_ids.append(str(contract.id))
+        # 已签署表单保留签名及原始内容，账单直接引用权威整月表分配。
+        if target_form.status in ("customer_signed", "synced"):
+            continue
         clipped_data = _clip_form_data_to_range(form.form_data, cycle_start, cycle_end)
         if target_form.form_data != clipped_data:
             target_form.form_data = clipped_data
@@ -732,7 +728,11 @@ def sync_renewal_overtime_transfer(source_contract_id, year, month, recalculate=
         return False
 
     amount = calculate_overtime_payroll_transfer_amount(source_payroll)
-    if amount <= 0:
+    # 加班减少为零时也更新已有转移项，避免保留旧金额。
+    if amount <= 0 and not _find_transfer_adjustment(
+        source_payroll.id, AdjustmentType.EMPLOYEE_BALANCE_TRANSFER,
+        OVERTIME_TRANSFER_SOURCE_DESCRIPTION, target_bill.id,
+    ):
         return False
 
     transfer_date = _to_date(source_bill.cycle_end_date) or date.today()
@@ -798,9 +798,16 @@ def sync_renewal_after_attendance_confirmation(attendance_form_id):
     if not form:
         return
 
-    changed_contract_ids = sync_related_renewal_attendance_forms(attendance_form_id)
-    if not changed_contract_ids:
+    sync_related_renewal_attendance_forms(attendance_form_id)
+    recalculate_renewal_settlements(form)
+
+
+def recalculate_renewal_settlements(form):
+    """按签署考勤刷新续签链账单与工资转移；由调用方统一提交。"""
+    related_contracts = _related_contracts_for_month(form)
+    if len(related_contracts) <= 1:
         return
+    changed_contract_ids = [str(contract.id) for contract in related_contracts]
 
     year = form.cycle_start_date.year
     month = form.cycle_start_date.month
@@ -825,6 +832,7 @@ def sync_renewal_after_attendance_confirmation(attendance_form_id):
             cycle_start_date_override=bill.cycle_start_date,
             end_date_override=bill.cycle_end_date,
         )
+        sync_renewal_payroll_transfer(contract_id, year, month, recalculate=False)
         sync_renewal_overtime_transfer(contract_id, year, month, recalculate=False)
 
         refreshed_bill = CustomerBill.query.filter_by(

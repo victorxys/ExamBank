@@ -443,9 +443,25 @@ def _record_hours_in_cycle(record, cycle_start, cycle_end):
 
     actual_start = max(start, cycle_start)
     actual_end = min(end, cycle_end)
+    total_hours = _record_hours(record)
+    # 有效时间与填报时长一致时，按每天实际交集分配。历史缺失/不一致
+    # 的时间字段仍以填报时长为准，并保留整段时长不增不减。
+    try:
+        sh, sm = map(int, record.get("startTime", "").split(":"))
+        eh, em = map(int, record.get("endTime", "").split(":"))
+        if not (0 <= sh < 24 and 0 <= sm < 60 and 0 <= eh <= 24 and 0 <= em < 60 and (eh < 24 or em == 0)):
+            raise ValueError("invalid time")
+        start_minutes = sh * 60 + sm
+        end_minutes = (end - start).days * 1440 + eh * 60 + em
+        if abs(Decimal(end_minutes - start_minutes) / 60 - total_hours) <= Decimal("0.001"):
+            lower = (actual_start - start).days * 1440
+            upper = ((actual_end - start).days + 1) * 1440
+            return Decimal(max(0, min(end_minutes, upper) - max(start_minutes, lower))) / 60
+    except (ValueError, TypeError, AttributeError):
+        pass
     days_in_cycle = Decimal((actual_end - actual_start).days + 1)
-    total_span = Decimal(max(1, int(record.get("daysOffset") or 0) + 1))
-    return _record_hours(record) * days_in_cycle / total_span
+    total_span = Decimal(max(1, (end - start).days + 1))
+    return total_hours * days_in_cycle / total_span
 
 
 def _record_is_holiday_like(record, data, target_date):
@@ -511,11 +527,9 @@ def _split_overtime_days_by_holiday(data, cycle_start, cycle_end):
         if days_in_span <= 0:
             continue
 
-        record_days = _record_hours_in_cycle(record, cycle_start, cycle_end) / Decimal(24)
-        daily_overtime_days = record_days / days_in_span
-
         current = actual_start
         while current <= actual_end:
+            daily_overtime_days = _record_hours_in_cycle(record, current, current) / Decimal(24)
             if _record_is_holiday_like(record, data, current):
                 holiday_days += daily_overtime_days
             else:
@@ -577,7 +591,34 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
     # 时再次用“超过 26 天”反推整天数，否则 96h + 19h 会被改写成 120h。
     # 员工重新提交时，接口会先剥离这些记录，再走下面的缺失记录生成逻辑。
     if allow_create_missing_auto and existing_auto_records and not legacy_auto_dates:
-        return data, False
+        auto_dates = set()
+        exceeds_capacity = False
+        for record in existing_auto_records:
+            first, last = _record_date_range(record)
+            if not first or not last:
+                continue
+            for ordinal in range(max(first, cycle_start).toordinal(), min(last, cycle_end).toordinal() + 1):
+                day = date.fromordinal(ordinal)
+                auto_dates.add(day.isoformat())
+        for value in auto_dates:
+            day = _parse_date(value)
+            allocated_minutes = sum((_record_hours_in_cycle(record, day, day) * Decimal(60)
+                                     for record in existing_auto_records), Decimal(0))
+            if allocated_minutes > _auto_overtime_capacity_minutes(data, day):
+                exceeds_capacity = True
+                break
+        if not exceeds_capacity:
+            return data, False
+        # 只纠正落在整日休假上的分配，不重新反推历史自动加班总时长。
+        auto_minutes = int(sum((_record_hours_in_cycle(record, cycle_start, cycle_end) * Decimal(60)
+                                for record in existing_auto_records), Decimal(0)).to_integral_value(rounding=ROUND_HALF_UP))
+        capacity = sum(_auto_overtime_capacity_minutes(data, _parse_date(value)) for value in auto_dates)
+        if auto_minutes > capacity:
+            # 无法只在原日期内重分配时，留给重新提交考勤核定，避免默默减少工资。
+            return data, False
+        repaired = _build_auto_overtime_records(auto_dates, auto_minutes, data)
+        data["overtime_records"] = [r for r in overtime_records if not r.get("is_auto")] + repaired
+        return data, data != (form.form_data or {})
 
     rest_days = _calculate_records_days(data.get("rest_records", []))
     leave_days = _calculate_records_days(data.get("leave_records", []))
@@ -591,12 +632,10 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
         record_start, record_end = _record_date_range(record)
         if not record_start or not record_end:
             continue
-        record_hours = _record_hours_in_cycle(record, cycle_start, cycle_end)
-        days_in_span = Decimal((min(record_end, cycle_end) - max(record_start, cycle_start)).days + 1)
-        daily_overtime_days = record_hours / Decimal(24) / days_in_span if days_in_span > 0 else Decimal(0)
         current = max(record_start, cycle_start)
         actual_end = min(record_end, cycle_end)
         while current <= actual_end:
+            daily_overtime_days = _record_hours_in_cycle(record, current, current) / Decimal(24)
             if not _record_is_holiday_like(record, data, current):
                 manual_normal_overtime_days += daily_overtime_days
             current = date.fromordinal(current.toordinal() + 1)

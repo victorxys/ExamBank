@@ -5,7 +5,7 @@ import decimal
 from datetime import datetime
 from flask import current_app
 from sqlalchemy import func
-from backend.models import db, CustomerBill, FinancialAdjustment, AdjustmentType, CompanyBankAccount, PaymentRecord, EmployeePayroll, PayoutRecord, ServicePersonnel, AttendanceRecord, BaseContract
+from backend.models import db, CustomerBill, FinancialAdjustment, AdjustmentType, CompanyBankAccount, PaymentRecord, EmployeePayroll, PayoutRecord, ServicePersonnel, AttendanceRecord, BaseContract, AttendanceForm
 from backend.services.payroll_miniapp_link_service import (
     build_payroll_miniapp_link_payload,
     format_customer_miniapp_link_block,
@@ -159,6 +159,9 @@ class PaymentMessageGenerator:
         if not bills:
             raise ValueError("未找到需要美化的账单")
 
+        # 历史续签账单可能尚未执行新分配规则。准备催款时先按已签署考勤
+        # 更新未发薪的结算快照，金额和展示在 API 的同一事务中提交。
+        self._refresh_pending_renewal_settlements(bills)
         selected_ids = {str(bill.id) for bill in bills}
         company_account = None
         if company_account_id:
@@ -210,6 +213,50 @@ class PaymentMessageGenerator:
             "company_bills": [item for item in company_bills if item],
             "employee_bills": [item for item in employee_bills if item],
         }
+
+    def _refresh_pending_renewal_settlements(self, bills):
+        from backend.services.billing_engine import BillingEngine
+        from backend.services.renewal_sync_service import recalculate_renewal_settlements
+
+        refreshed = set()
+        for bill in bills:
+            if bill.is_substitute_bill or bill.contract.type not in ("nanny", "育儿嫂正式合同"):
+                continue
+            related = self._related_renewal_bills([bill])
+            if len(related) <= 1:
+                continue
+            contract_ids = {item.contract_id for item in related}
+            key = (frozenset(contract_ids), bill.year, bill.month)
+            if key in refreshed:
+                continue
+            refreshed.add(key)
+            forms = AttendanceForm.query.filter(
+                AttendanceForm.contract_id.in_(contract_ids),
+                AttendanceForm.cycle_start_date <= bill.cycle_end_date,
+                AttendanceForm.cycle_end_date >= bill.cycle_start_date,
+                AttendanceForm.status.in_(["customer_signed", "synced"]),
+            ).order_by(AttendanceForm.updated_at.desc().nullslast()).all()
+            form = BillingEngine()._find_signed_monthly_attendance_form(
+                bill.contract, _as_date(bill.cycle_start_date), forms,
+            )
+            if not form or not form.form_data:
+                continue
+            payrolls = EmployeePayroll.query.filter(
+                EmployeePayroll.contract_id.in_(contract_ids),
+                EmployeePayroll.year == bill.year,
+                EmployeePayroll.month == bill.month,
+                EmployeePayroll.is_substitute_payroll == False,
+            ).order_by(EmployeePayroll.id).with_for_update().all()
+            has_payout = any(_decimal(payroll.total_paid_out) != 0 for payroll in payrolls)
+            if payrolls and not has_payout:
+                has_payout = PayoutRecord.query.filter(
+                    PayoutRecord.employee_payroll_id.in_([payroll.id for payroll in payrolls])
+                ).first() is not None
+            if has_payout:
+                # 已发薪历史保留既有结算，不在生成文案时重新分配已支付工资。
+                continue
+            recalculate_renewal_settlements(form)
+            db.session.flush()
 
     def _build_company_beautify_item(self, bill, account):
         context = self._build_context_for_bill(bill, include_miniapp_link=False)
@@ -353,10 +400,13 @@ class PaymentMessageGenerator:
             "overtime_hours": D(0),
         }
         source_periods = []
+        salary_days_by_level = {}
         for bill in related_bills:
             item_metrics = self._attendance_metrics(bill)
             for key in metrics:
                 metrics[key] += item_metrics[key]
+            level = _decimal((bill.calculation_details or {}).get("level") or getattr(bill.contract, "employee_level", 0))
+            salary_days_by_level[level] = salary_days_by_level.get(level, D(0)) + item_metrics["worked_days"] + item_metrics["overtime_days"]
             source_periods.append({
                 "bill_id": str(bill.id),
                 "start": _as_date(bill.cycle_start_date).isoformat(),
@@ -396,6 +446,21 @@ class PaymentMessageGenerator:
             or getattr(primary_bill.contract, "employee_level", 0)
         )
         payable_days = metrics["worked_days"] + metrics["overtime_days"]
+        formula_parts = [
+            f"{_readable(days, 3)}天×({_readable(level, 2)}元÷26天)"
+            for level, days in salary_days_by_level.items() if days
+        ]
+        formula_amount = sum((level / D(26) * days for level, days in salary_days_by_level.items()), D(0))
+        difference = (total_due - formula_amount).quantize(D("0.01"))
+        adjustment_note = ""
+        if abs(difference) >= D("1"):
+            adjustment_note = f" {'+' if difference > 0 else '-'} 调整{_fixed(abs(difference), 2)}元"
+        elif difference:
+            adjustment_note = "（按工资单取整）"
+        salary_formula_display = (
+            f"费用: {' + '.join(formula_parts)}{adjustment_note} = {_fixed(total_due, 2)}元"
+            if len(related_bills) > 1 and formula_parts else ""
+        )
         miniapp_url = ""
         if not primary_payroll.is_substitute_payroll:
             link_payload = build_payroll_miniapp_link_payload(
@@ -466,6 +531,7 @@ class PaymentMessageGenerator:
             "payable_days": _fixed(payable_days),
             "payable_days_display": _readable(payable_days, 3),
             "salary_base_display": _readable(salary_base, 2),
+            "salary_formula_display": salary_formula_display,
             "formula_total_display": _fixed(total_due, 2),
             "total_due_display": _fixed(total_due, 2),
             "paid_amount_display": _fixed(total_paid, 2),

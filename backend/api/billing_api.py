@@ -2754,13 +2754,13 @@ def terminate_contract(contract_id):
             force_recalculate=True,
             end_date_override=termination_date
         )
-        db.session.commit()
+        db.session.flush()
 
         # 步骤 3: 基于干净的账单，调用新函数来创建最终的薪资调整项
         final_bill = CustomerBill.query.filter(CustomerBill.contract_id == str(contract.id)).order_by(CustomerBill.cycle_end_date.desc()).first()
         if final_bill:
             engine.create_final_salary_adjustments(final_bill.id)
-            db.session.commit()
+            db.session.flush()
         else:
             raise ValueError("无法找到用于处理最终调整项的账单。")
 
@@ -2898,6 +2898,8 @@ def terminate_contract(contract_id):
                     if not existing_refund:
                         db.session.add(FinancialAdjustment(customer_bill_id=final_bill.id,adjustment_type=AdjustmentType.CUSTOMER_DECREASE, amount=management_refund_item['amount'],description=management_refund_item['description'], date=termination_date))
 
+        db.session.flush()
+
         # 步骤 5: 查找最终账单上所有的退款项（包括引擎生成的和我们刚加的）
         all_refund_items = FinancialAdjustment.query.filter(
             FinancialAdjustment.customer_bill_id == final_bill.id,
@@ -2959,6 +2961,21 @@ def terminate_contract(contract_id):
                 current_app.logger.info(
                     f"因合同 {contract.id} 提前终止，替班记录 {sub_record.id} 未产生管理费 (total_fee: {total_fee})."
                 )
+        # 退款、转签冲抵及替班费用全部落入同一事务后，更新最终结算金额。
+        db.session.flush()
+        engine.calculate_for_month(
+            year=final_bill.year, month=final_bill.month,
+            contract_id=str(contract.id), force_recalculate=True,
+            cycle_start_date_override=final_bill.cycle_start_date,
+            end_date_override=termination_date,
+        )
+        if transfer_options and all_refund_items:
+            engine.calculate_for_month(
+                year=first_bill_of_new_contract.year, month=first_bill_of_new_contract.month,
+                contract_id=str(new_contract.id), force_recalculate=True,
+                cycle_start_date_override=first_bill_of_new_contract.cycle_start_date,
+                end_date_override=first_bill_of_new_contract.cycle_end_date,
+            )
         create_contract_operation_log(
             contract=contract,
             related_contract=new_contract if transfer_options else None,

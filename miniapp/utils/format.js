@@ -49,6 +49,7 @@ function contractServiceRows(contract = {}) {
   const laborSuffix = contract.type === 'nanny_trial' ? '元/日' : '元/月';
   const managementLabel = contract.type === 'maternity_nurse' ? '丙方服务费' : '丙方管理费';
   const isMaternity = contract.type === 'maternity_nurse';
+  const isTrial = contract.type === 'nanny_trial';
   return [
     { label: '服务内容', value: serviceContentText(contract.service_content) },
     { label: '服务方式', value: contract.service_type || '' },
@@ -61,9 +62,9 @@ function contractServiceRows(contract = {}) {
         ]
       : [
           { label: '乙方劳务报酬', value: formatMoney(contract.employee_level, laborSuffix) },
-          { label: '保证金', value: formatMoney(contract.security_deposit_paid, '元') },
+          ...(!isTrial ? [{ label: '保证金', value: formatMoney(contract.security_deposit_paid, '元') }] : []),
         ]),
-    { label: managementLabel, value: formatMoney(contract.management_fee_amount, '元/月') },
+    ...(!isTrial ? [{ label: managementLabel, value: formatMoney(contract.management_fee_amount, '元/月') }] : []),
     { label: '介绍费', value: formatMoney(contract.introduction_fee, '元') },
     { label: '合同开始时间', value: compactDate(contract.start_date) },
     { label: '合同结束时间', value: compactDate(contract.end_date) }

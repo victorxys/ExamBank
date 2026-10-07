@@ -1,3 +1,4 @@
+const { recordHoursInRange, buildAutoOvertimeRecords } = require('./attendance-hours');
 const TYPE_MAP = {
   normal: { label: '出勤', key: 'normal', tone: 'normal' },
   rest: { label: '休息', key: 'rest_records', tone: 'rest' },
@@ -836,16 +837,7 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
   let holidayOvertimeDays = 0;
 
   function hoursInCycle(record) {
-    const start = parseDate(record.date);
-    const end = addDays(start, record.daysOffset || 0);
-    if (!start || !end || !cycleStart || !cycleEnd || start > cycleEnd || end < cycleStart) return 0;
-    const actualStart = start < cycleStart ? cycleStart : start;
-    const actualEnd = end > cycleEnd ? cycleEnd : end;
-    const daysInCurrentMonth = diffDays(actualEnd, actualStart) + 1;
-    const duration = calculateTotalDuration(record);
-    const totalDaysSpan = (record.daysOffset || 0) + 1;
-    if (formatDate(actualStart) === formatDate(start) && formatDate(actualEnd) === formatDate(end)) return duration.totalHours;
-    return duration.totalHours * (daysInCurrentMonth / totalDaysSpan);
+    return recordHoursInRange(record, cycleStart, cycleEnd);
   }
 
   [['rest_records', 'rest'], ['leave_records', 'leave'], ['paid_leave_records', 'paid_leave']].forEach(([key, type]) => {
@@ -873,11 +865,10 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
     if (!start || !end || !cycleStart || !cycleEnd || start > cycleEnd || end < cycleStart) return;
     const actualStart = start < cycleStart ? cycleStart : start;
     const actualEnd = end > cycleEnd ? cycleEnd : end;
-    const daysInSpan = diffDays(actualEnd, actualStart) + 1;
-    const dailyOvertime = daysInSpan > 0 ? days / daysInSpan : 0;
 
     let current = actualStart;
     while (current <= actualEnd) {
+      const dailyOvertime = recordHoursInRange(record, current, current) / 24;
       let holidayLike = isStatutoryHoliday(current, holidayData);
       if (!holidayLike) {
         ['rest_records', 'leave_records'].forEach((key) => {
@@ -1071,16 +1062,7 @@ function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays =
   let normalOvertimeDays = 0;
 
   function hoursInCycle(record) {
-    const start = parseDate(record.date);
-    const end = addDays(start, record.daysOffset || 0);
-    if (!start || !end || !cycleStart || !cycleEnd || start > cycleEnd || end < cycleStart) return 0;
-    const actualStart = start < cycleStart ? cycleStart : start;
-    const actualEnd = end > cycleEnd ? cycleEnd : end;
-    const daysInCurrentMonth = diffDays(actualEnd, actualStart) + 1;
-    const duration = calculateTotalDuration(record);
-    const totalDaysSpan = (record.daysOffset || 0) + 1;
-    if (formatDate(actualStart) === formatDate(start) && formatDate(actualEnd) === formatDate(end)) return duration.totalHours;
-    return duration.totalHours * (daysInCurrentMonth / totalDaysSpan);
+    return recordHoursInRange(record, cycleStart, cycleEnd);
   }
 
   ['rest_records', 'leave_records'].forEach((key) => {
@@ -1096,11 +1078,10 @@ function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays =
     const actualStart = start < cycleStart ? cycleStart : start;
     const actualEnd = end > cycleEnd ? cycleEnd : end;
     const days = hoursInCycle(record) / 24;
-    const daysInSpan = diffDays(actualEnd, actualStart) + 1;
-    const dailyOvertime = daysInSpan > 0 ? days / daysInSpan : 0;
 
     let current = actualStart;
     while (current <= actualEnd) {
+      const dailyOvertime = recordHoursInRange(record, current, current) / 24;
       let holidayLike = isStatutoryHoliday(current, holidayData);
       if (!holidayLike) {
         ['rest_records', 'leave_records'].forEach((key) => {
@@ -1123,54 +1104,17 @@ function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays =
   if (hasEditableAutoProjection) {
     return { data, converted: true, overtimeDays: exactDaysToConvert };
   }
-  const daysToConvert = Math.ceil(exactDaysToConvert);
+  const daysToConvert = Math.ceil(exactDaysToConvert + leaveDays + normalOvertimeDays);
   const occupied = new Set();
-  flattenRecords(data).forEach((record) => {
-    const start = parseDate(record.date);
-    for (let i = 0; i <= (record.daysOffset || 0); i += 1) occupied.add(formatDate(addDays(start, i)));
-  });
-
-  const available = monthDays
-    .filter((day) => !isDateDisabled(day, contractInfo, form) && !occupied.has(formatDate(day)))
-    .slice(-daysToConvert)
-    .sort((a, b) => a - b);
-
-  if (!available.length) return { data, converted: false, overtimeDays: 0 };
-
-  let remainingHours = exactDaysToConvert * 24;
-  let group = [];
-  const groups = [];
-  available.forEach((day) => {
-    if (!group.length || diffDays(day, group[group.length - 1]) === 1) {
-      group.push(day);
-    } else {
-      groups.push(group);
-      group = [day];
-    }
-  });
-  if (group.length) groups.push(group);
-
-  groups.forEach((item) => {
-    const maxHours = item.length * 24;
-    const hours = Math.min(maxHours, remainingHours);
-    if (hours <= 0.01) return;
-    const totalMinutes = Math.round(hours * 60);
-    let startTime = '00:00';
-    if (Math.abs(hours - maxHours) > 0.01) {
-      startTime = minutesToTime(maxHours * 60 - totalMinutes);
-    }
-    data.overtime_records.push({
-      date: formatDate(item[0]),
-      type: 'overtime',
-      startTime,
-      endTime: '24:00',
-      hours: Math.floor(totalMinutes / 60),
-      minutes: totalMinutes % 60,
-      daysOffset: item.length - 1,
-      is_auto: true
-    });
-    remainingHours -= hours;
-  });
+  Object.keys(data).filter(key => key.endsWith('_records') && !['rest_records', 'leave_records'].includes(key))
+    .forEach(key => (data[key] || []).forEach(record => {
+      const start = parseDate(record.date);
+      for (let i = 0; i <= (record.daysOffset || 0); i += 1) occupied.add(formatDate(addDays(start, i)));
+    }));
+  const available = monthDays.filter(day => !isDateDisabled(day, contractInfo, form) && !occupied.has(formatDate(day)))
+    .slice(-daysToConvert).sort((a, b) => a - b);
+  const records = buildAutoOvertimeRecords(available, Math.round(exactDaysToConvert * 1440), data);
+  data.overtime_records.push(...records);
 
   return { data, converted: true, overtimeDays: exactDaysToConvert };
 }

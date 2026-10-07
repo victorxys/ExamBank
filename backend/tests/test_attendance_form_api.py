@@ -342,12 +342,11 @@ def test_bill_beautify_attendance_metrics_includes_leave_days(monkeypatch):
 
 def test_bill_beautify_keeps_complete_model_result():
     complete = (
-        "刘燕风“劳务费”\n"
-        "服务周期: 2026-07-01 ~ 2026-07-31\n"
+        "刘燕风服务周期: 2026-07-01 ~ 2026-07-31\n"
         "出勤26天，加班4天22小时（4.917天），休息2小时（0.083天）\n"
         "费用共30.917天×(10100元÷ 26天) =12010.00元\n"
-        "💰 本次您需支付员工款项: 12010.00元\n"
         "\n"
+        "💰 本次您需支付员工款项: 12010.00元\n"
         "户名：刘燕风\n"
         "帐号：TEST-ACCOUNT\n"
         "银行：测试银行\n"

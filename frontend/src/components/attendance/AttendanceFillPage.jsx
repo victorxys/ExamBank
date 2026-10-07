@@ -1,3 +1,4 @@
+import { recordHoursInRange, buildAutoOvertimeRecords } from '../../utils/attendanceRecordHours';
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Navigate, useParams, useNavigate, useLocation } from 'react-router-dom';
 import { format, parseISO, addDays, setHours, setMinutes, isSameDay, startOfDay, differenceInDays } from 'date-fns';
@@ -1622,270 +1623,53 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
     // 自动将超出26天的出勤转为加班
     // 返回处理后的 attendanceData
     const autoConvertOvertimeIfNeeded = (data) => {
-        // 月嫂 26 天结算周期：不做「超过 26 天自动补齐加班」
         if (formData?.is_maternity || formData?.attendance_cycle_type === 'maternity_26d' || contractInfo?.is_maternity) {
             return { data, converted: false, overtimeDays: 0 };
         }
-        const MAX_WORK_DAYS = 26;
-
-        // 【关键修复】先清洗掉上一轮自动生成的垃圾加班数据（垃圾回收机制）
-        // 确保后续的计算完全基于用户“确定”填写的数据
-        const cleanData = { ...data };
-        if (Array.isArray(cleanData.overtime_records)) {
-            // 只保留非自动生成的加班记录（即用户手填的确定的加班记录）
-            cleanData.overtime_records = cleanData.overtime_records.filter(
-                r => !r.is_auto && !r._auto_overtime_projection
-            );
-        }
-        data = cleanData;
-
-        // 【关键修复】法定节假日算出勤（带薪假期），休息和请假不算出勤
-
-        // 1. 计算休息和请假天数
-        let totalLeaveDays = 0;
-        ['rest_records', 'leave_records'].forEach(key => {
-            if (Array.isArray(data[key])) {
-                data[key].forEach(record => {
-                    // 【关键修复】计算当前月份内的实际天数
-                    const recordStartDate = parseISO(record.date);
-                    const daysOffset = record.daysOffset || 0;
-                    const recordEndDate = addDays(recordStartDate, daysOffset);
-
-                    // 当前月份的开始和结束日期
-                    const cycleStartDate = monthDays[0];
-                    const cycleEndDate = monthDays[monthDays.length - 1];
-
-                    // 计算记录在当前月份内的实际天数
-                    const actualStartDate = recordStartDate < cycleStartDate ? cycleStartDate : recordStartDate;
-                    const actualEndDate = recordEndDate > cycleEndDate ? cycleEndDate : recordEndDate;
-
-                    // 如果记录完全不在当前月份内，跳过
-                    if (actualStartDate > cycleEndDate || actualEndDate < cycleStartDate) {
-                        return;
-                    }
-
-                    // 计算当前月份内的天数
-                    const daysInCurrentMonth = differenceInDays(actualEndDate, actualStartDate) + 1;
-
-                    // 计算当前月份内的小时数
-                    let totalRecordHours = (record.hours || 0) + (record.minutes || 0) / 60;
-                    if (totalRecordHours === 0 && daysOffset > 0) {
-                        totalRecordHours = (daysOffset + 1) * 24;
-                    }
-
-                    let hoursInCurrentMonth = 0;
-                    if (actualStartDate.getTime() === recordStartDate.getTime() && actualEndDate.getTime() === recordEndDate.getTime()) {
-                        hoursInCurrentMonth = totalRecordHours;
-                    } else {
-                        const totalDaysSpan = daysOffset + 1;
-                        hoursInCurrentMonth = totalRecordHours * (daysInCurrentMonth / totalDaysSpan);
-                    }
-
-                    totalLeaveDays += hoursInCurrentMonth / 24;
-                });
-            }
-        });
-
-        // 【修复】计算当前的加班天数，区分假期加班和正常加班
-        // 【关键】对于跨月记录，只计算当前月份内的天数
-        let holidayOvertimeDays = 0;
+        const cleanData = {
+            ...data,
+            overtime_records: (data.overtime_records || []).filter(r => !r.is_auto && !r._auto_overtime_projection)
+        };
+        const cycleStart = monthDays[0];
+        const cycleEnd = monthDays[monthDays.length - 1];
+        const totalLeaveDays = ['rest_records', 'leave_records'].reduce((sum, key) => sum +
+            (cleanData[key] || []).reduce((hours, record) => hours + recordHoursInRange(record, cycleStart, cycleEnd) / 24, 0), 0);
         let normalOvertimeDays = 0;
-
-        if (Array.isArray(data.overtime_records)) {
-            data.overtime_records.forEach(record => {
-                // 【关键修复】计算当前月份内的实际天数
-                const recordStartDate = parseISO(record.date);
-                const daysOffset = record.daysOffset || 0;
-                const recordEndDate = addDays(recordStartDate, daysOffset);
-
-                // 当前月份的开始和结束日期
-                const cycleStartDate = monthDays[0];
-                const cycleEndDate = monthDays[monthDays.length - 1];
-
-                // 计算记录在当前月份内的实际天数
-                const actualStartDate = recordStartDate < cycleStartDate ? cycleStartDate : recordStartDate;
-                const actualEndDate = recordEndDate > cycleEndDate ? cycleEndDate : recordEndDate;
-
-                // 如果记录完全不在当前月份内，跳过
-                if (actualStartDate > cycleEndDate || actualEndDate < cycleStartDate) {
-                    return;
-                }
-
-                // 计算当前月份内的天数
-                const daysInCurrentMonth = differenceInDays(actualEndDate, actualStartDate) + 1;
-
-                // 计算当前月份内的小时数
-                let totalRecordHours = (record.hours || 0) + (record.minutes || 0) / 60;
-                if (totalRecordHours === 0 && daysOffset > 0) {
-                    totalRecordHours = (daysOffset + 1) * 24;
-                }
-
-                let hoursInCurrentMonth = 0;
-                if (actualStartDate.getTime() === recordStartDate.getTime() && actualEndDate.getTime() === recordEndDate.getTime()) {
-                    hoursInCurrentMonth = totalRecordHours;
-                } else {
-                    const totalDaysSpan = daysOffset + 1;
-                    hoursInCurrentMonth = totalRecordHours * (daysInCurrentMonth / totalDaysSpan);
-                }
-
-                const overtimeDays = hoursInCurrentMonth / 24;
-
-                // 将连续的多天加班拆分为每天独立判断，确保精准捕捉连续跨度内的真实法定节假日
-                const daysInSpan = differenceInDays(actualEndDate, actualStartDate) + 1;
-                const dailyOvertime = overtimeDays / daysInSpan;
-
-                let currentDay = actualStartDate;
-                while (currentDay <= actualEndDate) {
-                    let isHolidayDay = false;
-
-                    // 方法1：检查是否为法定节假日（通过 wage === 3 判断真的法定假）
-                    const holidayLabel = getHolidayLabel(currentDay);
-                    if (holidayLabel && holidayLabel.type === 'holiday' && holidayLabel.wage === 3) {
-                        isHolidayDay = true;
-                    }
-
-                    // 方法2：检查是否有重叠的请假或休息记录
-                    if (!isHolidayDay) {
-                        ['rest_records', 'leave_records'].forEach(key => {
-                            if (Array.isArray(data[key])) {
-                                data[key].forEach(otherRecord => {
-                                    const otherStart = parseISO(otherRecord.date);
-                                    const otherEnd = addDays(otherStart, otherRecord.daysOffset || 0);
-                                    if (currentDay >= otherStart && currentDay <= otherEnd) {
-                                        isHolidayDay = true;
-                                    }
-                                });
-                            }
-                        });
-                    }
-
-                    if (isHolidayDay) {
-                        holidayOvertimeDays += dailyOvertime;
-                    } else {
-                        normalOvertimeDays += dailyOvertime;
-                    }
-
-                    currentDay = addDays(currentDay, 1);
-                }
-            });
-        }
-
-        const onboardingDaysToExclude = calculateOnboardingDaysToExclude(data, formData);
-        const offboardingAdjustment = calculateOffboardingAdjustment(data, formData);
-
-        // 计算有效天数（合同范围内的天数）
-        const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
-
-        // 【关键修复】待分配出勤天数 = 有效天数 - 休息请假天数 - 普通加班天数
-        // 【重要】确定的法定节假日加班是“额外”奖金，不消耗物理出勤天数的名额，因此不减去 holidayOvertimeDays
-        const currentWorkDays = validDaysCount - onboardingDaysToExclude + offboardingAdjustment - totalLeaveDays - normalOvertimeDays;
-
-        // 如果出勤天数 <= 26，不需要处理
-        if (currentWorkDays <= MAX_WORK_DAYS) {
-            return { data, converted: false, overtimeDays: 0 };
-        }
-
-        // 需要转换的精确天数（包含小数）
-        const exactDaysToConvert = currentWorkDays - MAX_WORK_DAYS;
-        const daysToConvert = Math.ceil(exactDaysToConvert); // 需要分配的格子数
-
-        // 找出当月最后 X 天（从月末往前数，排除已有记录的日期）
+        (cleanData.overtime_records || []).forEach(record => {
+            const start = parseISO(record.date);
+            const end = addDays(start, record.daysOffset || 0);
+            let day = start < cycleStart ? cycleStart : start;
+            const last = end > cycleEnd ? cycleEnd : end;
+            while (day <= last) {
+                const holiday = getHolidayLabel(day);
+                const holidayLike = (holiday?.type === 'holiday' && holiday.wage === 3) ||
+                    ['rest_records', 'leave_records'].some(key => (cleanData[key] || []).some(other => {
+                        const otherStart = parseISO(other.date);
+                        return day >= otherStart && day <= addDays(otherStart, other.daysOffset || 0);
+                    }));
+                if (!holidayLike) normalOvertimeDays += recordHoursInRange(record, day, day) / 24;
+                day = addDays(day, 1);
+            }
+        });
         const validDays = monthDays.filter(day => !isDateDisabled(day));
-
-        // 收集所有已有非正常记录的日期
+        const currentWorkDays = validDays.length - calculateOnboardingDaysToExclude(cleanData, formData)
+            + calculateOffboardingAdjustment(cleanData, formData) - totalLeaveDays - normalOvertimeDays;
+        if (currentWorkDays <= 26) return { data: cleanData, converted: false, overtimeDays: 0 };
+        const exactDaysToConvert = currentWorkDays - 26;
+        const daysToConvert = Math.ceil(exactDaysToConvert + totalLeaveDays + normalOvertimeDays);
         const occupiedDates = new Set();
-        Object.keys(data).forEach(key => {
-            if (key.endsWith('_records') && Array.isArray(data[key])) {
-                data[key].forEach(record => {
-                    if (record.date) {
-                        // 添加记录覆盖的所有日期
-                        const startDate = parseISO(record.date);
-                        const daysOffset = record.daysOffset || 0;
-                        for (let i = 0; i <= daysOffset; i++) {
-                            occupiedDates.add(format(addDays(startDate, i), 'yyyy-MM-dd'));
-                        }
-                    }
-                });
-            }
-        });
-
-        // 从月末往前找可用的日期，但按日期升序排序以方便合并
-        const sortedAvailableDays = validDays
-            .filter(day => !occupiedDates.has(format(day, 'yyyy-MM-dd')))
-            .slice(-daysToConvert) // 取最后 X 个可用天数
-            .sort((a, b) => a - b); // 升序排列
-
-        if (sortedAvailableDays.length === 0) {
-            return { data, converted: false, overtimeDays: 0 };
-        }
-
-        // 将连续日期进行分组
-        const groups = [];
-        if (sortedAvailableDays.length > 0) {
-            let currentGroup = [sortedAvailableDays[0]];
-            for (let i = 1; i < sortedAvailableDays.length; i++) {
-                const prev = sortedAvailableDays[i - 1];
-                const curr = sortedAvailableDays[i];
-                // 如果是连续的一天
-                if (differenceInDays(curr, prev) === 1) {
-                    currentGroup.push(curr);
-                } else {
-                    groups.push(currentGroup);
-                    currentGroup = [curr];
-                }
-            }
-            groups.push(currentGroup);
-        }
-
-        // 创建新的数据副本
-        const newData = { ...data };
-        newData.overtime_records = [...(newData.overtime_records || [])];
-
-        let remainingHours = exactDaysToConvert * 24;
-
-        groups.forEach(group => {
-            const firstDay = group[0];
-            const lastDay = group[group.length - 1];
-            const daysCount = group.length;
-
-            // 计算该片段可分配的时长
-            const maxHoursForGroup = daysCount * 24;
-            const hoursForGroup = Math.min(maxHoursForGroup, remainingHours);
-            const totalMinutesForGroup = Math.round(hoursForGroup * 60);
-
-            if (hoursForGroup <= 0.01) return; // 忽略忽略不计的时长
-
-            // 构造跨天记录：从月末往前补齐，零头放在该片段最早一天，最后一天保持补满
-            let startTime = '00:00';
-            let endTime = '24:00';
-
-            // 如果该片段的时长不是整天倍数，调整 startTime，而不是 endTime
-            if (Math.abs(hoursForGroup - maxHoursForGroup) > 0.01) {
-                const missingMinutesOnFirstDay = maxHoursForGroup * 60 - totalMinutesForGroup;
-                if (missingMinutesOnFirstDay > 0) {
-                    const startMinutes = missingMinutesOnFirstDay;
-                    const h = Math.floor(startMinutes / 60);
-                    const m = startMinutes % 60;
-                    startTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-                }
-            }
-
-            newData.overtime_records.push({
-                id: Math.random().toString(36).substr(2, 9),
-                date: format(firstDay, 'yyyy-MM-dd'),
-                type: 'overtime',
-                startTime: startTime,
-                endTime: endTime,
-                hours: Math.floor(totalMinutesForGroup / 60),
-                minutes: totalMinutesForGroup % 60,
-                daysOffset: daysCount - 1,
-                is_auto: true // 标记为系统自动补齐的加班，便于下一次计算时实施垃圾回收
-            });
-
-            remainingHours -= hoursForGroup;
-        });
-
-        return { data: newData, converted: true, overtimeDays: exactDaysToConvert };
+        Object.keys(cleanData).filter(key => key.endsWith('_records') && !['rest_records', 'leave_records'].includes(key))
+            .forEach(key => (cleanData[key] || []).forEach(record => {
+                const start = parseISO(record.date);
+                for (let i = 0; i <= (record.daysOffset || 0); i++) occupiedDates.add(format(addDays(start, i), 'yyyy-MM-dd'));
+            }));
+        const available = validDays.filter(day => !occupiedDates.has(format(day, 'yyyy-MM-dd')))
+            .slice(-daysToConvert).sort((a, b) => a - b);
+        const records = buildAutoOvertimeRecords(available, Math.round(exactDaysToConvert * 1440), cleanData);
+        return {
+            data: { ...cleanData, overtime_records: [...cleanData.overtime_records, ...records] },
+            converted: records.length > 0, overtimeDays: exactDaysToConvert
+        };
     };
 
     const handleSaveDraft = async () => {

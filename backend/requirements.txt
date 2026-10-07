@@ -79,6 +79,7 @@ PyJWT==2.8.0
 PyMuPDF==1.26.0
 pyparsing==3.2.3
 pypinyin==0.54.0
+qiniu==7.12.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.0
 pytz==2025.2

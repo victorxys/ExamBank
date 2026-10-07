@@ -4,6 +4,23 @@ import { ResponsiveDatePicker } from '../components/ui/ResponsiveDatePicker';
 import { ResponsiveTimePicker } from '../components/ui/ResponsiveTimePicker';
 import { FullscreenSignaturePad } from '../components/ui/FullscreenSignaturePad';
 
+// SurveyJS 的值不变时，readOnly/mode 切换也必须更新自定义控件。
+function useQuestionReadOnly(question, survey) {
+    const [readOnly, setReadOnly] = React.useState(() => question.isReadOnly);
+    React.useEffect(() => {
+        const update = () => setReadOnly(question.isReadOnly);
+        const properties = ['readOnly', 'isReadOnly'];
+        properties.forEach(name => question.registerFunctionOnPropertyValueChanged(name, update));
+        survey.registerFunctionOnPropertyValueChanged('mode', update);
+        update();
+        return () => {
+            properties.forEach(name => question.unRegisterFunctionOnPropertyValueChanged(name, update));
+            survey.unRegisterFunctionOnPropertyValueChanged('mode', update);
+        };
+    }, [question, survey]);
+    return readOnly;
+}
+
 /**
  * 为 SurveyJS 日期/时间字段创建自定义渲染
  * 
@@ -67,6 +84,7 @@ export function createDateTimeRenderer() {
         if (inputType === 'date' || inputType === 'datetime' || inputType === 'datetime-local') {
             // 日期选择器
             const DatePickerWrapper = () => {
+                const readOnly = useQuestionReadOnly(question, sender);
                 const [value, setValue] = React.useState(() => {
                     const v = question.value;
                     return v ? new Date(v) : undefined;
@@ -87,8 +105,9 @@ export function createDateTimeRenderer() {
                 const handleChange = (date) => {
                     setValue(date);
                     if (date) {
-                        // 格式化为 ISO 日期字符串
-                        const isoString = date.toISOString().split('T')[0];
+                        // 按本地日期保存，避免 UTC 转换导致日期前移。
+                        const localDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                        const isoString = inputType === 'date' ? localDate : `${localDate}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
                         question.value = isoString;
                     } else {
                         question.value = undefined;
@@ -100,7 +119,7 @@ export function createDateTimeRenderer() {
                         value={value}
                         onChange={handleChange}
                         placeholder={question.placeholder || '选择日期'}
-                        disabled={question.isReadOnly}
+                        disabled={readOnly}
                         className={heightClass}
                     />
                 );
@@ -111,6 +130,7 @@ export function createDateTimeRenderer() {
         } else if (inputType === 'time') {
             // 时间选择器
             const TimePickerWrapper = () => {
+                const readOnly = useQuestionReadOnly(question, sender);
                 const [value, setValue] = React.useState(() => question.value || '');
 
                 React.useEffect(() => {
@@ -133,7 +153,7 @@ export function createDateTimeRenderer() {
                         value={value}
                         onChange={handleChange}
                         placeholder={question.placeholder || '选择时间'}
-                        disabled={question.isReadOnly}
+                        disabled={readOnly}
                         minuteStep={30}
                         className={heightClass}
                     />
@@ -220,6 +240,7 @@ export function createSignaturePadFixer() {
         
         // 签名组件包装器
         const SignatureWrapper = () => {
+            const readOnly = useQuestionReadOnly(question, sender);
             const [value, setValue] = React.useState(() => question.value || null);
             
             React.useEffect(() => {
@@ -242,7 +263,7 @@ export function createSignaturePadFixer() {
                 <FullscreenSignaturePad
                     value={value}
                     onChange={handleChange}
-                    disabled={question.isReadOnly}
+                    disabled={readOnly}
                     placeholder={question.placeholder || '点击此处签名'}
                 />
             );

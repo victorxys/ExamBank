@@ -516,6 +516,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                 bill_ids: [billId],
             });
             setGeneratedMessage(response.data);
+            setRefreshKey(prev => prev + 1);
             setIsMessageModalOpen(true);
         } catch (error) {
             console.error("生成催款消息失败:", error);

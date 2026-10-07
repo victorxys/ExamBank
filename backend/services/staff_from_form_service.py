@@ -10,7 +10,9 @@ import logging
 from typing import Any, Optional, Tuple
 
 from backend.extensions import db
-from backend.models import DynamicFormData, ServicePersonnel
+from backend.models import DynamicFormData, ServicePersonnel, User
+from backend.security_utils import generate_password_hash
+from sqlalchemy import or_
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +116,46 @@ def find_existing_employee(
     return existing
 
 
+def ensure_staff_user_account(employee: ServicePersonnel) -> Optional[User]:
+    """入职建档时复用或创建学员账号，不修改已有密码。"""
+    phone = _clean_optional_string(employee.phone_number)
+    identity = _clean_optional_string(employee.id_card_number)
+    conditions = [User.phone_number == phone]
+    if identity:
+        conditions.append(User.id_card_number == identity)
+    if employee.user_id:
+        conditions.append(User.id == employee.user_id)
+    candidates = User.query.filter(or_(*conditions)).all()
+    if len(candidates) > 1:
+        raise ValueError("手机号和身份证对应不同用户账号，请核对资料")
+    user = candidates[0] if candidates else None
+    if user:
+        if user.role != "student":
+            raise ValueError("员工资料对应的账号不是学员账号，请核对资料")
+        if identity and user.id_card_number and user.id_card_number != identity:
+            raise ValueError("手机号对应账号的身份证不一致，请核对资料")
+        linked = ServicePersonnel.query.filter(ServicePersonnel.user_id == user.id, ServicePersonnel.id != employee.id).first()
+        if linked:
+            raise ValueError("用户账号已关联其他员工，请核对资料")
+        user.username = employee.name
+        user.phone_number = phone
+        if identity:
+            user.id_card_number = identity
+    else:
+        if not identity or len(identity) < 6:
+            logger.warning("[CREATE_STAFF] 员工 %s 缺少有效身份证，补全后自动创建账号", employee.id)
+            return None
+        # 与现有用户同步入口保持相同的初始密码规则。
+        user = User(username=employee.name, phone_number=phone, id_card_number=identity,
+                    password=generate_password_hash(identity[-6:]), role="student",
+                    status="active" if employee.is_active else "inactive",
+                    name_pinyin=employee.name_pinyin)
+        db.session.add(user)
+    db.session.flush()
+    employee.user_id = user.id
+    return user
+
+
 def create_or_update_staff_from_form_data(
     form_data: DynamicFormData,
     *,
@@ -174,6 +216,7 @@ def create_or_update_staff_from_form_data(
         if salary_card_number:
             existing_employee.salary_card_number = salary_card_number
 
+        ensure_staff_user_account(existing_employee)
         form_data.service_personnel_id = existing_employee.id
         db.session.add(existing_employee)
         db.session.add(form_data)
@@ -198,6 +241,7 @@ def create_or_update_staff_from_form_data(
     db.session.add(new_employee)
     db.session.flush()
 
+    ensure_staff_user_account(new_employee)
     form_data.service_personnel_id = new_employee.id
     db.session.add(form_data)
 
@@ -224,9 +268,11 @@ def maybe_auto_create_staff_from_entry_form(
         return None
 
     try:
-        employee, created, message = create_or_update_staff_from_form_data(
-            form_data, commit=False
-        )
+        # 账号冲突或建档失败只回滚这一段，表单提交本身仍可保存。
+        with db.session.begin_nested():
+            employee, created, message = create_or_update_staff_from_form_data(
+                form_data, commit=False
+            )
         logger.info(
             "[CREATE_STAFF] 入职表自动%s员工 %s (%s), form_data=%s",
             "创建" if created else "更新",

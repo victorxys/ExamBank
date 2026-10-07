@@ -1180,7 +1180,15 @@ class BillingEngine:
             attendance_details.get("allocated_from_form_id")
         )
 
-        if actual_work_days_override is not None:
+        allocated_base_days = attendance_details.get("allocated_base_work_days")
+        if should_recalculate_from_allocated_attendance and allocated_base_days is not None:
+            base_work_days = D(str(allocated_base_days))
+            log_extras["base_work_days_reason"] = (
+                f"整月考勤按续签服务日期分配，整条续签链基础出勤上限26天: {base_work_days:.3f}天"
+            )
+            bill.actual_work_days = float(base_work_days)
+            payroll.actual_work_days = float(base_work_days)
+        elif actual_work_days_override is not None:
             base_work_days = D(actual_work_days_override)
             reason_parts = [f"使用考勤表中的出勤天数: {actual_work_days_override:.3f}天"]
             
@@ -1210,7 +1218,9 @@ class BillingEngine:
             )
             bill.actual_work_days = float(base_work_days)
             payroll.actual_work_days = float(base_work_days)
-        elif bill.actual_work_days and bill.actual_work_days > 0 and D(bill.actual_work_days) <= D(min(cycle_actual_days, 26)):
+        # 手工核定的首末日小时合并可超过“首日扣整天”后的默认值，
+        # 只用实际日期范围校验，避免终止重算把12.330天覆盖成12天。
+        elif bill.actual_work_days and bill.actual_work_days > 0 and D(bill.actual_work_days) <= D(min((cycle_end - cycle_start).days + 1, 26)):
             base_work_days = D(bill.actual_work_days)
             log_extras["base_work_days_reason"] = f"使用数据库中已存的出勤天数: {bill.actual_work_days}天"
         else:
@@ -1416,10 +1426,10 @@ class BillingEngine:
                     QUANTIZER
                 )
                 if management_fee_amount is not None:
-                    management_fee_reason =  f"月签合同首月不足月，按天收取: 管理费 {management_fee_amount}/30 * 劳务天数 ({current_month_contract_days} + 1) = {management_fee:.2f}"
+                    management_fee_reason =  f"月签合同首月不足月，按天收取: 管理费 {management_fee_amount}/30 * 管理费计费天数 {current_month_contract_days + 1}天 = {management_fee:.2f}"
 
                 else:
-                    management_fee_reason =  f"月签合同首月不足月，按天收取: 级别{level} * 10%/30 * 劳务天数 ({current_month_contract_days} + 1) = {management_fee:.2f}"
+                    management_fee_reason =  f"月签合同首月不足月，按天收取: 级别{level} * 10%/30 * 管理费计费天数 {current_month_contract_days + 1}天 = {management_fee:.2f}"
                 log_extras["management_fee_reason"] = management_fee_reason
             elif is_last_bill and cycle_end.day != last_day_of_month:
                 cycle_duration_days = (cycle_end - cycle_start).days + 1
@@ -2867,30 +2877,45 @@ class BillingEngine:
         )
 
     def _attendance_days_in_cycle(self, records, cycle_start, cycle_end):
-        total = D(0)
-        for record in records or []:
-            record_date = record.get("date")
-            if not record_date:
-                continue
-            record_start = self._to_date(datetime.fromisoformat(record_date))
-            if not record_start:
-                continue
-            days_offset = int(record.get("daysOffset") or 0)
-            record_end = record_start + timedelta(days=days_offset)
-            overlap_start = max(record_start, cycle_start)
-            overlap_end = min(record_end, cycle_end)
-            if overlap_start > overlap_end:
-                continue
+        from backend.services.attendance_sync_service import _calculate_records_days_in_cycle
 
-            span_days = D(days_offset + 1)
-            overlap_days = D((overlap_end - overlap_start).days + 1)
-            hours = D(str(record.get("hours") or 0))
-            minutes = D(str(record.get("minutes") or 0))
-            total_hours = hours + minutes / D(60)
-            record_days = total_hours / D(24)
-            if span_days > 0:
-                total += record_days * overlap_days / span_days
-        return total.quantize(D("0.001"))
+        return _calculate_records_days_in_cycle(records, cycle_start, cycle_end).quantize(D("0.001"))
+
+    def _renewal_base_days_in_cycle(self, form, cycle_start, cycle_end):
+        from backend.services.attendance_sync_service import (
+            _effective_service_window_for_cycle, _calculate_records_days_in_cycle,
+            _split_overtime_days_by_holiday, _contract_start_day_to_exclude, _parse_date,
+        )
+        from backend.services.renewal_sync_service import _related_contracts_for_month
+
+        if getattr(form.contract, "type", None) not in ("nanny", "育儿嫂正式合同"):
+            return None
+        if len(_related_contracts_for_month(form)) <= 1:
+            return None
+        start, end = _effective_service_window_for_cycle(
+            form, self._to_date(form.cycle_start_date), self._to_date(form.cycle_end_date)
+        )
+        data = form.form_data or {}
+        excluded_dates = {_contract_start_day_to_exclude(form.contract, start, end)}
+        for record in data.get("onboarding_records") or []:
+            if record.get("date"):
+                excluded_dates.add(_parse_date(record["date"]))
+        remaining = D(26)
+        allocated = D(0)
+        day = start
+        while day <= end:
+            unavailable = sum((
+                _calculate_records_days_in_cycle(data.get(key), day, day)
+                for key in ("rest_records", "leave_records")
+            ), D(0))
+            normal_overtime, _ = _split_overtime_days_by_holiday(data, day, day)
+            onboarding = D(1) if day in excluded_dates else D(0)
+            base = min(remaining, max(D(0), D(1) - unavailable - normal_overtime - onboarding))
+            if cycle_start <= day <= cycle_end:
+                allocated += base
+            remaining -= base
+            day += timedelta(days=1)
+        return allocated
 
     def _apply_attendance_allocation(self, attendance, signed_form, cycle_start, cycle_end):
         from backend.services.attendance_sync_service import _split_overtime_days_by_holiday
@@ -2908,7 +2933,12 @@ class BillingEngine:
         out_of_beijing_days = self._attendance_days_in_cycle(form_data.get("out_of_beijing_records"), cycle_start, cycle_end)
         out_of_country_days = self._attendance_days_in_cycle(form_data.get("out_of_country_records"), cycle_start, cycle_end)
 
+        allocated_base_days = self._renewal_base_days_in_cycle(signed_form, cycle_start, cycle_end)
         details = dict(attendance.attendance_details or {})
+        details.pop("allocated_base_work_days", None)
+        if allocated_base_days is not None:
+            details["allocated_base_work_days"] = str(allocated_base_days)
+            attendance.total_days_worked = allocated_base_days
         details.update({
             "rest_days": float(rest_days),
             "leave_days": float(leave_days),
