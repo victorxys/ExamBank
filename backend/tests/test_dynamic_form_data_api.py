@@ -328,18 +328,13 @@ def test_rotate_form_data_image_replaces_file_object_url(client, db_session, mon
             return source_image_bytes
 
     class FakeS3:
-        def __init__(self):
-            self.put_calls = []
-
         def get_object(self, Bucket, Key):
             assert Bucket == "test-bucket"
             assert Key == "uploads/test-id-card/front.jpg"
             return {"Body": FakeBody()}
 
-        def put_object(self, **kwargs):
-            self.put_calls.append(kwargs)
-
     fake_s3 = FakeS3()
+    qiniu_calls = []
     monkeypatch.setattr(
         "backend.api.dynamic_form_data_api._get_r2_client",
         lambda: (fake_s3, "test-bucket")
@@ -347,6 +342,23 @@ def test_rotate_form_data_image_replaces_file_object_url(client, db_session, mon
     monkeypatch.setattr(
         "backend.api.dynamic_form_data_api._public_domain",
         lambda: "https://img.mengyimengsao.com"
+    )
+    monkeypatch.setattr(
+        dynamic_form_data_api,
+        "upload_image_bytes",
+        lambda data, module, business_id, mime_type, **kwargs: (
+            qiniu_calls.append({
+                "data": data,
+                "module": module,
+                "business_id": business_id,
+                "mime_type": mime_type,
+                **kwargs,
+            })
+            or {
+                "key": "hr_media/test/rotated.jpg",
+                "url": "https://qiniu.example.test/hr_media/test/rotated.jpg",
+            }
+        ),
     )
 
     access_token = create_access_token(identity=str(test_user.id))
@@ -366,9 +378,9 @@ def test_rotate_form_data_image_replaces_file_object_url(client, db_session, mon
 
     assert response.status_code == 200
     response_json = response.get_json()
-    assert response_json["image_url"].startswith("https://img.mengyimengsao.com/uploads/test-id-card/front_rotated_")
-    assert len(fake_s3.put_calls) == 1
-    assert fake_s3.put_calls[0]["ContentType"] == "image/jpeg"
+    assert response_json["image_url"] == "https://qiniu.example.test/hr_media/test/rotated.jpg"
+    assert len(qiniu_calls) == 1
+    assert qiniu_calls[0]["mime_type"] == "image/jpeg"
 
     db_session.refresh(form_data)
     rotated_value = form_data.data["field_4"][0]
@@ -424,16 +436,17 @@ def test_r2_client_uses_bounded_timeouts(monkeypatch):
 def test_submit_signature_upload_is_idempotent(client, db_session, monkeypatch):
     test_user = db_session.query(User).filter_by(phone_number="15810903753").one()
     dynamic_form = _signature_form(db_session)
-    fake_s3 = MagicMock()
+    qiniu_calls = []
     monkeypatch.setattr(
         dynamic_form_data_api,
-        "_get_r2_client",
-        lambda: (fake_s3, "test-bucket"),
-    )
-    monkeypatch.setattr(
-        dynamic_form_data_api,
-        "_public_domain",
-        lambda: "https://img.example.test",
+        "upload_image_bytes",
+        lambda data, module, business_id, mime_type, **kwargs: (
+            qiniu_calls.append((data, module, business_id, mime_type, kwargs))
+            or {
+                "key": "hr_media/test/signature.png",
+                "url": "https://qiniu.example.test/hr_media/test/signature.png",
+            }
+        ),
     )
 
     signature = "data:image/png;base64," + base64.b64encode(b"signature-bytes").decode()
@@ -447,10 +460,10 @@ def test_submit_signature_upload_is_idempotent(client, db_session, monkeypatch):
     assert response.status_code == 201
     response_id = uuid.UUID(response.get_json()["id"])
     created = db_session.query(DynamicFormData).get(response_id)
-    assert created.data["customer_signature"].startswith("https://img.example.test/")
+    assert created.data["customer_signature"] == "https://qiniu.example.test/hr_media/test/signature.png"
     assert created.data["customer_signature"] != signature
-    assert fake_s3.put_object.call_count == 1
-    assert fake_s3.put_object.call_args.kwargs["Body"].read() == b"signature-bytes"
+    assert len(qiniu_calls) == 1
+    assert qiniu_calls[0][0] == b"signature-bytes"
 
     retry_response = client.post(
         f"/api/form-data/submit/{dynamic_form.id}",
@@ -461,7 +474,7 @@ def test_submit_signature_upload_is_idempotent(client, db_session, monkeypatch):
     assert retry_response.status_code == 200
     assert retry_response.get_json()["id"] == str(response_id)
     assert retry_response.get_json()["idempotent"] is True
-    assert fake_s3.put_object.call_count == 1
+    assert len(qiniu_calls) == 1
 
 
 def test_submit_signature_upload_failure_returns_503_and_rolls_back(
@@ -469,12 +482,10 @@ def test_submit_signature_upload_failure_returns_503_and_rolls_back(
 ):
     test_user = db_session.query(User).filter_by(phone_number="15810903753").one()
     dynamic_form = _signature_form(db_session)
-    fake_s3 = MagicMock()
-    fake_s3.put_object.side_effect = TimeoutError("R2 read timeout")
     monkeypatch.setattr(
         dynamic_form_data_api,
-        "_get_r2_client",
-        lambda: (fake_s3, "test-bucket"),
+        "upload_image_bytes",
+        MagicMock(side_effect=dynamic_form_data_api.ImageStorageError("Qiniu timeout")),
     )
 
     submission_id = uuid.uuid4()

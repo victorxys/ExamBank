@@ -672,22 +672,23 @@ def _render_employee_fallback(items: list[dict]) -> str:
                 part += f"（{detail.get('calculation_days_display', '0')}天）"
             attendance_parts.append(part)
         lines = [
-            f"{item.get('employee_name', '')}“劳务费”",
-            f"服务周期: {item.get('service_start', '')} ~ {item.get('service_end', '')}",
+            f"{item.get('employee_name', '')}服务周期: "
+            f"{item.get('service_start', '')} ~ {item.get('service_end', '')}",
             "，".join(attendance_parts),
             (
+                item.get("salary_formula_display") or
                 f"费用共{item.get('payable_days_display', '0')}天×"
                 f"({item.get('salary_base_display', '0')}元÷ 26天) "
                 f"={item.get('formula_total_display', '0.00')}元"
             ),
         ]
+        lines.append("")
         lines.append(
             "💰 本次您需支付员工款项: "
             f"{item.get('pending_amount_display', '0.00')}元"
         )
         bank_lines = _render_bank_account(item.get("bank_account") or {})
         if bank_lines:
-            lines.append("")
             lines.extend(bank_lines)
         miniapp_url = (item.get("miniapp_url") or "").strip()
         if miniapp_url:

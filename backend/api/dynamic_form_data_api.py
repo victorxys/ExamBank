@@ -4,7 +4,6 @@ from backend.models import DynamicFormData, DynamicForm, ServicePersonnel, BaseC
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
 from flask_jwt_extended import jwt_required, get_current_user
-import json
 import uuid
 import base64
 import binascii
@@ -17,8 +16,12 @@ from backend.services.exam_service import _calculate_exam_score
 from PIL import Image, ImageOps
 import requests
 from sqlalchemy.exc import IntegrityError
+from backend.services.image_storage_service import (
+    ImageStorageError,
+    upload_image_bytes,
+)
 
-# R2 配置
+# R2 配置（仅用于读取历史图片，所有新写入均走七牛云）
 import boto3
 from botocore.client import Config
 
@@ -106,7 +109,8 @@ def _normalize_image_url(url):
 
     try:
         parsed = urlparse(url)
-        if parsed.netloc and "img.mengyimengsao.com" in parsed.netloc:
+        public_host = urlparse(_public_domain()).netloc
+        if parsed.netloc in {"img.mengyimengsao.com", public_host}:
             path = _strip_cdn_cgi_path(parsed.path)
             return f"https://img.mengyimengsao.com{path}"
     except Exception:
@@ -122,7 +126,10 @@ def _r2_key_from_url(url):
     normalized = _normalize_image_url(url)
     parsed = urlparse(normalized)
     public_host = urlparse(_public_domain()).netloc
+    qiniu_host = urlparse(os.environ.get("QINIU_DOMAIN", "")).netloc
 
+    if parsed.netloc and parsed.netloc in {qiniu_host}:
+        return None
     if parsed.netloc and parsed.netloc not in {public_host, "img.mengyimengsao.com"}:
         return None
 
@@ -219,6 +226,8 @@ def _replace_image_url(value, old_url, new_url, image_index=None):
 def _read_image_bytes(s3, bucket_name, image_url):
     key = _r2_key_from_url(image_url)
     if key:
+        if not s3 or not bucket_name:
+            raise RuntimeError("R2 client is not configured for legacy image")
         response = s3.get_object(Bucket=bucket_name, Key=key)
         return response["Body"].read(), key
 
@@ -243,15 +252,14 @@ def _rotated_key(original_key, data_id, field_name, image_format):
 
 def _rotate_image_and_upload(image_url, form_data_id, field_name, degrees):
     s3, bucket_name = _get_r2_client()
-    if not s3:
-        raise RuntimeError("R2 client is not configured")
-
-    image_bytes, original_key = _read_image_bytes(s3, bucket_name, image_url)
+    image_bytes, _ = _read_image_bytes(s3, bucket_name, image_url)
 
     with Image.open(BytesIO(image_bytes)) as image:
         image_format = (image.format or "JPEG").upper()
         image = ImageOps.exif_transpose(image)
         if image_format == "JPG":
+            image_format = "JPEG"
+        if image_format not in {"JPEG", "PNG", "GIF", "WEBP"}:
             image_format = "JPEG"
 
         rotated = image.rotate(-degrees, expand=True)
@@ -266,24 +274,23 @@ def _rotate_image_and_upload(image_url, form_data_id, field_name, degrees):
         output.seek(0)
 
     content_type = "image/jpeg" if image_format == "JPEG" else f"image/{image_format.lower()}"
-    new_key = _rotated_key(original_key, form_data_id, field_name, image_format)
-
-    s3.put_object(
-        Bucket=bucket_name,
-        Key=new_key,
-        Body=output.getvalue(),
-        ContentType=content_type,
+    result = upload_image_bytes(
+        output.getvalue(),
+        "dynamic-form-rotated",
+        f"{form_data_id}/{field_name}",
+        content_type,
+        extension=".jpg" if image_format == "JPEG" else f".{image_format.lower()}",
+        filename=f"rotated.{image_format.lower()}",
     )
+    return result["url"]
 
-    return f"{_public_domain()}/{new_key}"
 
-
-def _upload_signature_to_r2(base64_data, form_token, field_name, data_id):
+def _upload_signature_to_qiniu(base64_data, form_token, field_name, data_id):
     """
-    将 base64 签名数据上传到 R2，返回图片 URL。
+    将 base64 签名数据上传到七牛云，返回图片 URL。
 
     上传是表单提交的一部分，失败时必须中止提交，不能把原始 Base64
-    写入数据库。R2 的连接和读取超时由 _get_r2_client 统一限制。
+    写入数据库。
     """
     if not base64_data or not isinstance(base64_data, str) or not base64_data.startswith('data:image'):
         return base64_data  # 不是 base64 图片数据，原样返回
@@ -298,6 +305,8 @@ def _upload_signature_to_r2(base64_data, form_token, field_name, data_id):
         raise InvalidSignatureData()
 
     mime_type = match.group('mime').lower()
+    if mime_type == 'image/jpg':
+        mime_type = 'image/jpeg'
     image_format = mime_type.split('/', 1)[1]
     if image_format == 'jpeg':
         image_format = 'jpg'
@@ -309,31 +318,25 @@ def _upload_signature_to_r2(base64_data, form_token, field_name, data_id):
     except (binascii.Error, ValueError) as exc:
         raise InvalidSignatureData() from exc
 
-    max_size = _env_positive_int('R2_SIGNATURE_MAX_BYTES', 5 * 1024 * 1024)
+    max_size = _env_positive_int('QINIU_SIGNATURE_MAX_BYTES', _env_positive_int('R2_SIGNATURE_MAX_BYTES', 5 * 1024 * 1024))
     if not image_data or len(image_data) > max_size:
         raise InvalidSignatureData("签名图片大小无效或超过限制")
 
     started_at = time.monotonic()
     try:
-        s3, bucket_name = _get_r2_client()
-        if not s3:
-            raise SignatureStorageUnavailable()
-
-        # 生成文件名: form_token/data_id/field_name/timestamp_signature.png
-        timestamp = int(time.time() * 1000)
-        filename = f"{form_token}/{data_id}/{field_name}/{form_token}_{field_name}_{timestamp}_signature.{image_format}"
-
-        s3.put_object(
-            Bucket=bucket_name,
-            Key=filename,
-            Body=BytesIO(image_data),
-            ContentType=mime_type,
+        result = upload_image_bytes(
+            image_data,
+            "dynamic-form-signatures",
+            f"{form_token}/{data_id}/{field_name}",
+            mime_type,
+            extension=f".{image_format}",
+            filename=f"{field_name}_signature.{image_format}",
         )
 
-        url = f"{_public_domain()}/{filename}"
+        url = result["url"]
         elapsed_ms = int((time.monotonic() - started_at) * 1000)
         current_app.logger.info(
-            "Signature uploaded to R2 form_token=%s data_id=%s field=%s bytes=%s elapsed_ms=%s",
+            "Signature uploaded to Qiniu form_token=%s data_id=%s field=%s bytes=%s elapsed_ms=%s",
             form_token,
             data_id,
             field_name,
@@ -352,10 +355,22 @@ def _upload_signature_to_r2(base64_data, form_token, field_name, data_id):
             exc_info=True,
         )
         raise
+    except ImageStorageError as exc:
+        elapsed_ms = int((time.monotonic() - started_at) * 1000)
+        current_app.logger.error(
+            "Error uploading signature to Qiniu form_token=%s data_id=%s field=%s error_type=%s elapsed_ms=%s",
+            form_token,
+            data_id,
+            field_name,
+            type(exc).__name__,
+            elapsed_ms,
+            exc_info=True,
+        )
+        raise SignatureStorageUnavailable() from exc
     except Exception as exc:
         elapsed_ms = int((time.monotonic() - started_at) * 1000)
         current_app.logger.error(
-            "Error uploading signature to R2 form_token=%s data_id=%s field=%s error_type=%s elapsed_ms=%s",
+            "Unexpected signature upload error form_token=%s data_id=%s field=%s error_type=%s elapsed_ms=%s",
             form_token,
             data_id,
             field_name,
@@ -368,7 +383,7 @@ def _upload_signature_to_r2(base64_data, form_token, field_name, data_id):
 
 def _process_signaturepad_fields(form_data_content, surveyjs_schema, form_token, data_id):
     """
-    处理表单数据中的 signaturepad 字段，将 base64 数据上传到 R2。
+    处理表单数据中的 signaturepad 字段，将 base64 数据上传到七牛云。
     返回处理后的表单数据。
     """
     if not surveyjs_schema or 'pages' not in surveyjs_schema:
@@ -390,8 +405,8 @@ def _process_signaturepad_fields(form_data_content, surveyjs_schema, form_token,
         if field_name in processed_data:
             value = processed_data[field_name]
             if value and isinstance(value, str) and value.startswith('data:image'):
-                # 上传到 R2 并替换为 URL
-                processed_data[field_name] = _upload_signature_to_r2(
+                # 上传到七牛云并替换为 URL
+                processed_data[field_name] = _upload_signature_to_qiniu(
                     value, form_token, field_name, data_id
                 )
     
@@ -700,7 +715,7 @@ def submit_form_data(form_id):
         # 使用幂等键作为 data_id，前端超时后重试不会新增第二条记录。
         data_id = str(submission_id)
         
-        # 处理 signaturepad 字段，将 base64 上传到 R2
+        # 处理 signaturepad 字段，将 base64 上传到七牛云
         processed_data = _process_signaturepad_fields(
             form_data_content,
             dynamic_form.surveyjs_schema,
@@ -803,7 +818,7 @@ def update_form_data(data_id):
         return jsonify({'message': 'Form data not found'}), 404
 
     try:
-        # 处理 signaturepad 字段，将 base64 上传到 R2
+        # 处理 signaturepad 字段，将 base64 上传到七牛云
         processed_data = _process_signaturepad_fields(
             updated_data_content,
             form_data.dynamic_form.surveyjs_schema,

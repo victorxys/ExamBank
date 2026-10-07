@@ -250,3 +250,99 @@ def test_cleanup_script_rolls_back_when_recalculation_fails(monkeypatch):
     assert session.deleted == []
     assert session.committed == 0
     assert session.rolled_back == 1
+
+
+@pytest.mark.parametrize("split_day", [5, 11, 12, 20])
+def test_renewal_allocates_monthly_base_days_once(monkeypatch, split_day):
+    from datetime import date
+    from decimal import Decimal
+    from backend.services.billing_engine import BillingEngine
+    from backend.services import attendance_sync_service as attendance
+
+    monkeypatch.setattr(renewal_sync_service, "_related_contracts_for_month", lambda form: [object(), object()])
+    monkeypatch.setattr(attendance, "_effective_service_window_for_cycle", lambda *args: (date(2026, 9, 1), date(2026, 9, 30)))
+    monkeypatch.setattr(attendance, "_contract_start_day_to_exclude", lambda *args: None)
+    form = SimpleNamespace(contract=SimpleNamespace(type="nanny"), cycle_start_date=date(2026, 9, 1), cycle_end_date=date(2026, 9, 30), form_data={
+        "overtime_records": [
+            {"date": "2026-09-25", "hours": 24, "startTime": "00:00", "endTime": "24:00"},
+            {"date": "2026-09-27", "hours": 96, "startTime": "00:00", "endTime": "24:00", "daysOffset": 3, "is_auto": True},
+        ],
+    })
+    engine = BillingEngine()
+    first = engine._renewal_base_days_in_cycle(form, date(2026, 9, 1), date(2026, 9, split_day))
+    second = engine._renewal_base_days_in_cycle(form, date(2026, 9, split_day + 1), date(2026, 9, 30))
+    assert first == Decimal(split_day)
+    assert first + second == Decimal(26)
+    assert sum(attendance._split_overtime_days_by_holiday(form.form_data, date(2026, 9, 1), date(2026, 9, 30))) == Decimal(5)
+
+
+def test_cross_day_leave_preserves_daily_capacity():
+    from datetime import date
+    from decimal import Decimal
+    from backend.services.attendance_sync_service import _record_hours_in_cycle, _auto_overtime_capacity_minutes
+    from backend.services.renewal_sync_service import _clip_record_to_range
+
+    record = {"date": "2026-09-28", "startTime": "07:00", "endTime": "24:00", "hours": 65, "daysOffset": 2}
+    daily_hours = [_record_hours_in_cycle(record, date(2026, 9, day), date(2026, 9, day)) for day in (28, 29, 30)]
+    assert daily_hours == [Decimal(17), Decimal(24), Decimal(24)]
+    assert [_auto_overtime_capacity_minutes({"leave_records": [record]}, date(2026, 9, day)) for day in (28, 29, 30)] == [420, 0, 0]
+    assert _clip_record_to_range(record, date(2026, 9, 29), date(2026, 9, 30))["hours"] == 48
+
+
+def test_existing_auto_overtime_moves_off_full_leave_days(monkeypatch):
+    from datetime import datetime
+    from backend.services import attendance_sync_service as attendance
+
+    form = SimpleNamespace(contract=SimpleNamespace(type="nanny"), cycle_start_date=datetime(2026, 9, 1),
+                           cycle_end_date=datetime(2026, 9, 30), form_data={
+        "leave_records": [{"date": "2026-09-28", "startTime": "07:00", "endTime": "24:00", "hours": 65, "daysOffset": 2}],
+        "overtime_records": [{"date": "2026-09-28", "startTime": "00:00", "endTime": "24:00", "hours": 7, "daysOffset": 2, "is_auto": True}],
+    })
+    monkeypatch.setattr(attendance, "_valid_days_for_cycle", lambda *args: [])
+    data, changed = attendance.normalize_auto_overtime_form_data(form, allow_create_missing_auto=True)
+    assert changed
+    assert [(record["date"], record["hours"], record["daysOffset"]) for record in data["overtime_records"]] == [("2026-09-28", 7, 0)]
+
+
+@pytest.mark.parametrize("paid_out, refresh_count", [(0, 1), (1, 0)])
+def test_message_generation_refreshes_only_unpaid_renewal_chain(monkeypatch, paid_out, refresh_count):
+    from backend.services import payment_message_generator as messages
+    from backend.services.billing_engine import BillingEngine
+    from backend.models import AttendanceForm, EmployeePayroll, PayoutRecord
+
+    class Query:
+        def __init__(self, rows):
+            self.rows = rows
+        def filter(self, *args):
+            return self
+        def order_by(self, *args):
+            return self
+        def with_for_update(self):
+            return self
+        def all(self):
+            return self.rows
+        def first(self):
+            return self.rows[0] if self.rows else None
+
+    def model_with_query(model, rows, names):
+        return SimpleNamespace(query=Query(rows), **{name: getattr(model, name) for name in names})
+
+    form = SimpleNamespace(form_data={"overtime_records": [{"hours": 120}]})
+    payroll = SimpleNamespace(id="test-payroll", total_paid_out=paid_out)
+    monkeypatch.setattr(messages, "AttendanceForm", model_with_query(AttendanceForm, [form], ["contract_id", "cycle_start_date", "cycle_end_date", "status", "updated_at"]))
+    monkeypatch.setattr(messages, "EmployeePayroll", model_with_query(EmployeePayroll, [payroll], ["id", "contract_id", "year", "month", "is_substitute_payroll"]))
+    monkeypatch.setattr(messages, "PayoutRecord", model_with_query(PayoutRecord, [], ["employee_payroll_id"]))
+    session = _FakeSession()
+    monkeypatch.setattr(messages, "db", SimpleNamespace(session=session))
+    monkeypatch.setattr(BillingEngine, "_find_signed_monthly_attendance_form", lambda *args: form)
+    refreshed = []
+    monkeypatch.setattr(renewal_sync_service, "recalculate_renewal_settlements", lambda selected_form: refreshed.append(selected_form))
+    bill = SimpleNamespace(is_substitute_bill=False, contract=SimpleNamespace(type="nanny"),
+                           contract_id="successor", year=2026, month=9,
+                           cycle_start_date=datetime(2026, 9, 12), cycle_end_date=datetime(2026, 9, 30))
+    old_bill = SimpleNamespace(contract_id="previous")
+    generator = messages.PaymentMessageGenerator.__new__(messages.PaymentMessageGenerator)
+    monkeypatch.setattr(generator, "_related_renewal_bills", lambda selected: [old_bill, bill])
+    generator._refresh_pending_renewal_settlements([bill, bill])
+    assert len(refreshed) == refresh_count
+    assert session.flush_count == refresh_count

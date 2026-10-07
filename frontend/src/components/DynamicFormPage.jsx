@@ -143,6 +143,10 @@ const getThumbnailUrl = (originalUrl) => {
     // 先清理URL，确保没有重复的cdn-cgi参数
     const cleanedUrl = extractOriginalUrl(originalUrl);
 
+    if (isQiniuImageUrl(cleanedUrl)) {
+        return getImageProxyUrl(cleanedUrl);
+    }
+
     if (cleanedUrl.includes('img.mengyimengsao.com')) {
         const path = getCleanPath(cleanedUrl);
         if (path) {
@@ -171,9 +175,14 @@ const getThumbnailUrl = (originalUrl) => {
 const getLightboxUrl = (originalUrl) => {
     if (!originalUrl) return originalUrl;
 
+    const cleanedUrl = extractOriginalUrl(originalUrl);
+    if (isQiniuImageUrl(cleanedUrl)) {
+        return getImageProxyUrl(cleanedUrl);
+    }
+
     // 既然缩略图URL是正确的，我们直接基于缩略图URL生成大图URL
     // 这样可以确保使用相同的逻辑和路径处理
-    const thumbnailUrl = getThumbnailUrl(originalUrl);
+    const thumbnailUrl = getThumbnailUrl(cleanedUrl);
 
     if (thumbnailUrl.includes('img.mengyimengsao.com/cdn-cgi/image/')) {
         const screen = getScreenSize();
@@ -187,26 +196,89 @@ const getLightboxUrl = (originalUrl) => {
     }
 
     // 金数据图床
-    if (originalUrl.includes('jinshujufiles.com')) {
+    if (cleanedUrl.includes('jinshujufiles.com')) {
         try {
-            const cleanedUrl = extractOriginalUrl(originalUrl);
             const url = new URL(cleanedUrl);
             const screen = getScreenSize();
             url.searchParams.set('imageView2', `2/w/${screen.width}/q/100`);
             return url.toString();
         } catch (e) {
-            return originalUrl;
+            return cleanedUrl;
         }
     }
 
     // 如果都不匹配，返回原始URL
-    return extractOriginalUrl(originalUrl);
+    return cleanedUrl;
 };
 
 // 3. 原图URL - 原始尺寸100%质量，用于下载
 const getOriginalUrl = (originalUrl) => {
     // 确保返回的是干净的原始URL
     return extractOriginalUrl(originalUrl);
+};
+
+// 私有七牛空间不能直接在浏览器中访问，展示时通过后端代理动态签名。
+const isQiniuImageUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+
+    try {
+        const parsedUrl = new URL(url, window.location.origin);
+        return parsedUrl.pathname.startsWith('/hr_media/');
+    } catch (e) {
+        return false;
+    }
+};
+
+const getImageProxyUrl = (originalUrl) => {
+    const cleanUrl = getOriginalUrl(originalUrl);
+    if (!isQiniuImageUrl(cleanUrl)) return cleanUrl;
+    return `/api/image-proxy/?url=${encodeURIComponent(cleanUrl)}`;
+};
+
+const proxyNativeQiniuImages = (container) => {
+    if (!container) return;
+
+    const nativeControls = container.matches?.('.sd-file')
+        ? [container]
+        : Array.from(container.querySelectorAll('.sd-file'));
+
+    nativeControls.forEach((nativeControl) => {
+        nativeControl.querySelectorAll('img[src]').forEach((image) => {
+            const sourceUrl = image.getAttribute('src');
+            const proxiedUrl = getImageProxyUrl(sourceUrl);
+            if (proxiedUrl !== sourceUrl) {
+                image.setAttribute('src', proxiedUrl);
+                image.referrerPolicy = 'no-referrer';
+            }
+        });
+
+        // SurveyJS downloads a file by clicking the preview item's anchor.
+        // Rewrite it as well so clicking the native preview never bypasses the proxy.
+        nativeControl.querySelectorAll('a[href]').forEach((link) => {
+            const sourceUrl = link.getAttribute('href');
+            const proxiedUrl = getImageProxyUrl(sourceUrl);
+            if (proxiedUrl !== sourceUrl) {
+                link.setAttribute('href', proxiedUrl);
+            }
+        });
+    });
+};
+
+const observeNativeQiniuImages = (container) => {
+    if (!container || typeof MutationObserver === 'undefined') return () => {};
+
+    const proxyImages = () => proxyNativeQiniuImages(container);
+    proxyImages();
+
+    const observer = new MutationObserver(proxyImages);
+    observer.observe(container, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['src', 'href'],
+    });
+
+    return () => observer.disconnect();
 };
 
 const replaceFileQuestionImageUrl = (value, imageIndex, oldUrl, newUrl) => {
@@ -428,7 +500,7 @@ const preloadUnifiedImage = (originalUrl) => {
             };
 
             fallbackImg.referrerPolicy = 'no-referrer';
-            fallbackImg.src = originalUrl;
+            fallbackImg.src = getImageProxyUrl(originalUrl);
         };
 
         // 设置图片属性并开始加载
@@ -673,11 +745,12 @@ const OptimizedFileCarousel = ({ questionValue, fieldName, onImageClick, onPrelo
         // console.log(`📥 第三阶段：下载原图 ${index + 1}`);
 
         const originalUrl = getOriginalUrl(imageUrl);
+        const downloadUrl = getImageProxyUrl(originalUrl);
         const filename = originalUrl.split('/').pop()?.split('?')[0] || `image-${index + 1}.jpg`;
 
         try {
-            const response = await fetch(originalUrl, {
-                mode: 'cors',
+            const response = await fetch(downloadUrl, {
+                mode: 'same-origin',
                 credentials: 'same-origin',
             });
 
@@ -704,7 +777,7 @@ const OptimizedFileCarousel = ({ questionValue, fieldName, onImageClick, onPrelo
         } catch (error) {
             console.warn('原图下载失败，使用直接链接:', error);
             const link = document.createElement('a');
-            link.href = originalUrl;
+            link.href = downloadUrl;
             link.download = filename;
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
@@ -857,7 +930,7 @@ const OptimizedFileCarousel = ({ questionValue, fieldName, onImageClick, onPrelo
                                         e.target.dataset.fallback = 'true';
                                         console.warn(`缩略图 ${index + 1} 加载失败，回退到原图: ${originalUrl}`);
                                         // 直接回退到原图
-                                        e.target.src = originalUrl;
+                                        e.target.src = getImageProxyUrl(originalUrl);
                                     }}
                                     onLoad={(e) => {
                                         const loadedUrl = e.target.src;
@@ -1720,7 +1793,7 @@ const DynamicFormPage = () => {
                                                     const formData = new FormData();
                                                     formData.append('file', file);
 
-                                                    const response = await fetch('/api/upload/r2', {
+                                                    const response = await fetch('/api/upload/image', {
                                                         method: 'POST',
                                                         body: formData,
                                                         headers: {
@@ -2316,7 +2389,7 @@ const DynamicFormPage = () => {
 
                             const signatureMarker = '[SIGNATURE:';
                             const hasSignatureMarker = typeof questionValue === 'string' && questionValue.includes(signatureMarker);
-                            const isMultiLineAssociation = typeof questionValue === 'string' && (questionValue.includes('\n') || questionValue.includes('nested-form-container'));
+                            const isMultiLineAssociation = typeof questionValue === 'string' && questionValue.includes('nested-form-container');
 
                             const isSignature = (fieldDef && fieldDef.type === 'e_signature') ||
                                 (typeof questionValue === 'string' && (
@@ -2444,13 +2517,14 @@ const DynamicFormPage = () => {
                                     // console.log(`[File Rendering - ${questionName}] defaultPreview element:`, defaultPreview);
                                     if (defaultPreview) {
                                         defaultPreview.style.display = 'block';
+                                        proxyNativeQiniuImages(defaultPreview);
                                         // console.log(`[File Rendering - ${questionName}] Ensured default preview is visible`);
                                     }
                                 }
                                 // console.log(`[File Rendering - ${questionName}] ===== END =====`);
                             }
 
-                            if (isSignature) {
+                            if (isSignature && options.question.isReadOnly) {
                                 // console.log(`[DEBUG] Rendering signature for ${questionName}`);
 
                                 // Check if already wrapped
@@ -3033,7 +3107,7 @@ const DynamicFormPage = () => {
                     });
                 });
 
-                // 4. Handle File Uploads to R2
+                // 4. Handle File Uploads to Qiniu
                 survey.onUploadFiles.add(async (sender, options) => {
                     const files = options.files;
                     const uploadResults = [];
@@ -3043,7 +3117,7 @@ const DynamicFormPage = () => {
                             const formData = new FormData();
                             formData.append('file', file);
 
-                            const response = await api.post('/upload/r2', formData, {
+                            const response = await api.post('/upload/image', formData, {
                                 headers: {
                                     'Content-Type': 'multipart/form-data'
                                 }
@@ -3181,22 +3255,9 @@ const DynamicFormPage = () => {
         if (surveyModel.isAdminView) {
             // console.log('[toggleMode] Switching from Admin View to Full Edit');
 
-            // 关键修复：在切换到编辑模式前，将文件问题的URL替换为统一URL
-            // 这样 SurveyJS 渲染时会使用已缓存的图片
             const fileQuestions = surveyModel.getAllQuestions().filter(q => q.getType() === 'file');
             fileQuestions.forEach(q => {
                 q.allowImagesPreview = true; // 启用图片预览
-                const questionValue = currentData[q.name];
-                if (Array.isArray(questionValue) && questionValue.length > 0) {
-                    currentData[q.name] = questionValue.map(file => {
-                        if (file && file.content) {
-                            const unifiedUrl = getUnifiedImageUrl(file.content);
-                            console.log(`🔄 toggleMode: 替换图片URL为统一URL: ${file.content} -> ${unifiedUrl}`);
-                            return { ...file, content: unifiedUrl };
-                        }
-                        return file;
-                    });
-                }
             });
 
             surveyModel.applyFullEditState();
@@ -3348,6 +3409,8 @@ const DynamicFormPage = () => {
 
         const fileQuestions = surveyModel.getAllQuestions().filter(q => q.getType() === 'file');
         // console.log('[useEffect currentMode] File questions to process:', fileQuestions.length);
+        const observerCleanups = [];
+        const observedRoots = new Set();
 
         fileQuestions.forEach(q => {
             const questionRoot = document.querySelector(`[data-name="${q.name}"]`);
@@ -3366,25 +3429,14 @@ const DynamicFormPage = () => {
                 // 编辑模式：显示原生控件，隐藏自定义轮播（不删除，避免重新加载）
                 // console.log('[useEffect currentMode] → Switching to EDIT mode for:', q.name);
 
-                // 关键修复：启用 SurveyJS 图片预览，并将图片URL替换为已缓存的统一URL
-                // 这样 SurveyJS 会使用浏览器缓存而不是重新下载原图
                 q.allowImagesPreview = true;
 
-                const questionValue = q.value;
-                if (Array.isArray(questionValue) && questionValue.length > 0) {
-                    const optimizedValue = questionValue.map(file => {
-                        if (file && file.content) {
-                            const unifiedUrl = getUnifiedImageUrl(file.content);
-                            console.log(`🔄 编辑模式：替换图片URL为统一URL: ${file.content} -> ${unifiedUrl}`);
-                            return {
-                                ...file,
-                                content: unifiedUrl
-                            };
-                        }
-                        return file;
-                    });
-                    // 临时更新值以使用缓存的URL
-                    q.value = optimizedValue;
+                // Observe the survey root instead of only the current .sd-file node.
+                // SurveyJS may replace that node when the mode/data state changes.
+                const observerRoot = questionRoot.closest('.sd-root-modern') || questionRoot;
+                if (!observedRoots.has(observerRoot)) {
+                    observedRoots.add(observerRoot);
+                    observerCleanups.push(observeNativeQiniuImages(observerRoot));
                 }
 
                 if (nativeFileControl) {
@@ -3432,6 +3484,10 @@ const DynamicFormPage = () => {
                 }
             }
         });
+
+        return () => {
+            observerCleanups.forEach((cleanup) => cleanup());
+        };
 
         // console.log('[useEffect currentMode] ===== MODE CHANGE COMPLETE =====');
     }, [currentMode, surveyModel, dataId]);
@@ -3927,13 +3983,14 @@ const DynamicFormPage = () => {
                             // 第三阶段：下载原图
                             const originalImageUrl = lightboxImages[currentImageIndex]?.originalUrl;
                             const originalUrl = getOriginalUrl(originalImageUrl);
+                            const downloadUrl = getImageProxyUrl(originalUrl);
                             const filename = originalUrl.split('/').pop()?.split('?')[0] || `image-${currentImageIndex + 1}.jpg`;
 
                             console.log(`📥 第三阶段：从 Lightbox 下载原图: ${originalUrl}`);
 
                             try {
-                                const response = await fetch(originalUrl, {
-                                    mode: 'cors',
+                                const response = await fetch(downloadUrl, {
+                                    mode: 'same-origin',
                                     credentials: 'same-origin',
                                 });
 
@@ -3960,7 +4017,7 @@ const DynamicFormPage = () => {
                             } catch (error) {
                                 console.warn('原图下载失败，使用直接链接:', error);
                                 const link = document.createElement('a');
-                                link.href = originalUrl;
+                                link.href = downloadUrl;
                                 link.download = filename;
                                 link.target = '_blank';
                                 link.rel = 'noopener noreferrer';

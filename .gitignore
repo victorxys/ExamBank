@@ -241,6 +241,7 @@ scripts/*
 !scripts/fix_june_holiday_overtime_billing.py
 !scripts/audit_attendance_billing_consistency.py
 !scripts/cleanup_month_end_renewal_payroll_transfers.py
+!scripts/migrate_r2_images_to_qiniu.py
 commit_message.txt
 
 design_proposals/
@@ -277,3 +278,4 @@ test*.py
 !backend/tests/test_repair_attendance_issues_1236.py
 !backend/tests/test_renewal_payroll_transfer.py
 !backend/tests/test_auto_renew_billing_task.py
+!backend/tests/test_image_storage_and_migration.py
