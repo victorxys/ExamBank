@@ -156,7 +156,17 @@ jobs:
           bundle_dir="$(mktemp -d "$RUNNER_TEMP/examdb-deploy.XXXXXX")"
           export DOCKER_CONFIG="$(mktemp -d "$RUNNER_TEMP/examdb-docker.XXXXXX")"
           export DOCKER_HOST=unix:///var/run/docker.sock
-          printf '%s\n' '{"cliPluginsExtraDirs":["/Applications/Docker.app/Contents/Resources/cli-plugins"]}' > "$DOCKER_CONFIG/config.json"
+          python3 - <<'PY'
+          import json
+          import os
+
+          config = {
+              "cliPluginsExtraDirs": ["/Applications/Docker.app/Contents/Resources/cli-plugins"],
+              "credHelpers": {os.environ["ACR_REGISTRY_PUBLIC"]: ""},
+          }
+          with open(os.path.join(os.environ["DOCKER_CONFIG"], "config.json"), "w") as file:
+              json.dump(config, file)
+          PY
           cleanup() {
             "$DOCKER_BIN" logout "$ACR_REGISTRY_PUBLIC" >/dev/null 2>&1 || true
             rm -rf -- "$bundle_dir" "$DOCKER_CONFIG"
@@ -167,8 +177,18 @@ jobs:
             echo '::error::部署产物 SHA 与本次构建不一致，尚未更新生产容器。'
             exit 1
           fi
-          printf '%s' "$ACR_PASSWORD" |
-            "$DOCKER_BIN" login "$ACR_REGISTRY_PUBLIC" --username "$ACR_USERNAME" --password-stdin
+          for attempt in 1 2 3; do
+            if printf '%s' "$ACR_PASSWORD" |
+              "$DOCKER_BIN" login "$ACR_REGISTRY_PUBLIC" --username "$ACR_USERNAME" --password-stdin; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo '::error::ACR 登录失败。请核对凭据及 Mac Docker 到 ACR 的 DNS、代理和 TLS 连接；生产服务尚未停止。'
+              exit 1
+            fi
+            echo "::warning::ACR 登录第 ${attempt} 次失败，5 秒后重试。"
+            sleep 5
+          done
           bash "$bundle_dir/.github/scripts/deploy-production.sh"
 
       - name: 输出部署结果

@@ -200,6 +200,10 @@ chmod 600 "$PRODUCTION_PATH/.production-ready"
 
 脚本要求生产目录已完成初始化、已有六个服务，不负责首次创建生产环境。它不覆盖应用密钥、不更新生产 Git 工作区，也不会执行 `docker compose down`、清理数据卷或清理镜像。
 
+生产端每次发布使用仓库 Secret 登录 ACR，无需预先手动 `docker login`。工作流为该 registry 显式指定空 `credHelpers`，将凭据写入当前任务的临时目录，避免 Docker CLI 在后台自动调用 macOS 钥匙串而报 `User interaction is not allowed`；任务结束后删除该目录，不改全局 Docker 登录配置。登录和镜像拉取最多尝试三次；这些步骤完成前不会停止生产服务。
+
+出现 `TLS handshake timeout` 时，应检查 Mac Docker 到 ACR 的连接，而非重复填写密码。使用 Clash Verge 时，注意 ACR 域名可能被过宽的关键词规则匹配；可在当前订阅的持久规则扩展 `prepend` 中，为准确的 registry 域名增加优先 `DIRECT` 规则，避免改动其他域名的代理策略。
+
 部署失败时查看 GitHub Actions 日志和实际容器状态，保留数据库备份及现场。数据库迁移失败或新应用未健康时，Beat 保持停止，不自动在未知结构上恢复定时任务。不要仅为恢复旧镜像而自动回退数据库；需要恢复时应先确认新增写入、数据库迁移兼容性和备份时间。
 
 日常只读查看：

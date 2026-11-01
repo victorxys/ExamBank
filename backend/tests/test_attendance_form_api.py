@@ -153,6 +153,64 @@ def test_form_to_dict_still_clips_records_for_unmerged_old_contract_window(monke
     assert result["contract_info"]["end_date"] == "2026-08-07T00:00:00"
 
 
+@pytest.mark.parametrize('monthly', [True, False])
+def test_renewal_clears_old_and_shifted_blank_offboarding_dates(monkeypatch, monthly):
+    form = _attendance_form_for_window_test()
+    form.status = 'draft'
+    old = form.contract
+    old.start_date = datetime(2026, 4, 18)
+    old.end_date = old.termination_date = datetime(2026, 10, 17)
+    successor = SimpleNamespace(
+        id='renewed-contract',
+        type='nanny',
+        status='active',
+        start_date=datetime(2026, 10, 18),
+        end_date=datetime(2026, 11, 18),
+        termination_date=None,
+        is_monthly_auto_renew=monthly,
+    )
+    form.cycle_start_date = datetime(2026, 10, 1)
+    form.cycle_end_date = datetime(2026, 10, 31)
+    form.form_data['offboarding_records'] = [
+        {'date': '2026-10-17', 'type': 'offboarding', 'endTime': '', 'hours': 0},
+        {'date': '2026-10-18', 'type': 'offboarding', 'endTime': '', 'hours': 0},
+        {'date': '2026-10-18', 'type': 'offboarding', 'endTime': '18:00'},
+        {'date': '2026-11-18', 'type': 'offboarding', 'endTime': ''},
+    ]
+    rest_records = form.form_data['rest_records']
+    monkeypatch.setattr(attendance_form_api, '_attendance_family_contracts', lambda *_: [old, successor])
+
+    # 同时覆盖旧表仍绑定旧合同、以及按 token 进入后已迁移到新合同的情况。
+    assert attendance_form_api.remove_renewal_offboarding_placeholders(form, mark_modified=False)
+    assert form.form_data['offboarding_records'] == [
+        {'date': '2026-10-18', 'type': 'offboarding', 'endTime': '18:00'},
+        {'date': '2026-11-18', 'type': 'offboarding', 'endTime': ''},
+    ]
+    assert form.form_data['rest_records'] == rest_records
+    form.contract = successor
+    assert not attendance_form_api.remove_renewal_offboarding_placeholders(form, mark_modified=False)
+
+
+@pytest.mark.parametrize('status', ['customer_signed', 'synced'])
+def test_renewal_cleanup_keeps_signed_attendance_unchanged(monkeypatch, status):
+    form = _attendance_form_for_window_test()
+    form.status = status
+    marker = {'date': '2026-08-07', 'type': 'offboarding', 'endTime': ''}
+    form.form_data['offboarding_records'] = [marker]
+    assert not attendance_form_api.remove_renewal_offboarding_placeholders(form, mark_modified=False)
+    assert form.form_data['offboarding_records'] == [marker]
+
+
+def test_renewal_cleanup_keeps_offboarding_without_continuous_successor(monkeypatch):
+    form = _attendance_form_for_window_test()
+    form.status = 'draft'
+    marker = {'date': '2026-08-07', 'type': 'offboarding', 'endTime': ''}
+    form.form_data['offboarding_records'] = [marker]
+    monkeypatch.setattr(attendance_form_api, '_attendance_family_contracts', lambda *_: [form.contract])
+    assert not attendance_form_api.remove_renewal_offboarding_placeholders(form, mark_modified=False)
+    assert form.form_data['offboarding_records'] == [marker]
+
+
 def test_bill_beautify_attendance_preserves_hours_and_three_decimal_days(monkeypatch):
     bill = SimpleNamespace(
         actual_work_days=Decimal("26.000"),
