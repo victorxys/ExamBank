@@ -1,0 +1,54 @@
+# syntax=docker/dockerfile:1
+FROM python:3.11-slim-bookworm
+
+ARG BUILD_REVISION=unknown
+ENV BUILD_REVISION=${BUILD_REVISION} \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    FLASK_APP=backend.app:app \
+    IMAGEIO_FFMPEG_EXE=/usr/bin/ffmpeg \
+    TZ=Asia/Shanghai
+LABEL org.opencontainers.image.revision="${BUILD_REVISION}"
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        ffmpeg \
+        fontconfig \
+        fonts-wqy-microhei \
+        libffi8 \
+        libgdk-pixbuf-2.0-0 \
+        libharfbuzz-subset0 \
+        libpango-1.0-0 \
+        libpangocairo-1.0-0 \
+        libpangoft2-1.0-0 \
+        poppler-utils \
+        tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY backend/requirements.txt /app/backend/requirements.txt
+RUN python -m pip install --no-cache-dir -r /app/backend/requirements.txt
+
+COPY backend/ /app/backend/
+COPY celery_worker.py celeryconfig.py /app/
+COPY migrations/ /app/migrations/
+COPY deploy/docker/gunicorn.conf.py /app/deploy/docker/gunicorn.conf.py
+COPY deploy/docker/alembic.ini /app/migrations/alembic.ini
+
+RUN groupadd --gid 10001 examdb \
+    && useradd --uid 10001 --gid examdb --no-create-home --shell /usr/sbin/nologin examdb \
+    && mkdir -p /app/instance/uploads /app/backend/data/avatars \
+        /app/backend/static/tts_audio /app/backend/static/signatures /app/logs /app/run \
+    && chmod -R a+rX /app \
+    && chown -R examdb:examdb /app/instance /app/backend/data \
+        /app/backend/static/tts_audio /app/backend/static/signatures /app/logs /app/run
+
+USER 10001:10001
+EXPOSE 8000
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).close()"]
+CMD ["gunicorn", "--config", "/app/deploy/docker/gunicorn.conf.py", "backend.app:app"]

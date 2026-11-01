@@ -2096,9 +2096,10 @@ def synthesize_video_task(self, synthesis_id_str):
                 video_save_path,
                 codec="libx264",
                 audio_codec="aac",
+                temp_audiofile=os.path.join(video_output_dir, f".{uuid.uuid4().hex}.m4a"),
                 # ++++++++++++++++ 关键优化 ++++++++++++++++
                 # 1. 将线程数设置为您CPU的核心数（原始为4）
-                threads=10,
+                threads=max(1, int(os.environ.get("VIDEO_ENCODING_THREADS", "10"))),
                 fps=24,
                 # 2. (推荐) 使用更快的预设来减少CPU计算时间，会稍微影响画质的质量
                 #    ultrafast > superfast > veryfast > faster > fast > medium

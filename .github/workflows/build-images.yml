@@ -1,0 +1,185 @@
+name: 构建 ARM64 镜像并按需部署生产
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: examdb-production-release
+  cancel-in-progress: false
+
+env:
+  ACR_REGISTRY_PUBLIC: ${{ vars.ACR_REGISTRY_PUBLIC || 'crpi-nkxlrwuadld9nihm.cn-beijing.personal.cr.aliyuncs.com' }}
+  ACR_NAMESPACE: ${{ vars.ACR_NAMESPACE || 'victorxys' }}
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    outputs:
+      release_tag: ${{ steps.release.outputs.release_tag }}
+    steps:
+      - name: 检出本次提交
+        uses: actions/checkout@v4
+
+      - name: 检查凭据并生成唯一版本
+        id: release
+        env:
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ACR_USERNAME" ] || [ -z "$ACR_PASSWORD" ]; then
+            echo '::error::请配置仓库 Actions Secrets：ACR_USERNAME 和 ACR_PASSWORD。'
+            exit 1
+          fi
+          release_tag="build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA:0:7}"
+          echo "RELEASE_TAG=$release_tag" >> "$GITHUB_ENV"
+          echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+      - name: 设置原生 ARM64 Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录阿里云 ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_REGISTRY_PUBLIC }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: 构建并推送后端镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.backend
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.ACR_REGISTRY_PUBLIC }}/${{ env.ACR_NAMESPACE }}/examdb-backend:${{ steps.release.outputs.release_tag }}
+            ${{ env.ACR_REGISTRY_PUBLIC }}/${{ env.ACR_NAMESPACE }}/examdb-backend:latest
+          build-args: |
+            BUILD_REVISION=${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.ACR_REGISTRY_PUBLIC }}/${{ env.ACR_NAMESPACE }}/examdb-backend:latest
+          cache-to: type=inline
+
+      - name: 构建并推送 Web 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile.web
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.ACR_REGISTRY_PUBLIC }}/${{ env.ACR_NAMESPACE }}/examdb-web:${{ steps.release.outputs.release_tag }}
+            ${{ env.ACR_REGISTRY_PUBLIC }}/${{ env.ACR_NAMESPACE }}/examdb-web:latest
+          build-args: |
+            BUILD_REVISION=${{ github.sha }}
+            VITE_API_URL=/api
+            VITE_WECHAT_APP_ID=${{ vars.VITE_WECHAT_APP_ID }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.ACR_REGISTRY_PUBLIC }}/${{ env.ACR_NAMESPACE }}/examdb-web:latest
+          cache-to: type=inline
+
+      - name: 打包本次提交的部署文件
+        run: |
+          set -euo pipefail
+          bundle_dir="$(mktemp -d "$RUNNER_TEMP/examdb-deploy.XXXXXX")"
+          trap 'rm -rf -- "$bundle_dir"' EXIT
+          mkdir -p "$bundle_dir/deploy" "$bundle_dir/.github/scripts"
+          cp deploy/compose.prod.yml "$bundle_dir/deploy/compose.prod.yml"
+          cp -R deploy/docker "$bundle_dir/deploy/docker"
+          cp .github/scripts/deploy-production.sh "$bundle_dir/.github/scripts/deploy-production.sh"
+          printf '%s\n' "$GITHUB_SHA" > "$bundle_dir/BUILD_REVISION"
+          tar --exclude='.env' --exclude='*.env' --exclude='*.env.*' \
+            -czf "$RUNNER_TEMP/examdb-deploy.tar.gz" -C "$bundle_dir" \
+            deploy/compose.prod.yml deploy/docker .github/scripts/deploy-production.sh BUILD_REVISION
+
+      - name: 保存部署产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: examdb-deploy-${{ steps.release.outputs.release_tag }}
+          path: ${{ runner.temp }}/examdb-deploy.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 输出镜像版本
+        run: |
+          {
+            echo '## ExamDB ARM64 镜像构建完成'
+            echo "提交：\`$GITHUB_SHA\`"
+            echo "版本：\`$RELEASE_TAG\`"
+            echo "后端：\`${ACR_REGISTRY_PUBLIC}/${ACR_NAMESPACE}/examdb-backend:${RELEASE_TAG}\`"
+            echo "Web：\`${ACR_REGISTRY_PUBLIC}/${ACR_NAMESPACE}/examdb-web:${RELEASE_TAG}\`"
+            echo '自动部署默认关闭；仅 PRODUCTION_DEPLOY_ENABLED=true 时更新已初始化的生产环境。'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: 发布到 Mac ARM64 生产 Runner
+    needs: build
+    if: github.ref == 'refs/heads/main' && vars.PRODUCTION_DEPLOY_ENABLED == 'true'
+    runs-on: [self-hosted, macOS, ARM64, examdb-production]
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+      PRODUCTION_PATH: ${{ vars.PRODUCTION_PATH }}
+      PRODUCTION_COMPOSE_PROJECT: ${{ vars.PRODUCTION_COMPOSE_PROJECT || 'examdb-production' }}
+      DOCKER_BIN: ${{ vars.PRODUCTION_DOCKER_BIN || '/usr/local/bin/docker' }}
+      BACKEND_DEPLOY_IMAGE: ${{ vars.ACR_REGISTRY_PUBLIC || 'crpi-nkxlrwuadld9nihm.cn-beijing.personal.cr.aliyuncs.com' }}/${{ vars.ACR_NAMESPACE || 'victorxys' }}/examdb-backend
+      WEB_DEPLOY_IMAGE: ${{ vars.ACR_REGISTRY_PUBLIC || 'crpi-nkxlrwuadld9nihm.cn-beijing.personal.cr.aliyuncs.com' }}/${{ vars.ACR_NAMESPACE || 'victorxys' }}/examdb-web
+    steps:
+      - name: 下载本次构建的部署产物
+        uses: actions/download-artifact@v4
+        with:
+          name: examdb-deploy-${{ needs.build.outputs.release_tag }}
+          path: ${{ runner.temp }}/examdb-deploy-${{ needs.build.outputs.release_tag }}
+
+      - name: 核对产物并发布
+        shell: bash
+        env:
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          bundle_dir="$(mktemp -d "$RUNNER_TEMP/examdb-deploy.XXXXXX")"
+          export DOCKER_CONFIG="$(mktemp -d "$RUNNER_TEMP/examdb-docker.XXXXXX")"
+          export DOCKER_HOST=unix:///var/run/docker.sock
+          printf '%s\n' '{"cliPluginsExtraDirs":["/Applications/Docker.app/Contents/Resources/cli-plugins"]}' > "$DOCKER_CONFIG/config.json"
+          cleanup() {
+            "$DOCKER_BIN" logout "$ACR_REGISTRY_PUBLIC" >/dev/null 2>&1 || true
+            rm -rf -- "$bundle_dir" "$DOCKER_CONFIG"
+          }
+          trap cleanup EXIT
+          tar -xzf "$RUNNER_TEMP/examdb-deploy-$RELEASE_TAG/examdb-deploy.tar.gz" -C "$bundle_dir"
+          if [ "$(cat "$bundle_dir/BUILD_REVISION")" != "$GITHUB_SHA" ]; then
+            echo '::error::部署产物 SHA 与本次构建不一致，尚未更新生产容器。'
+            exit 1
+          fi
+          printf '%s' "$ACR_PASSWORD" |
+            "$DOCKER_BIN" login "$ACR_REGISTRY_PUBLIC" --username "$ACR_USERNAME" --password-stdin
+          bash "$bundle_dir/.github/scripts/deploy-production.sh"
+
+      - name: 输出部署结果
+        if: always()
+        env:
+          DEPLOYMENT_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo '## ExamDB 生产发布结果'
+            echo "结果：\`$DEPLOYMENT_STATUS\`"
+            echo "版本：\`$RELEASE_TAG\`"
+            echo "提交：\`$GITHUB_SHA\`"
+            echo '数据库与 Redis 不参与常规重建；失败保留现场，不自动回退数据库或恢复定时任务。'
+          } >> "$GITHUB_STEP_SUMMARY"

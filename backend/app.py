@@ -192,7 +192,7 @@ app.config["JWT_TOKEN_LOCATION"] = [
     "cookies",
 ]  # 允许从请求头和 Cookie 中获取 Token
 app.config["JWT_COOKIE_SECURE"] = (
-    False  # 开发环境可以设为 False，生产环境应为 True (HTTPS)
+    os.environ.get("JWT_COOKIE_SECURE", "false").lower() == "true"
 )
 app.config["JWT_COOKIE_SAMESITE"] = "Lax"  # 或 "Strict"
 # 如果您的 Token Cookie 不是 HttpOnly，那么前端 JS 可以访问它，但这里主要是为了让浏览器自动发送
@@ -366,16 +366,39 @@ app.register_blueprint(setting_api_bp)
 
 
 
-flask_log = os.environ["FLASK_LOG_FILE"]  # 设置flask log地址
-print(f"Flask log file: {flask_log}")
+flask_log = os.environ.get("FLASK_LOG_FILE", "-")
 
 # 配置日志记录
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-handler = logging.FileHandler(flask_log)
+log.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
+handler = logging.StreamHandler() if flask_log == "-" else logging.FileHandler(flask_log)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 log.addHandler(handler)
+
+
+@app.get("/api/health")
+def health():
+    """部署就绪检查，只读取本地数据库版本并检查任务队列连接。"""
+    from redis import Redis
+    from sqlalchemy import text
+
+    revision = os.environ.get("BUILD_REVISION", "development")
+    try:
+        versions = db.session.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
+        if not versions:
+            raise RuntimeError("Database has not been restored")
+        with Redis.from_url(
+            os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        ) as client:
+            client.ping()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"status": "unhealthy", "revision": revision}), 503
+    return jsonify({"status": "ok", "revision": revision})
+
 
 @app.route("/routes")
 def list_routes():

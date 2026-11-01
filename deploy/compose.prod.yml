@@ -1,0 +1,164 @@
+name: examdb-production
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend: &backend
+  image: ${BACKEND_IMAGE:?请配置 BACKEND_IMAGE}:${RELEASE_TAG:?请配置 RELEASE_TAG}
+  platform: linux/arm64
+  restart: unless-stopped
+  init: true
+  user: "${APP_UID:-501}:${APP_GID:-20}"
+  env_file:
+    - path: ./backend.env
+      format: raw
+  environment:
+    TZ: Asia/Shanghai
+    DATABASE_URL: postgresql://${POSTGRES_USER:-examdb}:${POSTGRES_PASSWORD:?请配置 POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-ExamDB_prod}
+    CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:?请配置 REDIS_PASSWORD}@redis:6379/0
+    CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:?请配置 REDIS_PASSWORD}@redis:6379/1
+    FLASK_LOG_FILE: "-"
+    LOG_LEVEL: INFO
+    JWT_COOKIE_SECURE: "true"
+    # API 仅接收 Compose 内部代理流量，信任 web 传入的 HTTPS 协议信息。
+    FORWARDED_ALLOW_IPS: "*"
+    VIDEO_ENCODING_THREADS: ${VIDEO_ENCODING_THREADS:-2}
+    NO_PROXY: localhost,127.0.0.1,api,postgres,redis,host.docker.internal
+    no_proxy: localhost,127.0.0.1,api,postgres,redis,host.docker.internal
+  volumes:
+    - type: bind
+      source: ${APP_DATA_DIR:?请配置 APP_DATA_DIR}/instance
+      target: /app/instance
+      bind: {create_host_path: false}
+    - type: bind
+      source: ${APP_DATA_DIR:?请配置 APP_DATA_DIR}/tts-audio
+      target: /app/backend/static/tts_audio
+      bind: {create_host_path: false}
+    - type: bind
+      source: ${APP_DATA_DIR:?请配置 APP_DATA_DIR}/signatures
+      target: /app/backend/static/signatures
+      bind: {create_host_path: false}
+    - type: bind
+      source: ${APP_DATA_DIR:?请配置 APP_DATA_DIR}/avatars
+      target: /app/backend/data/avatars
+      bind: {create_host_path: false}
+    - type: bind
+      source: ${APP_DATA_DIR:?请配置 APP_DATA_DIR}/tts-voices
+      target: /app/backend/static/tts_voices
+      read_only: true
+      bind: {create_host_path: false}
+    - type: bind
+      source: ${APP_DATA_DIR:?请配置 APP_DATA_DIR}/tts-pt
+      target: /app/backend/static/tts_pt
+      read_only: true
+      bind: {create_host_path: false}
+    # 兼容历史任务中保存的 macOS 绝对路径，不改写业务记录。
+    - type: bind
+      source: ${APP_DATA_DIR:?请配置 APP_DATA_DIR}/instance
+      target: ${LEGACY_PROJECT_ROOT:-/Users/victor/development/ExamBank}/instance
+      bind: {create_host_path: false}
+    # 更早的记录使用另一套开发目录，文件已迁入同一份 instance。
+    - type: bind
+      source: ${APP_DATA_DIR:?请配置 APP_DATA_DIR}/instance
+      target: ${LEGACY_DEVELOP_ROOT:-/Users/victor/develop/examdb}/instance
+      bind: {create_host_path: false}
+    - type: bind
+      source: ${APP_DATA_DIR:?请配置 APP_DATA_DIR}/tts-audio
+      target: ${LEGACY_PROJECT_ROOT:-/Users/victor/development/ExamBank}/backend/static/tts_audio
+      bind: {create_host_path: false}
+  depends_on:
+    postgres: {condition: service_healthy}
+    redis: {condition: service_healthy}
+  logging: *logging
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-postgres:17-bookworm}
+    platform: linux/arm64
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ExamDB_prod}
+      POSTGRES_USER: ${POSTGRES_USER:-examdb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?请配置 POSTGRES_PASSWORD}
+      TZ: Asia/Shanghai
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    stop_grace_period: 60s
+    mem_limit: 1g
+    cpus: 1.0
+    logging: *logging
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:8-bookworm}
+    platform: linux/arm64
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?请配置 REDIS_PASSWORD}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?请配置 REDIS_PASSWORD}
+    command: [sh, -c, 'exec redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction --requirepass "$$REDIS_PASSWORD"']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    mem_limit: 512m
+    cpus: 0.5
+    logging: *logging
+
+  api:
+    <<: *backend
+    command: [gunicorn, --config, /app/deploy/docker/gunicorn.conf.py, backend.app:app]
+    stop_grace_period: 150s
+    mem_limit: 1g
+    cpus: 2.0
+
+  worker:
+    <<: *backend
+    command: [celery, -A, celery_worker:celery_app, worker, --loglevel=info, --concurrency=1, '--hostname=worker@%h']
+    healthcheck:
+      test: [CMD-SHELL, 'celery -A celery_worker:celery_app inspect ping --destination="worker@$$HOSTNAME" --timeout=10']
+      interval: 60s
+      timeout: 15s
+      start_period: 60s
+      retries: 3
+    stop_grace_period: 10m
+    mem_limit: 2g
+    cpus: 2.0
+
+  beat:
+    <<: *backend
+    command: [celery, -A, celery_worker:celery_app, beat, --loglevel=info, --schedule=/app/instance/celerybeat-schedule, --pidfile=/tmp/celerybeat.pid]
+    healthcheck: {disable: true}
+    mem_limit: 256m
+    cpus: 0.5
+
+  web:
+    image: ${WEB_IMAGE:?请配置 WEB_IMAGE}:${RELEASE_TAG:?请配置 RELEASE_TAG}
+    platform: linux/arm64
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_PORT:-18081}:80"
+    depends_on:
+      api: {condition: service_healthy}
+    mem_limit: 128m
+    cpus: 0.5
+    logging: *logging
+
+# 只允许人工初始化时创建，日常发布缺少数据卷会直接失败。
+volumes:
+  postgres-data:
+    external: true
+    name: examdb-production-postgres
+  redis-data:
+    external: true
+    name: examdb-production-redis
