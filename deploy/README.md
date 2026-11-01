@@ -215,3 +215,21 @@ curl -fsS http://127.0.0.1:18081/api/health
 ```
 
 发布前备份不替代日常备份。数据库、附件和加密密钥都应独立备份，并复制到其他设备或对象存储。GitHub Actions 不上传生产数据备份。
+
+## 6. Navicat 通过 SSH 隧道连接数据库
+
+Compose 将 PostgreSQL 映射到 Mac 的 `127.0.0.1:${POSTGRES_HOST_PORT:-15432}`。使用现有 SSH 公网入口建立隧道，无需另开公网数据库端口。
+
+在 Navicat 新建 PostgreSQL 连接，**常规**页填写：
+
+| 字段 | 值 |
+| --- | --- |
+| 主机 | `127.0.0.1` |
+| 端口 | `15432`，或生产 `.env` 中的 `POSTGRES_HOST_PORT` |
+| 数据库 | `ExamDB_prod`，或生产 `.env` 中的 `POSTGRES_DB` |
+| 用户名 | `examdb`，或生产 `.env` 中的 `POSTGRES_USER` |
+| 密码 | 生产 `.env` 中的 `POSTGRES_PASSWORD` |
+
+在 **SSH** 页启用 SSH 隧道，填写实际的 SSH 公网域名、SSH 公网端口、登录用户，以及对应的私钥或 SSH 登录密码。这里使用已有的 SSH 入口，数据库密码与 SSH 认证分别填写。启用隧道后，常规页的 `127.0.0.1` 指向 SSH 登录的 Mac，连接的是其回环映射端口。
+
+常规自动发布只更新应用服务，不重建 PostgreSQL。已有环境首次增加或修改 `POSTGRES_HOST_PORT` 时，需在维护窗口单独将 Compose 端口配置应用到 `postgres` 服务：暂停本项目 API、Worker、Beat，重建 PostgreSQL 容器并复用原有命名卷，待其健康后恢复应用。修改仓库配置或只执行应用发布不会自动改变正在运行的数据库端口。

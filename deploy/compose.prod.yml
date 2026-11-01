@@ -79,6 +79,8 @@ services:
     image: ${POSTGRES_IMAGE:-postgres:17-bookworm}
     platform: linux/arm64
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-15432}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ExamDB_prod}
       POSTGRES_USER: ${POSTGRES_USER:-examdb}
