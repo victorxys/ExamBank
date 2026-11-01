@@ -51,6 +51,7 @@ from backend.api.attendance_form_api import (
     ensure_confirmed_auto_overtime_for_response,
     ensure_attendance_form_onboarding_record,
     remove_out_of_contract_onboarding_records,
+    remove_renewal_offboarding_placeholders,
     resolve_effective_attendance_window_for_contract,
     validate_required_onboarding_times,
     _ensure_or_create_maternity_form,
@@ -3750,7 +3751,8 @@ def employee_attendance_detail(form_id):
         effective_end if effective_end is not None else get_attendance_contract_end_date(form.contract)
     )
     cleaned = remove_out_of_contract_onboarding_records(form, form.contract, effective_start, effective_end_for_form)
-    if cleaned or cycle_fixed or onboarding_from_contract:
+    offboarding_cleaned = remove_renewal_offboarding_placeholders(form)
+    if cleaned or offboarding_cleaned or cycle_fixed or onboarding_from_contract:
         db.session.commit()
     result = form_to_dict(form, effective_start, effective_end)
     return jsonify({"success": True, "attendance_form": _prepare_attendance_display_payload(result)})
@@ -3861,6 +3863,9 @@ def employee_attendance_update(form_id):
             if normalized:
                 form.form_data = normalized_form_data
         flag_modified(form, "form_data")
+
+    # 兼容续签前已经打开页面的客户端，避免自动保存重新写回旧的空白下户标记。
+    remove_renewal_offboarding_placeholders(form)
 
     if action == "confirm":
         contract = BaseContract.query.get(form.contract_id)

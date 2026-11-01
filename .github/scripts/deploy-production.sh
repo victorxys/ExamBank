@@ -78,7 +78,18 @@ schema_revision="$(compose exec -T postgres sh -eu -c 'exec psql -X -v ON_ERROR_
 backend_ref="$BACKEND_IMAGE:$RELEASE_TAG"
 web_ref="$WEB_IMAGE:$RELEASE_TAG"
 echo "拉取并核对生产镜像，版本 ${RELEASE_TAG}。"
-compose pull api web worker beat
+images_pulled=false
+for attempt in 1 2 3; do
+  if compose pull api web worker beat; then
+    images_pulled=true
+    break
+  fi
+  if [ "$attempt" -lt 3 ]; then
+    echo "镜像拉取第 ${attempt} 次失败，5 秒后重试；生产服务尚未停止。" >&2
+    sleep 5
+  fi
+done
+[ "$images_pulled" = true ] || fail 'ACR 镜像拉取失败，请检查生产 Docker 的网络连接；生产服务尚未停止。'
 for image in "$backend_ref" "$web_ref"; do
   [ "$("$DOCKER_BIN" image inspect --format '{{.Os}}/{{.Architecture}}' "$image")" = linux/arm64 ] || fail "镜像 $image 不是 Linux ARM64。"
   [ "$("$DOCKER_BIN" image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")" = "$GITHUB_SHA" ] || fail "镜像 $image 的 revision 与本次提交不一致。"

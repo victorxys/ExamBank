@@ -862,21 +862,75 @@ def validate_required_onboarding_times(form_data, cycle_start, cycle_end, contra
     return errors
 
 
+def remove_renewal_offboarding_placeholders(form, mark_modified=True):
+    """清理续签交界处的空白下户标记，兼容旧截止日被改为续签前一天的情况。"""
+    if not form or not form.contract or form.status not in ('draft', 'employee_confirmed'):
+        return False
+    if is_maternity_contract(form.contract):
+        return False
+    form_data = form.form_data or {}
+    records = form_data.get('offboarding_records') or []
+    if not records:
+        return False
+
+    contracts = _attendance_family_contracts(
+        form.employee_id,
+        to_date_value(form.cycle_start_date),
+        to_date_value(form.cycle_end_date),
+        form.contract,
+    )
+    obsolete_dates = set()
+    for previous in contracts:
+        previous_start = to_date_value(previous.start_date)
+        previous_end = get_attendance_contract_end_date(previous)
+        if not previous_start or not previous_end:
+            continue
+        for following in contracts:
+            following_start = to_date_value(following.start_date)
+            if previous.id == following.id or not following_start or following_start <= previous_start:
+                continue
+            if 0 <= (following_start - previous_end).days <= 1:
+                obsolete_dates.add(previous_end.isoformat())
+                following_end = get_attendance_contract_end_date(following)
+                # 旧合同原截止日可能正好是新合同开始日；真正的末日下户仍需保留。
+                if following_end is None or following_end > following_start:
+                    obsolete_dates.add(following_start.isoformat())
+
+    kept_records = [
+        record for record in records
+        if not (
+            str(record.get('date') or '')[:10] in obsolete_dates
+            and not (record.get('startTime') or '').strip()
+            and not (record.get('endTime') or '').strip()
+            and not record.get('hours')
+            and not record.get('minutes')
+            and not record.get('daysOffset')
+        )
+    ]
+    if len(kept_records) == len(records):
+        return False
+    form.form_data = {**form_data, 'offboarding_records': kept_records}
+    if mark_modified:
+        flag_modified(form, 'form_data')
+    return True
+
+
 def reconcile_attendance_form_with_contract_end(form):
     """Keep existing attendance forms aligned when a contract is ended early."""
     if not form or not form.contract:
         return False
 
+    renewal_cleaned = remove_renewal_offboarding_placeholders(form)
     contract_end = get_attendance_contract_end_date(form.contract)
     if not contract_end:
-        return False
+        return renewal_cleaned
 
     cycle_start = to_date_value(form.cycle_start_date)
     cycle_end = to_date_value(form.cycle_end_date)
     if not cycle_start or not cycle_end or not (cycle_start <= contract_end <= cycle_end):
-        return False
+        return renewal_cleaned
 
-    changed = False
+    changed = renewal_cleaned
     form_data, keys_changed = _ensure_attendance_record_keys(form.form_data or {})
     changed = changed or keys_changed
 
@@ -2109,6 +2163,9 @@ def update_attendance_form(employee_token):
                 ]
                 form_data = form.form_data
             
+        if remove_renewal_offboarding_placeholders(form):
+            form_data = form.form_data
+
         # 如果是提交确认
         if action == 'confirm':
             contract = BaseContract.query.get(form.contract_id)
