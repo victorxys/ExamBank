@@ -2,23 +2,28 @@
 import psycopg2
 import os
 import logging
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# 确保日志目录存在
-log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
-os.makedirs(log_dir, exist_ok=True)
-
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 
-# 设置日志文件路径
-log_file = os.path.join(log_dir, "flask.log")
-handler = logging.FileHandler(log_file)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-log.addHandler(handler)
+# 容器日志输出到 stdout，不要求运行用户能写入镜像内的 logs 目录。
+# 本地未配置环境变量时，继续使用项目 logs/flask.log。
+if not log.handlers:
+    log_file = os.environ.get("FLASK_LOG_FILE")
+    if log_file == "-":
+        handler = logging.StreamHandler(sys.stdout)
+    else:
+        if not log_file:
+            log_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs", "flask.log")
+        os.makedirs(os.path.dirname(os.path.abspath(log_file)), exist_ok=True)
+        handler = logging.FileHandler(log_file)
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
 
 
 def get_db_connection():

@@ -101,8 +101,6 @@ def get_engine():
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = get_engine_url()
-    print(f"DEBUG [env.py run_migrations_offline]: URL: {url}")
-    logger.info(f"DEBUG [env.py run_migrations_offline]: URL: {url}")
     context.configure(
         url=url,
         target_metadata=target_metadata,

@@ -1,0 +1,56 @@
+# Only send application source and image configuration to the build engine.
+**
+!backend/
+!backend/**
+!frontend/
+!frontend/**
+!migrations/
+!migrations/**
+!celery_worker.py
+!celeryconfig.py
+!deploy/
+!deploy/docker/
+!deploy/docker/**
+
+# Local configuration, credentials, environments and generated output.
+**/.env
+**/.env.*
+**/.git
+**/.DS_Store
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.cache
+**/.venv
+**/venv
+**/node_modules
+**/dist
+**/coverage
+**/*.log
+**/*.sock
+**/*.pid
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+**/*.sql
+**/*.dump
+**/*.backup
+**/celerybeat-schedule*
+
+# Runtime business files must be mounted, never baked into either image.
+backend/data/
+backend/instance/
+backend/uploads/
+backend/logs/
+backend/tests/
+backend/static/signatures/
+backend/static/tts_audio/
+frontend/public/avatar/
+migrations/alembic.ini
+
+# backend/static/private_assets, tts_pt and tts_voices remain included.

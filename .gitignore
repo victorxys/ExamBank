@@ -279,3 +279,18 @@ test*.py
 !backend/tests/test_renewal_payroll_transfer.py
 !backend/tests/test_auto_renew_billing_task.py
 !backend/tests/test_image_storage_and_migration.py
+
+# Docker / GitHub Actions 部署文件需跟随代码发布。
+!.github/scripts/*.sh
+!deploy/*.sh
+!deploy/README.md
+!deploy/.env.example
+!deploy/backend.env.example
+!deploy/release.env.example
+deploy/.env
+deploy/backend.env
+deploy/release.env
+deploy/previous-release.env
+deploy/.production-ready
+deploy/data/
+deploy/backups/
