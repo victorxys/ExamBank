@@ -279,6 +279,7 @@ test*.py
 !backend/tests/test_renewal_payroll_transfer.py
 !backend/tests/test_auto_renew_billing_task.py
 !backend/tests/test_image_storage_and_migration.py
+!backend/tests/test_attendance_onboarding_reference.py
 
 # Docker / GitHub Actions 部署文件需跟随代码发布。
 !.github/scripts/*.sh

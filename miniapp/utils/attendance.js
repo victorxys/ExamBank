@@ -330,7 +330,14 @@ function getOnboardingReferenceForAttendance(form, attendanceData) {
 
   const normalized = normalizeAttendanceData(attendanceData || form?.form_data || {});
   const onboardingRecord = (normalized.onboarding_records || []).find((record) => record.startTime);
-  if (!onboardingRecord) return null;
+  if (!onboardingRecord) {
+    return info.onboarding_date ? {
+      date: info.onboarding_date,
+      time: '',
+      contractId: info.contract_id || form?.contract_id || '',
+      signatureToken: info.customer_signature_token || ''
+    } : null;
+  }
   return {
     date: onboardingRecord.date || '',
     time: onboardingRecord.startTime,
@@ -341,6 +348,14 @@ function getOnboardingReferenceForAttendance(form, attendanceData) {
 
 function getOnboardingTimeForAttendance(form, attendanceData) {
   return getOnboardingReferenceForAttendance(form, attendanceData)?.time || '';
+}
+
+function getOffboardingReferenceError(form, attendanceData) {
+  if (isMaternityForm(form)) return '';
+  const normalized = normalizeAttendanceData(attendanceData || form?.form_data || {});
+  const hasOffboardingTime = (normalized.offboarding_records || []).some((record) => record.endTime);
+  if (!hasOffboardingTime || getOnboardingTimeForAttendance(form, normalized)) return '';
+  return '缺少实际上户时间，请先补填上户时间，再确认下户考勤。';
 }
 
 function getSpecialRecordDetailNote(record, form, attendanceData) {
@@ -354,7 +369,9 @@ function getSpecialRecordDetailNote(record, form, attendanceData) {
     const ref = getOnboardingReferenceForAttendance(form, attendanceData);
     const onboardingTime = normalizeAttendanceTimeText(ref?.time);
     const offboardingTime = normalizeAttendanceTimeText(record.endTime);
-    if (!onboardingTime || !offboardingTime) return '';
+    if (!onboardingTime || !offboardingTime) {
+      return getOffboardingReferenceError(form, attendanceData);
+    }
 
     const onboardingMinutes = timeToMinutes(ref.time, 0);
     const offboardingMinutes = timeToMinutes(record.endTime, 0);
@@ -387,7 +404,8 @@ function getOnboardingAttendanceLink(record, form, attendanceData) {
     date: formatDate(date),
     contractId: ref.contractId || '',
     signatureToken: ref.signatureToken || '',
-    text: '查看上户考勤'
+    text: ref.time ? '查看上户考勤' : '补填上户时间',
+    needsOnboardingTime: !ref.time
   };
 }
 
@@ -663,28 +681,16 @@ function normalizeContractInfoForAttendance(form = {}, attendanceData = null) {
 }
 
 function getOnboardingReference(form = {}, attendanceData = null) {
-  const normalized = normalizeAttendanceData(attendanceData || form?.form_data || {});
-  const onboardingRecord = (normalized.onboarding_records || []).find((record) => record.startTime);
-  if (onboardingRecord) {
-    return {
-      date: formatDate(onboardingRecord.date),
-      time: onboardingRecord.startTime,
-      text: `对应上户时间：${formatDate(onboardingRecord.date)} ${onboardingRecord.startTime}`,
-      shortText: `上户 ${onboardingRecord.startTime}`
-    };
-  }
-
-  const info = form?.onboarding_time_info || {};
-  if (info.has_onboarding && info.onboarding_time) {
-    return {
-      date: info.onboarding_date || '',
-      time: info.onboarding_time,
-      text: `对应上户时间：${info.onboarding_date || ''} ${info.onboarding_time}`,
-      shortText: `上户 ${info.onboarding_time}`
-    };
-  }
-
-  return null;
+  const ref = getOnboardingReferenceForAttendance(form, attendanceData);
+  if (!ref) return null;
+  return {
+    date: ref.date,
+    time: ref.time,
+    text: ref.time
+      ? `对应上户时间：${ref.date} ${ref.time}`
+      : `上户日 ${ref.date} 的实际上户时间未填写，请先补填。`,
+    shortText: ref.time ? `上户 ${ref.time}` : '待补上户时间'
+  };
 }
 
 function getRecordRange(record) {
@@ -895,9 +901,11 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
   // 草稿阶段的补齐由 normalizeAutoOvertime/autoConvertOvertimeIfNeeded 负责生成。
   const effectiveAuto = maternity ? 0 : autoOvertimeDays;
   const totalOvertimeDays = totalManualOvertimeDays + effectiveAuto;
+  const offboardingReferenceError = getOffboardingReferenceError(form, normalized);
 
   return {
-    workDays: totalWorkDays,
+    workDays: offboardingReferenceError ? null : totalWorkDays,
+    offboardingReferenceError,
     // “请假”展示只表示普通请假；总计保留在 leaveTotalDays。
     leaveDays,
     restDays,
@@ -909,14 +917,14 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
     normalOvertimeDays: Math.max(0, totalOvertimeDays - holidayOvertimeDays),
     autoOvertimeDays: effectiveAuto,
     isMaternity: maternity,
-    workDaysText: formatDays(totalWorkDays),
+    workDaysText: offboardingReferenceError ? '待补上户时间' : formatDays(totalWorkDays),
     restDaysText: formatDays(restDays),
     actualLeaveDaysText: formatDays(leaveDays),
     paidLeaveDaysText: formatDays(paidLeaveDays),
     leaveDaysText: formatDays(leaveDays),
     leaveTotalDaysText: formatDays(totalLeaveDays),
     overtimeDaysText: formatDays(totalOvertimeDays),
-    workDaysHoursText: formatDaysHours(totalWorkDays),
+    workDaysHoursText: offboardingReferenceError ? '' : formatDaysHours(totalWorkDays),
     restDaysHoursText: formatDaysHours(restDays),
     actualLeaveDaysHoursText: formatDaysHours(leaveDays),
     paidLeaveDaysHoursText: formatDaysHours(paidLeaveDays),
@@ -1015,8 +1023,10 @@ function buildSpecialRecords(attendanceData, form) {
         : record.type === 'offboarding'
           ? Math.max(0, (calculateOffboardingAdjustment(normalized, form) + 1) * 24)
           : duration.totalHours;
-      const durationText = formatDuration(durationHours);
-      const durationHoursText = formatHoursText(durationHours);
+      const missingOnboardingTime = record.type === 'offboarding'
+        && Boolean(getOffboardingReferenceError(form, normalized));
+      const durationText = missingOnboardingTime ? '待补上户时间' : formatDuration(durationHours);
+      const durationHoursText = missingOnboardingTime ? '待计算' : formatHoursText(durationHours);
       return {
         ...record,
         key: `${record.type}-${formatDate(record.date)}-${index}`,
@@ -1043,6 +1053,9 @@ function buildSpecialRecords(attendanceData, form) {
 }
 
 function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays = {}) {
+  if (getOffboardingReferenceError(form, attendanceData)) {
+    return { data: normalizeAttendanceData(attendanceData), converted: false, overtimeDays: 0 };
+  }
   // 月嫂 26 天结算：不做「超过 26 天自动补齐加班」
   if (isMaternityForm(form)) {
     const cleaned = normalizeAttendanceData(attendanceData);
@@ -1121,6 +1134,7 @@ function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays =
 
 function normalizeAutoOvertime(attendanceData, form, monthDays, holidays = {}) {
   const current = normalizeAttendanceData(attendanceData);
+  if (getOffboardingReferenceError(form, current)) return current;
   // 服务端已把自动加班展开成逐日可编辑投影时，直接使用它；重复补算会改变客户看到的总时长。
   if ((current.overtime_records || []).some((record) => record[AUTO_OVERTIME_PROJECTION_KEY])) {
     return current;
@@ -1222,6 +1236,7 @@ module.exports = {
   isDateDisabled,
   normalizeContractInfoForAttendance,
   getOnboardingReference,
+  getOffboardingReferenceError,
   isFirstMonth,
   isLastMonth,
   isHistoricalView,

@@ -63,6 +63,7 @@ from backend.services.attendance_sync_service import (
     project_auto_overtime_for_editing,
     strip_client_derived_auto_overtime,
     validate_attendance_time_precision,
+    validate_offboarding_onboarding_reference,
 )
 from backend.services.maternity_attendance_service import (
     is_maternity_contract,
@@ -3963,6 +3964,7 @@ def employee_attendance_update(form_id):
             ):
                 validation_errors.append(f"下户日 {contract_end_date.strftime('%m月%d日')} 的具体时间未填写")
 
+        validation_errors.extend(validate_offboarding_onboarding_reference(form))
         if validation_errors:
             return jsonify({"success": False, "error": "；".join(validation_errors)}), 400
 

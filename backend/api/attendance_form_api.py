@@ -10,11 +10,13 @@ from backend.models import (
     TrialOutcome,
 )
 from backend.services.attendance_sync_service import (
+    get_onboarding_time_for_contract,
     normalize_auto_overtime_form_data,
     project_auto_overtime_for_editing,
     strip_client_derived_auto_overtime,
     sync_attendance_to_record,
     validate_attendance_time_precision,
+    validate_offboarding_onboarding_reference,
 )
 from backend.services.billing_engine import BillingEngine
 from backend.services.maternity_attendance_service import (
@@ -1330,6 +1332,8 @@ def ensure_confirmed_auto_overtime(form):
     """Backfill missing auto overtime for confirmed forms before returning shared attendance data."""
     if not form or form.status not in ('employee_confirmed', 'customer_signed', 'synced'):
         return False
+    if validate_offboarding_onboarding_reference(form):
+        return False
     normalized_form_data, normalized = normalize_auto_overtime_form_data(
         form,
         allow_create_missing_auto=True,
@@ -2268,6 +2272,7 @@ def update_attendance_form(employee_token):
                 else:
                     current_app.logger.info(f"[验证] 有续约合同，跳过下户记录验证: {contract_end_date}")
             
+            validation_errors.extend(validate_offboarding_onboarding_reference(form))
             if validation_errors:
                 current_app.logger.info(f"[验证] 验证失败: {validation_errors}")
                 return jsonify({"error": "；".join(validation_errors)}), 400
@@ -2316,6 +2321,11 @@ def update_attendance_form_status_admin(form_id):
         if not form:
             return jsonify({"error": "考勤表不存在"}), 404
             
+        if new_status != 'draft':
+            reference_errors = validate_offboarding_onboarding_reference(form)
+            if reference_errors:
+                return jsonify({"error": "；".join(reference_errors)}), 400
+
         # 更新状态
         form.status = new_status
         
@@ -2461,6 +2471,10 @@ def submit_customer_signature(signature_token):
         if not signature_data:
             return jsonify({"error": "缺少签名数据"}), 400
             
+        reference_errors = validate_offboarding_onboarding_reference(form)
+        if reference_errors:
+            return jsonify({"error": "；".join(reference_errors)}), 400
+
         # Save to the dedicated column
         form.signature_data = signature_data
         
@@ -2597,88 +2611,12 @@ def check_previous_month_out_of_beijing(employee_id, contract_id, current_cycle_
 
 
 def get_onboarding_time_info(employee_id, contract_id, current_cycle_start):
-    """
-    获取上户时间信息（用于下户时显示参考）
-    
-    查找逻辑：
-    1. 先查找当前月份的考勤表中的上户记录
-    2. 如果没有，查找之前月份的考勤表中的上户记录
-    
-    返回: {
-        'has_onboarding': True/False,
-        'onboarding_date': '2024-12-29',
-        'onboarding_time': '09:00',
-    }
-    """
-    try:
-        if isinstance(current_cycle_start, datetime):
-            current_cycle_start = current_cycle_start.date()
-        
-        contract = BaseContract.query.get(contract_id)
-        contract_ids = [contract_id]
-        if contract:
-            query = BaseContract.query.filter(
-                BaseContract.service_personnel_id == employee_id,
-                BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed'])
-            )
-            if contract.family_id:
-                query = query.filter(BaseContract.family_id == contract.family_id)
-            elif contract.customer_name:
-                query = query.filter(BaseContract.customer_name == contract.customer_name)
-            elif contract.customer_id:
-                query = query.filter(BaseContract.customer_id == contract.customer_id)
-            else:
-                query = query.filter(BaseContract.id == contract_id)
-            related_contracts = query.all()
-            contract_ids = [c.id for c in related_contracts] or [contract_id]
-
-        # 查找当前合同及同客户/家庭历史合同的考勤表，按时间正序取最早的上户记录。
-        forms = AttendanceForm.query.filter(
-            AttendanceForm.employee_id == employee_id,
-            AttendanceForm.contract_id.in_(contract_ids),
-            AttendanceForm.cycle_start_date <= current_cycle_start
-        ).order_by(AttendanceForm.cycle_start_date.asc()).all()
-        
-        for form in forms:
-            if not form.form_data:
-                continue
-            
-            onboarding_records = form.form_data.get('onboarding_records', [])
-            if onboarding_records:
-                # 取第一条上户记录
-                record = onboarding_records[0]
-                onboarding_date = record.get('date')
-                onboarding_time = record.get('startTime')  # 上户时间存储在 startTime 中
-                
-                if onboarding_date and onboarding_time:
-                    return {
-                        'has_onboarding': True,
-                        'onboarding_date': onboarding_date,
-                        'onboarding_time': onboarding_time,
-                        'contract_id': str(form.contract_id),
-                        'form_id': str(form.id),
-                        'customer_signature_token': form.customer_signature_token
-                    }
-        
-        return {
-            'has_onboarding': False,
-            'onboarding_date': None,
-            'onboarding_time': None,
-            'contract_id': None,
-            'form_id': None,
-            'customer_signature_token': None
-        }
-        
-    except Exception as e:
-        current_app.logger.error(f"获取上户时间信息失败: {e}", exc_info=True)
-        return {
-            'has_onboarding': False,
-            'onboarding_date': None,
-            'onboarding_time': None,
-            'contract_id': None,
-            'form_id': None,
-            'customer_signature_token': None
-        }
+    """与考勤同步共用上户来源；缺少时刻时保留补录所需的日期和合同。"""
+    return get_onboarding_time_for_contract(
+        employee_id,
+        contract_id,
+        current_cycle_start=current_cycle_start,
+    )
 
 
 def normalize_contract_effective_dates(

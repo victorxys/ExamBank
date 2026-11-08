@@ -2884,7 +2884,7 @@ class BillingEngine:
     def _renewal_base_days_in_cycle(self, form, cycle_start, cycle_end):
         from backend.services.attendance_sync_service import (
             _effective_service_window_for_cycle, _calculate_records_days_in_cycle,
-            _split_overtime_days_by_holiday, _contract_start_day_to_exclude, _parse_date,
+            _contract_start_day_to_exclude, _parse_date,
         )
         from backend.services.renewal_sync_service import _related_contracts_for_month
 
@@ -2908,9 +2908,9 @@ class BillingEngine:
                 _calculate_records_days_in_cycle(data.get(key), day, day)
                 for key in ("rest_records", "leave_records")
             ), D(0))
-            normal_overtime, _ = _split_overtime_days_by_holiday(data, day, day)
             onboarding = D(1) if day in excluded_dates else D(0)
-            base = min(remaining, max(D(0), D(1) - unavailable - normal_overtime - onboarding))
+            # 加班由 overtime_days 独立分配，不再从已确认的基础出勤中重复扣减。
+            base = min(remaining, max(D(0), D(1) - unavailable - onboarding))
             if cycle_start <= day <= cycle_end:
                 allocated += base
             remaining -= base
