@@ -99,7 +99,7 @@
           <view class="detail-time">{{item.timeLabel}}</view>
           <view wx:if="{{item.detailNote}}" class="detail-note">{{item.detailNote}}</view>
           <view
-            wx:if="{{item.onboardingAttendanceLink}}"
+            wx:if="{{item.onboardingAttendanceLink && !item.onboardingAttendanceLink.needsOnboardingTime}}"
             class="detail-link"
             data-year="{{item.onboardingAttendanceLink.year}}"
             data-month="{{item.onboardingAttendanceLink.month}}"

@@ -276,6 +276,40 @@ def test_renewal_allocates_monthly_base_days_once(monkeypatch, split_day):
     assert sum(attendance._split_overtime_days_by_holiday(form.form_data, date(2026, 9, 1), date(2026, 9, 30))) == Decimal(5)
 
 
+def test_renewal_preserves_confirmed_base_days_with_month_end_overtime(monkeypatch):
+    from datetime import date
+    from decimal import Decimal
+    from backend.services.billing_engine import BillingEngine
+    from backend.services import attendance_sync_service as attendance
+
+    monkeypatch.setattr(renewal_sync_service, "_related_contracts_for_month", lambda form: [object(), object()])
+    monkeypatch.setattr(attendance, "_effective_service_window_for_cycle", lambda *args: (date(2026, 10, 1), date(2026, 10, 31)))
+    monkeypatch.setattr(attendance, "_contract_start_day_to_exclude", lambda *args: None)
+    form = SimpleNamespace(
+        contract=SimpleNamespace(type="nanny"),
+        cycle_start_date=date(2026, 10, 1),
+        cycle_end_date=date(2026, 10, 31),
+        form_data={
+            "overtime_records": [{
+                "date": "2026-10-24", "type": "overtime", "hours": 192,
+                "startTime": "00:00", "endTime": "24:00", "daysOffset": 7,
+            }],
+        },
+    )
+    engine = BillingEngine()
+
+    old_base = engine._renewal_base_days_in_cycle(form, date(2026, 10, 1), date(2026, 10, 7))
+    renewed_base = engine._renewal_base_days_in_cycle(form, date(2026, 10, 8), date(2026, 10, 31))
+    old_overtime = sum(attendance._split_overtime_days_by_holiday(form.form_data, date(2026, 10, 1), date(2026, 10, 7)))
+    renewed_overtime = sum(attendance._split_overtime_days_by_holiday(form.form_data, date(2026, 10, 8), date(2026, 10, 31)))
+
+    assert old_base == Decimal(7)
+    assert renewed_base == Decimal(19)
+    assert old_base + renewed_base == Decimal(26)
+    assert old_overtime == Decimal(0)
+    assert renewed_overtime == Decimal(8)
+
+
 def test_cross_day_leave_preserves_daily_capacity():
     from datetime import date
     from decimal import Decimal

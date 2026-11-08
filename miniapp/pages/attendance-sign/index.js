@@ -9,7 +9,8 @@ const {
   findCoveringRecord,
   findOriginalRecord,
   formatDate: formatAttendanceDate,
-  formatMonthDay
+  formatMonthDay,
+  getOffboardingReferenceError
 } = require('../../utils/attendance');
 
 function monthTitle(form) {
@@ -360,6 +361,15 @@ Page({
     }
     if (this.data.blockedByEmployeeRole) {
       wx.showToast({ title: '员工不能代客户签署', icon: 'none' });
+      return;
+    }
+    const referenceError = getOffboardingReferenceError(this.data.form, this.data.attendanceData);
+    if (referenceError) {
+      wx.showModal({
+        title: '请员工补填上户时间',
+        content: '缺少实际上户时间，暂时无法计算下户出勤，请联系员工补填后重新提交。',
+        showCancel: false
+      });
       return;
     }
     if (!this.data.hasSignature) {

@@ -644,7 +644,7 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
     onboarding_days = _onboarding_days_to_exclude(data, cycle_start, cycle_end, form.contract)
     onboarding_time = _onboarding_time_from_data(data)
     if not onboarding_time:
-        onboarding_info = get_onboarding_time_for_contract(form.employee_id, form.contract_id)
+        onboarding_info = get_onboarding_time_for_contract(form.employee_id, form.contract_id, form.cycle_start_date)
         if onboarding_info.get("has_onboarding"):
             onboarding_time = onboarding_info.get("onboarding_time")
     offboarding_adjustment = _offboarding_adjustment_days(data, onboarding_time)
@@ -700,20 +700,20 @@ def normalize_auto_overtime_form_data(form, allow_create_missing_auto=False):
     data["overtime_records"] = normalized_overtime
     return data, data != (form.form_data or {})
 
-def get_onboarding_time_for_contract(employee_id, contract_id):
-    """
-    获取合同的上户时间信息
-    查找所有该合同的考勤表，找到上户记录
-    
-    返回: {
-        'has_onboarding': True/False,
-        'onboarding_date': '2024-12-29',
-        'onboarding_time': '09:00',
+def get_onboarding_time_for_contract(employee_id, contract_id, current_cycle_start=None):
+    """查找真实填写的上户时刻；缺失时只返回可用于补录的日期和合同。"""
+    missing_info = {
+        'has_onboarding': False,
+        'onboarding_date': None,
+        'onboarding_time': None,
+        'contract_id': None,
+        'form_id': None,
+        'customer_signature_token': None,
     }
-    """
     try:
         contract = BaseContract.query.get(contract_id)
         contract_ids = [contract_id]
+        related_contracts = [contract] if contract else []
         if contract:
             query = BaseContract.query.filter(
                 BaseContract.service_personnel_id == employee_id,
@@ -728,62 +728,76 @@ def get_onboarding_time_for_contract(employee_id, contract_id):
             else:
                 query = query.filter(BaseContract.id == contract_id)
             related_contracts = query.all()
+            if not any(str(item.id) == str(contract.id) for item in related_contracts):
+                related_contracts.append(contract)
             contract_ids = [c.id for c in related_contracts] or [contract_id]
 
-        # 查找当前合同及同客户/家庭历史合同的考勤表，按时间正序（找最早的上户记录）
-        forms = AttendanceForm.query.filter(
+        cycle_start = _parse_date(current_cycle_start) if current_cycle_start else None
+        cycle_end = (
+            date(cycle_start.year, cycle_start.month, calendar.monthrange(cycle_start.year, cycle_start.month)[1])
+            if cycle_start else None
+        )
+        known_starts = [
+            (item, _contract_actual_start(item)) for item in related_contracts
+            if _contract_actual_start(item)
+            and (not cycle_end or _contract_actual_start(item) <= cycle_end)
+        ]
+        if known_starts:
+            first_contract, first_start = min(known_starts, key=lambda item: item[1])
+            missing_info.update(
+                onboarding_date=first_start.isoformat(),
+                contract_id=str(first_contract.id),
+            )
+
+        # 展示与同步共用同一来源，不能借用未来月份的上户记录。
+        forms_query = AttendanceForm.query.filter(
             AttendanceForm.employee_id == employee_id,
             AttendanceForm.contract_id.in_(contract_ids)
-        ).order_by(AttendanceForm.cycle_start_date.asc()).all()
-        
-        current_app.logger.info(f"[GET_ONBOARDING] 查找合同 {contract_id} 的考勤表，找到 {len(forms)} 条记录")
-        
+        )
+        if cycle_start:
+            forms_query = forms_query.filter(AttendanceForm.cycle_start_date <= cycle_start)
+        forms = forms_query.order_by(AttendanceForm.cycle_start_date.asc()).all()
+
         for form in forms:
-            if not form.form_data:
-                current_app.logger.info(f"[GET_ONBOARDING] 考勤表 {form.id} 没有 form_data")
-                continue
-            
-            onboarding_records = form.form_data.get('onboarding_records', [])
-            current_app.logger.info(f"[GET_ONBOARDING] 考勤表 {form.id} ({form.cycle_start_date}) 有 {len(onboarding_records)} 条上户记录")
-            
-            if onboarding_records:
-                # 取第一条上户记录
-                record = onboarding_records[0]
+            onboarding_records = (form.form_data or {}).get('onboarding_records') or []
+            # 自动生成的空占位记录不能遮住后面已填写的记录。
+            for record in sorted(onboarding_records, key=lambda item: item.get('date') or ''):
                 onboarding_date = record.get('date')
-                onboarding_time = record.get('startTime')  # 上户时间存储在 startTime 中
-                
-                current_app.logger.info(f"[GET_ONBOARDING] 找到上户记录: 日期={onboarding_date}, 时间={onboarding_time}")
-                
-                if onboarding_date and onboarding_time:
+                onboarding_time = record.get('startTime')
+                if onboarding_date and is_valid_attendance_time(onboarding_time, allow_empty=False):
+                    try:
+                        record_date = _parse_date(onboarding_date)
+                    except (TypeError, ValueError):
+                        continue
+                    if cycle_end and record_date > cycle_end:
+                        continue
                     return {
                         'has_onboarding': True,
-                        'onboarding_date': onboarding_date,
-                        'onboarding_time': onboarding_time,
+                        'onboarding_date': record_date.isoformat(),
+                        'onboarding_time': str(onboarding_time).strip(),
                         'contract_id': str(form.contract_id),
                         'form_id': str(form.id),
                         'customer_signature_token': form.customer_signature_token
                     }
-        
-        current_app.logger.warning(f"[GET_ONBOARDING] 未找到合同 {contract_id} 的上户记录")
-        return {
-            'has_onboarding': False,
-            'onboarding_date': None,
-            'onboarding_time': None,
-            'contract_id': None,
-            'form_id': None,
-            'customer_signature_token': None
-        }
-        
+        return missing_info
     except Exception as e:
         current_app.logger.error(f"获取上户时间信息失败: {e}", exc_info=True)
-        return {
-            'has_onboarding': False,
-            'onboarding_date': None,
-            'onboarding_time': None,
-            'contract_id': None,
-            'form_id': None,
-            'customer_signature_token': None
-        }
+        return missing_info
+
+
+def validate_offboarding_onboarding_reference(form):
+    """育儿嫂下户结算必须有真实上户时刻；草稿仍可先保存。"""
+    contract = getattr(form, 'contract', None)
+    if getattr(contract, 'type', None) in ('maternity_nurse', '月嫂合同', '月嫂正式合同'):
+        return []
+    data = form.form_data or {}
+    if not any(record.get('endTime') for record in data.get('offboarding_records') or []):
+        return []
+    info = get_onboarding_time_for_contract(form.employee_id, form.contract_id, form.cycle_start_date)
+    if info.get('has_onboarding'):
+        return []
+    date_label = f"（{info['onboarding_date']}）" if info.get('onboarding_date') else ''
+    return [f"历史上户时间{date_label}未填写，请先补填上户时间后再确认下户考勤"]
 
 
 def calculate_offboarding_work_days(onboarding_time, offboarding_date, offboarding_time):
@@ -802,33 +816,12 @@ def calculate_offboarding_work_days(onboarding_time, offboarding_date, offboardi
     
     返回: Decimal 类型的额外天数（保留3位小数）
     """
-    try:
-        # 解析上户时间
-        onboarding_hour, onboarding_minute = map(int, onboarding_time.split(':'))
-        onboarding_hours = onboarding_hour + onboarding_minute / 60
-        
-        # 解析下户时间
-        offboarding_hour, offboarding_minute = map(int, offboarding_time.split(':'))
-        offboarding_hours = offboarding_hour + offboarding_minute / 60
-        
-        # 上户日不计入首月基础出勤，剩余小时在下户月与下户当天合并计算。
-        onboarding_day_work = max(0, 24 - onboarding_hours)
-        
-        # 下户日实际出勤（00:00到下户时间）
-        offboarding_day_work = offboarding_hours
-        
-        # 合计额外天数
-        total_extra_hours = onboarding_day_work + offboarding_day_work
-        total_extra_days = Decimal(str(total_extra_hours)) / Decimal('24')
-        
-        # 保留3位小数
-        total_extra_days = total_extra_days.quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
-        
-        return total_extra_days
-        
-    except Exception as e:
-        current_app.logger.error(f"计算上户/下户额外天数失败: {e}", exc_info=True)
-        return Decimal('1')  # 出错时默认算1天
+    onboarding_minutes = _time_to_minutes(onboarding_time)
+    offboarding_minutes = _time_to_minutes(offboarding_time)
+    if onboarding_minutes is None or offboarding_minutes is None:
+        raise ValueError('上户或下户时间未填写，无法计算下户合并出勤')
+    combined_minutes = Decimal(24 * 60 - onboarding_minutes + offboarding_minutes)
+    return (combined_minutes / Decimal(24 * 60)).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
 
 def sync_attendance_to_record(attendance_form_id):
     """
@@ -841,6 +834,10 @@ def sync_attendance_to_record(attendance_form_id):
     if not form:
         current_app.logger.error(f"[ATTENDANCE_SYNC] AttendanceForm {attendance_form_id} not found")
         raise ValueError(f"AttendanceForm {attendance_form_id} not found")
+
+    reference_errors = validate_offboarding_onboarding_reference(form)
+    if reference_errors:
+        raise ValueError('；'.join(reference_errors))
         
     data, normalized = normalize_auto_overtime_form_data(form, allow_create_missing_auto=True)
     if normalized:
@@ -865,8 +862,7 @@ def sync_attendance_to_record(attendance_form_id):
     
     # 【统一逻辑】始终使用 get_onboarding_time_for_contract 查找合同的第一条上户记录
     # 不管是上户月还是下户月，都显示合同的上户时间信息
-    onboarding_info = get_onboarding_time_for_contract(form.employee_id, form.contract_id)
-    current_app.logger.info(f"[ATTENDANCE_SYNC] 查找上户时间 - 员工:{form.employee_id}, 合同:{form.contract_id}, 结果:{onboarding_info}")
+    onboarding_info = get_onboarding_time_for_contract(form.employee_id, form.contract_id, form.cycle_start_date)
     
     if onboarding_info['has_onboarding']:
         onboarding_time_info = {
@@ -897,9 +893,10 @@ def sync_attendance_to_record(attendance_form_id):
             
             current_app.logger.info(f"[ATTENDANCE_SYNC] 下户月计算 - 上户时间:{onboarding_info['onboarding_time']}, 下户时间:{offboarding_time}, 合并出勤:{offboarding_day_work}天")
         else:
-            # 如果没有上户时间信息，下户日按1整天计算
-            offboarding_day_work = Decimal('1')
-            current_app.logger.warning(f"[ATTENDANCE_SYNC] 未找到上户时间信息，下户日按1整天计算")
+            if getattr(form.contract, 'type', None) in ('maternity_nurse', '月嫂合同', '月嫂正式合同'):
+                offboarding_day_work = Decimal('1')
+            else:
+                raise ValueError('上户或下户时间未填写，无法计算下户合并出勤')
     
     # 展示接口和工资单都按同一客户/家庭的合并服务窗口工作。同步层也必须使用
     # 同一窗口，否则同月续签时员工/客户看到的记录和 AttendanceRecord 会再次分叉。
@@ -946,7 +943,7 @@ def sync_attendance_to_record(attendance_form_id):
     current_app.logger.info(f"[ATTENDANCE_SYNC] 计算结果 - 休息:{rest_days}, 请假:{leave_days}, 带薪休假:{paid_leave_days}, 加班:{overtime_days}, 出京:{out_of_beijing_days}, 出境:{out_of_country_days}, 上户扣除:{onboarding_days}, 合并出勤:{offboarding_day_work}")
     
     # 出勤天数 = 基础劳务天数 - 休息天数 - 请假天数 - 上户日 + 末月小时合并调整
-    if offboarding_records and offboarding_day_work > 0:
+    if offboarding_records:
         # offboarding_day_work = (上户日 24:00-上户时间) + (下户日 00:00-下户时间)
         # 基础天数已包含下户日 1 天，因此先减 1 天再加回合并小时。
         total_days_worked = Decimal(base_work_days) - rest_days - leave_days - onboarding_days - Decimal('1') + offboarding_day_work

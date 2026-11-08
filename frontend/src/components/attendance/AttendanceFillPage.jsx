@@ -111,13 +111,30 @@ const getOnboardingReferenceForAttendance = (formData, attendanceData) => {
     }
 
     const onboardingRecord = attendanceData?.onboarding_records?.find(record => record.startTime);
-    if (!onboardingRecord) return null;
+    if (onboardingRecord) {
+        return {
+            date: onboardingRecord.date || null,
+            time: onboardingRecord.startTime,
+            contractId: onboardingRecord.source_contract_id || onboardingRecord.contract_id || null,
+            signatureToken: onboardingRecord.customer_signature_token || null
+        };
+    }
+
+    // 合同日期可以指向补录月份，但不能代替真实的上户时刻。
+    if (!info.onboarding_date) return null;
     return {
-        date: onboardingRecord.date || null,
-        time: onboardingRecord.startTime,
-        contractId: onboardingRecord.contract_id || null,
-        signatureToken: onboardingRecord.customer_signature_token || null
+        date: info.onboarding_date,
+        time: null,
+        contractId: info.contract_id || null,
+        signatureToken: info.customer_signature_token || null
     };
+};
+
+const hasIncompleteOffboardingCalculation = (attendanceData, formData) => {
+    if (formData?.is_maternity || formData?.attendance_cycle_type === 'maternity_26d'
+        || formData?.contract_info?.is_maternity) return false;
+    const onboardingTime = getOnboardingTimeForAttendance(formData, attendanceData);
+    return (attendanceData?.offboarding_records || []).some(record => !record.endTime || !onboardingTime);
 };
 
 const normalizeAttendanceTimeText = (time) => {
@@ -187,7 +204,10 @@ const getSpecialRecordDetailText = (record, formData, attendanceData) => {
         const ref = getOnboardingReferenceForAttendance(formData, attendanceData);
         const onboardingTime = normalizeAttendanceTimeText(ref?.time);
         const offboardingTime = normalizeAttendanceTimeText(record.endTime);
-        if (!onboardingTime || !offboardingTime) return '';
+        if (!onboardingTime || !offboardingTime) {
+            if (!hasIncompleteOffboardingCalculation(attendanceData, formData)) return '';
+            return onboardingTime ? '请填写下户时间后计算合并出勤。' : '上户时间未记录，请补填后计算下户合并出勤。';
+        }
         const refDateText = formatAttendanceMonthDay(ref?.date);
         const offboardingDateText = formatAttendanceMonthDay(record.date);
         const onboardingMinutes = timeToMinutesForDisplay(ref.time, 0);
@@ -217,7 +237,8 @@ const getOnboardingAttendanceLink = (record, formData, attendanceData) => {
         year: date.getFullYear(),
         month: date.getMonth() + 1,
         contractId: ref.contractId || null,
-        signatureToken: ref.signatureToken || null
+        signatureToken: ref.signatureToken || null,
+        needsOnboardingTime: !ref.time
     };
 };
 
@@ -481,8 +502,30 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
         updateUrlParams(year, month, contractId);
     }, [selectedContractId, updateUrlParams]);
 
-    const jumpToAttendanceMonth = useCallback((year, month, targetContractId = null, targetSignatureToken = null) => {
+    const saveBeforeAttendanceNavigation = async () => {
+        if (mode !== 'employee' || isHistoricalView || !formData?.id
+            || !['draft', 'employee_confirmed'].includes(formData.status)) return true;
+        clearTimeout(autoSaveTimeoutRef.current);
+        setAutoSaveStatus('saving');
+        try {
+            // 等待旧自动保存结束，再保存最新状态，避免返回下户月份时补录尚未落库。
+            if (autoSaveRequestRef.current) await autoSaveRequestRef.current.catch(() => {});
+            await api.put(`/attendance-forms/by-token/${realToken}`, {
+                form_id: formData.id,
+                form_data: attendanceData
+            });
+            setAutoSaveStatus('saved');
+            return true;
+        } catch (error) {
+            setAutoSaveStatus('error');
+            toast({ title: '保存失败', description: error.response?.data?.error || '请重试保存后再切换月份。', variant: 'destructive' });
+            return false;
+        }
+    };
+
+    const jumpToAttendanceMonth = async (year, month, targetContractId = null, targetSignatureToken = null) => {
         if (!year || !month) return;
+        if (!await saveBeforeAttendanceNavigation()) return;
         const nextContractId = targetContractId || selectedContractId || formData?.contract_id || urlParams.contractId || null;
         const returnYear = selectedYear || formData?.actual_year || formData?.year || urlParams.year;
         const returnMonth = selectedMonth || formData?.actual_month || formData?.month || urlParams.month;
@@ -529,7 +572,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
         }
         navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
         window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, [formData, isCustomerMode, location.pathname, location.search, navigate, realToken, selectedContractId, selectedMonth, selectedYear, urlParams.contractId, urlParams.month, urlParams.year]);
+    };
 
     const returnAttendanceLink = useMemo(() => {
         if (!urlParams.returnYear || !urlParams.returnMonth) return null;
@@ -554,8 +597,9 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
         return `${targetPath}?${searchParams.toString()}`;
     }, [location.pathname, location.search, realToken, urlParams.returnContractId, urlParams.returnMonth, urlParams.returnSignatureToken, urlParams.returnYear]);
 
-    const goBackToReturnAttendance = useCallback(() => {
+    const goBackToReturnAttendance = async () => {
         if (returnAttendanceLink) {
+            if (!await saveBeforeAttendanceNavigation()) return;
             if (isCustomerMode) {
                 navigate(returnAttendanceLink);
                 return;
@@ -572,7 +616,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
             navigate(`${location.pathname}${targetUrl.search}`, { replace: true });
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-    }, [isCustomerMode, location.pathname, navigate, returnAttendanceLink]);
+    };
 
     // Update selected year/month if token changes and has suffix
     useEffect(() => {
@@ -764,6 +808,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
     // Auto-save state
     const [autoSaveStatus, setAutoSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'error'
     const autoSaveTimeoutRef = useRef(null);
+    const autoSaveRequestRef = useRef(null);
 
     // Ref for time settings section (for auto-scroll)
     const timeSettingsRef = useRef(null);
@@ -839,15 +884,21 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
 
         // Debounce auto-save by 500ms
         autoSaveTimeoutRef.current = setTimeout(async () => {
-            try {
-                await api.put(`/attendance-forms/by-token/${realToken}`, {
+            const saveRequest = Promise.resolve(autoSaveRequestRef.current)
+                .catch(() => {})
+                .then(() => api.put(`/attendance-forms/by-token/${realToken}`, {
                     form_id: formData?.id,  // 传递 form_id 确保更新正确的月份
                     form_data: attendanceData
-                });
+                }));
+            autoSaveRequestRef.current = saveRequest;
+            try {
+                await saveRequest;
                 setAutoSaveStatus('saved');
             } catch (error) {
                 console.error('Auto-save failed:', error);
                 setAutoSaveStatus('error');
+            } finally {
+                if (autoSaveRequestRef.current === saveRequest) autoSaveRequestRef.current = null;
             }
         }, 500);
 
@@ -1687,7 +1738,21 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
         }
     };
 
+    const requireCompleteOffboarding = () => {
+        if (!hasIncompleteOffboardingCalculation(attendanceData, formData)) return true;
+        const hasOnboardingTime = Boolean(getOnboardingTimeForAttendance(formData, attendanceData));
+        toast({
+            title: hasOnboardingTime ? '请填写下户时间' : '请补填上户时间',
+            description: hasOnboardingTime
+                ? '填写具体下户时间后才能计算合并出勤。'
+                : (isCustomerMode ? '请员工补填原上户月份的实际到达时间，再确认下户考勤。' : '请通过考勤详情中的补填入口，记录原上户月份的实际到达时间。草稿可以继续保存。'),
+            variant: 'destructive'
+        });
+        return false;
+    };
+
     const handleSubmit = async () => {
+        if (!requireCompleteOffboarding()) return;
         if (!window.confirm("确认提交考勤表吗？\n\n提交后将生成客户签署链接。\n在客户签署前，您仍可以修改考勤数据，修改将自动同步。")) return;
         try {
             setSubmitting(true);
@@ -1763,6 +1828,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
     };
 
     const handleSignature = async () => {
+        if (!requireCompleteOffboarding()) return;
         if (sigCanvasRef.current.isEmpty()) {
             toast({
                 title: "请签名",
@@ -2066,6 +2132,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
 
     const totalOnboardingDays = calculateOnboardingDaysToExclude(attendanceData, formData);
     const offboardingAdjustment = calculateOffboardingAdjustment(attendanceData, formData);
+    const incompleteOffboarding = hasIncompleteOffboardingCalculation(attendanceData, formData);
 
     // Work days (基本劳务天数) = valid days - onboarding days + offboarding adjustment - leave days
     // 【关键修复】法定节假日算出勤（带薪假期），休息和请假不算出勤
@@ -2216,9 +2283,9 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                     <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] border border-gray-100">
                         <div className="grid grid-cols-4 gap-3 text-center divide-x divide-gray-100">
                             <div>
-                                <div className="text-2xl font-black text-gray-900">{formatDays(totalWorkDays)}</div>
+                                <div className="text-2xl font-black text-gray-900">{incompleteOffboarding ? '待补填' : formatDays(totalWorkDays)}</div>
                                 <div className="min-h-4 text-[11px] font-semibold text-gray-500 mt-0.5">
-                                    {formatDaysHours(totalWorkDays)}
+                                    {incompleteOffboarding ? '上户/下户时间未完整' : formatDaysHours(totalWorkDays)}
                                 </div>
                                 <div className="text-[11px] font-medium text-gray-400 mt-1">出勤(天)</div>
                             </div>
@@ -2482,15 +2549,17 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                     ? `${format(startDate, 'M月d日')} ~ ${format(endDate, 'M月d日')}`
                                     : format(startDate, 'M月d日');
                                 let timeRangeStr = dateRangeStr;
-                                const detailHours = isOnboardingOrOffboarding
+                                const pendingOffboarding = record.type === 'offboarding' && !isMaternityCycle
+                                    && (!record.endTime || !getOnboardingTimeForAttendance(formData, attendanceData));
+                                const detailHours = pendingOffboarding ? null : isOnboardingOrOffboarding
                                     ? (
                                         record.type === 'offboarding'
                                             ? Math.max(0, (calculateOffboardingAdjustment(attendanceData, formData) + 1) * 24)
                                             : Math.max(0, 24 - timeToMinutesForDisplay(record.startTime, 24 * 60) / 60)
                                     )
                                     : ((record.hours || 0) + (record.minutes || 0) / 60);
-                                const durationText = formatDuration(detailHours, 0);
-                                const durationHoursText = formatHoursText(detailHours);
+                                const durationText = pendingOffboarding ? '待补填' : formatDuration(detailHours, 0);
+                                const durationHoursText = pendingOffboarding ? '' : formatHoursText(detailHours);
                                 const detailNote = getSpecialRecordDetailText(record, formData, attendanceData);
                                 const onboardingAttendanceLink = getOnboardingAttendanceLink(record, formData, attendanceData);
                                 const showReturnAttendanceAction = record.type === 'onboarding' && Boolean(returnAttendanceLink);
@@ -2567,7 +2636,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                                             {detailNote}
                                                         </span>
                                                     )}
-                                                    {onboardingAttendanceLink && (
+                                                    {onboardingAttendanceLink && !(isCustomerMode && onboardingAttendanceLink.needsOnboardingTime) && (
                                                         <button
                                                             type="button"
                                                             onClick={(event) => {
@@ -2581,8 +2650,11 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                                             }}
                                                             className="mt-1.5 inline-flex items-center rounded-md border border-cyan-200 bg-cyan-50 px-2 py-1 text-[10px] font-semibold text-cyan-700 hover:bg-cyan-100"
                                                         >
-                                                            查看上户考勤
+                                                            {onboardingAttendanceLink.needsOnboardingTime ? '补填上户时间' : '查看上户考勤'}
                                                         </button>
+                                                    )}
+                                                    {isCustomerMode && onboardingAttendanceLink?.needsOnboardingTime && (
+                                                        <span className="text-[10px] text-amber-700 block mt-1">请员工补填上户时间</span>
                                                     )}
                                                     {showReturnAttendanceAction && (
                                                         <button
@@ -2658,7 +2730,9 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                             请确认考勤信息无误后签署
                                         </div>
                                         <button
-                                            onClick={() => setIsSignatureModalOpen(true)}
+                                            onClick={() => {
+                                                if (requireCompleteOffboarding()) setIsSignatureModalOpen(true);
+                                            }}
                                             className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg"
                                         >
                                             <Send className="w-5 h-5" />
@@ -2712,6 +2786,7 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                         {!isAdminView && (formData.status === 'draft' || formData.status === 'employee_confirmed') && (
                                             <button
                                                 onClick={async () => {
+                                                    if (!requireCompleteOffboarding()) return;
                                                     // 检查是否需要自动转换加班
                                                     const { data: processedData, converted, overtimeDays } = autoConvertOvertimeIfNeeded(attendanceData);
 
@@ -2978,25 +3053,34 @@ const AttendanceFillPageContent = ({ mode = 'employee' }) => {
                                                 </div>
                                                 {/* 下户时显示上户时间参考（如果有） */}
                                                 {tempRecord.type === 'offboarding' && (() => {
-                                                    // 优先使用后端返回的上户时间信息（可跨月查找）
-                                                    const onboardingInfo = formData?.onboarding_time_info;
-                                                    if (onboardingInfo?.has_onboarding && onboardingInfo.onboarding_time) {
+                                                    const ref = getOnboardingReferenceForAttendance(formData, attendanceData);
+                                                    if (ref?.time) {
                                                         return (
                                                             <div className="text-xs text-amber-700 mt-1">
-                                                                📌 上户时间：{onboardingInfo.onboarding_date} {onboardingInfo.onboarding_time}
+                                                                📌 上户时间：{ref.date} {ref.time}
                                                             </div>
                                                         );
                                                     }
-                                                    // 兼容：如果后端没有返回，尝试从当前月份的考勤数据中获取
-                                                    const onboardingRecord = attendanceData.onboarding_records?.[0];
-                                                    if (onboardingRecord?.startTime) {
-                                                        return (
-                                                            <div className="text-xs text-amber-700 mt-1">
-                                                                📌 上户时间：{onboardingRecord.date} {onboardingRecord.startTime}
-                                                            </div>
-                                                        );
-                                                    }
-                                                    return null;
+                                                    if (isMaternityCycle) return null;
+                                                    return (
+                                                        <div className="text-xs text-amber-700 mt-1">
+                                                            尚未记录上户时间，补填后才能计算下户合并出勤。
+                                                            {!isCustomerMode && ref?.date && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="block mt-1 underline font-semibold"
+                                                                    onClick={() => {
+                                                                        const date = parseDateOnlyForAttendance(ref.date);
+                                                                        if (!date) return;
+                                                                        setIsModalOpen(false);
+                                                                        jumpToAttendanceMonth(date.getFullYear(), date.getMonth() + 1, ref.contractId);
+                                                                    }}
+                                                                >
+                                                                    补填上户时间
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    );
                                                 })()}
                                             </div>
                                             <div className="bg-white rounded-lg border border-gray-200 p-3"

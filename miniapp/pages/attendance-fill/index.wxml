@@ -197,7 +197,7 @@
             data-contract-id="{{item.onboardingAttendanceLink.contractId}}"
             data-signature-token="{{item.onboardingAttendanceLink.signatureToken}}"
             catchtap="goOnboardingAttendance"
-          >查看上户考勤</view>
+          >{{item.onboardingAttendanceLink.text}}</view>
           <view
             wx:if="{{showReturnAttendance && item.showReturnAttendanceAction}}"
             class="detail-link"

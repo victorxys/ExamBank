@@ -11,6 +11,7 @@ const {
   removeAutoOvertime,
   getHolidayLabel,
   getOnboardingReference,
+  getOffboardingReferenceError,
   defaultRecordForType,
   recordToSave,
   upsertRecord,
@@ -883,6 +884,7 @@ Page({
   },
 
   goOnboardingAttendance(event) {
+    if (!this.canNavigateAttendance()) return;
     const { year, month, contractId, contractid } = event.currentTarget.dataset;
     const targetYear = Number(year);
     const targetMonth = Number(month);
@@ -898,6 +900,7 @@ Page({
       : null;
     if (targetContractId) {
       this.setData({
+        selectedContractId: targetContractId,
         form: {
           ...this.data.form,
           contract_id: targetContractId
@@ -912,11 +915,13 @@ Page({
   },
 
   goReturnAttendance() {
+    if (!this.canNavigateAttendance()) return;
     const target = this.data.returnAttendance;
     if (!target || !target.year || !target.month) return;
     const targetContractId = target.contractId || '';
     if (targetContractId) {
       this.setData({
+        selectedContractId: targetContractId,
         form: {
           ...this.data.form,
           contract_id: targetContractId
@@ -928,6 +933,13 @@ Page({
       showReturnAttendance: false
     });
     this.loadForm(target.year, target.month);
+  },
+
+  canNavigateAttendance() {
+    if (this.data.readOnly || this.data.autoSaveStatus === 'saved') return true;
+    if (this.data.autoSaveStatus === 'error') this.saveDraft(true);
+    wx.showToast({ title: '考勤保存中，请稍后再切换', icon: 'none' });
+    return false;
   },
 
   buildModalState(record, editingDate, modalReadOnly = false, coveringRecord = null, holidays = this.data.holidays || {}) {
@@ -1236,6 +1248,11 @@ Page({
 
   async submitConfirm() {
     if (this.data.readOnly) return;
+    const referenceError = getOffboardingReferenceError(this.data.form, this.data.attendanceData);
+    if (referenceError) {
+      wx.showModal({ title: '请补填上户时间', content: referenceError, showCancel: false });
+      return;
+    }
     const monthDays = (this.data.monthDays || []).map((item) => new Date(item));
     const hasProjectedAutoOvertime = (this.data.attendanceData.overtime_records || [])
       .some((record) => record._auto_overtime_projection);
@@ -1269,7 +1286,9 @@ Page({
           const message = error.message || '提交失败';
           wx.showToast({ title: message, icon: 'none' });
           const contractInfo = this.data.form.contract_info || {};
-          if (message.indexOf('上户') >= 0 && contractInfo.start_date) {
+          if (message.indexOf('上户') >= 0 && getOffboardingReferenceError(this.data.form, processedData)) {
+            wx.showModal({ title: '请补填上户时间', content: message, showCancel: false });
+          } else if (message.indexOf('上户') >= 0 && contractInfo.start_date) {
             setTimeout(() => this.openEdit({ currentTarget: { dataset: { date: contractInfo.start_date, type: 'onboarding' } } }), 500);
           } else if (message.indexOf('下户') >= 0) {
             const endDate = getContractEndDate(contractInfo);
